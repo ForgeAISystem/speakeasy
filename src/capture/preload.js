@@ -6,8 +6,9 @@ contextBridge.exposeInMainWorld('captureBridge', {
   onStop: (cb) => ipcRenderer.on('capture:stop', () => cb()),
   onListMics: (cb) => ipcRenderer.on('capture:list-mics', (_e, reqId) => cb(reqId)),
   onGenIcons: (cb) => ipcRenderer.on('capture:gen-icons', () => cb()),
-  sendChunk: (pcm, rms) => ipcRenderer.send('capture:chunk', pcm, rms),
-  sendStopped: () => ipcRenderer.send('capture:stopped'),
+  sendChunk: (session, pcm, rms) => ipcRenderer.send('capture:chunk', session, pcm, rms),
+  sendArmed: (session) => ipcRenderer.send('capture:armed', session),
+  sendStopped: (session) => ipcRenderer.send('capture:stopped', session),
   sendError: (message) => ipcRenderer.send('capture:error', message),
   sendMics: (reqId, mics) => ipcRenderer.send('capture:mics', reqId, mics),
   sendIcons: (icons) => ipcRenderer.send('capture:icons', icons)

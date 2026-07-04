@@ -8,6 +8,14 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// \b only works against \w edges; terms like "C++" or ".NET" need conditional
+// boundaries or they never match.
+function wordPattern(term) {
+  const prefix = /^\w/.test(term) ? '\\b' : '(?<=^|\\s)';
+  const suffix = /\w$/.test(term) ? '\\b' : '(?=$|\\s|[.,!?;:])';
+  return `${prefix}${escapeRegex(term)}${suffix}`;
+}
+
 function removeFillers(text) {
   let out = text.replace(FILLERS, '');
   out = out.replace(/\s{2,}/g, ' ');
@@ -22,13 +30,14 @@ function applyDictionary(text) {
   let out = text;
   for (const entry of dictionary().data) {
     if (!entry.word) continue;
+    // Function replacement: entry.word may contain $ metacharacters
     if (entry.misspelling) {
-      const re = new RegExp(`\\b${escapeRegex(entry.misspelling)}\\b`, 'gi');
-      out = out.replace(re, entry.word);
+      const re = new RegExp(wordPattern(entry.misspelling), 'gi');
+      out = out.replace(re, () => entry.word);
     } else {
       // Plain vocabulary entry: enforce the saved casing when the word appears
-      const re = new RegExp(`\\b${escapeRegex(entry.word)}\\b`, 'gi');
-      out = out.replace(re, entry.word);
+      const re = new RegExp(wordPattern(entry.word), 'gi');
+      out = out.replace(re, () => entry.word);
     }
   }
   return out;
@@ -42,8 +51,8 @@ function applySnippets(text) {
     const whole = new RegExp(`^\\s*${escapeRegex(s.trigger)}\\s*[.!?]?\\s*$`, 'i');
     if (whole.test(out)) return s.expansion;
     // Trigger inside a longer sentence: whole-word match
-    const inline = new RegExp(`\\b${escapeRegex(s.trigger)}\\b`, 'gi');
-    out = out.replace(inline, s.expansion);
+    const inline = new RegExp(wordPattern(s.trigger), 'gi');
+    out = out.replace(inline, () => s.expansion);
   }
   return out;
 }

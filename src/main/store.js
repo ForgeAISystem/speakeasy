@@ -15,8 +15,19 @@ class JsonStore {
   _load() {
     try {
       const raw = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      return Array.isArray(this.defaults) ? raw : { ...this.defaults, ...raw };
-    } catch {
+      if (Array.isArray(this.defaults)) {
+        return Array.isArray(raw) ? raw : [...this.defaults];
+      }
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        return { ...this.defaults, ...raw };
+      }
+      return { ...this.defaults };
+    } catch (e) {
+      // Keep a copy of a corrupt file instead of silently overwriting it
+      if (e.code !== 'ENOENT' && fs.existsSync(this.file)) {
+        try { fs.copyFileSync(this.file, this.file + '.corrupt'); } catch { /* best effort */ }
+        console.error(`[store] ${path.basename(this.file)} unreadable, backed up as .corrupt`);
+      }
       return Array.isArray(this.defaults) ? [...this.defaults] : { ...this.defaults };
     }
   }
@@ -93,9 +104,16 @@ function stats() {
   if (!statsStore) statsStore = new JsonStore('stats', STATS_DEFAULTS);
   return statsStore;
 }
+// Local-time day key. toISOString() is UTC and would credit evening
+// dictations to tomorrow, zeroing "Today" and breaking streaks.
+function dayKey(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 function recordTranscription(words, speechSeconds) {
   const s = stats();
-  const day = new Date().toISOString().slice(0, 10);
+  const day = dayKey(new Date());
   s.data.totalWords += words;
   s.data.totalTranscriptions += 1;
   s.data.totalSpeechSeconds += speechSeconds;
@@ -112,7 +130,6 @@ const TYPING_WPM = 40; // average keyboard typist, used for "time saved"
 function statsSummary() {
   const s = stats().data;
   const today = new Date();
-  const dayKey = (d) => d.toISOString().slice(0, 10);
   const todayStats = s.days[dayKey(today)] || { words: 0, transcriptions: 0, speechSeconds: 0 };
 
   let weekWords = 0, weekSeconds = 0, weekTranscriptions = 0;

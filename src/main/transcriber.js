@@ -25,8 +25,9 @@ class TranscriberManager {
     this.ready = false;
     this.loadedModelId = null;
     this.pending = new Map(); // id -> {resolve, reject}
-    this.loadWaiters = [];
+    this.loadWaiters = new Map(); // loadId -> {resolve, reject}
     this.nextId = 1;
+    this.loadSeq = 0; // latest load request; stale ready/error replies are ignored
     this.onStateChange = null; // cb(state: 'loading'|'ready'|'error', detail)
   }
 
@@ -51,18 +52,23 @@ class TranscriberManager {
       const err = new Error('transcription engine crashed');
       for (const { reject } of this.pending.values()) reject(err);
       this.pending.clear();
-      this.loadWaiters.forEach(({ reject }) => reject(err));
-      this.loadWaiters = [];
+      for (const { reject } of this.loadWaiters.values()) reject(err);
+      this.loadWaiters.clear();
       this._notify('error', 'engine crashed');
     });
   }
 
   _onMessage(msg) {
     if (msg.type === 'ready') {
-      this.ready = true;
-      this.loadWaiters.forEach(({ resolve }) => resolve());
-      this.loadWaiters = [];
-      this._notify('ready');
+      const waiter = this.loadWaiters.get(msg.loadId);
+      if (waiter) this.loadWaiters.delete(msg.loadId);
+      // Only the LATEST load request marks the engine ready; a stale ready
+      // from a superseded model switch must not (the wrong model would win).
+      if (msg.loadId === this.loadSeq) {
+        this.ready = true;
+        this._notify('ready');
+      }
+      if (waiter) waiter.resolve();
     } else if (msg.type === 'result') {
       const p = this.pending.get(msg.id);
       if (p) { this.pending.delete(msg.id); p.resolve({ text: msg.text, ms: msg.ms }); }
@@ -71,9 +77,11 @@ class TranscriberManager {
         const p = this.pending.get(msg.id);
         this.pending.delete(msg.id);
         p.reject(new Error(msg.message));
+      } else if (msg.loadId && this.loadWaiters.has(msg.loadId)) {
+        const waiter = this.loadWaiters.get(msg.loadId);
+        this.loadWaiters.delete(msg.loadId);
+        waiter.reject(new Error(msg.message));
       } else {
-        this.loadWaiters.forEach(({ reject }) => reject(new Error(msg.message)));
-        this.loadWaiters = [];
         this._notify('error', msg.message);
       }
     }
@@ -91,19 +99,35 @@ class TranscriberManager {
     if (!this.proc) this._spawn();
     this.ready = false;
     this.loadedModelId = modelId;
+    const loadId = ++this.loadSeq;
     this._notify('loading');
     return new Promise((resolve, reject) => {
-      this.loadWaiters.push({ resolve, reject });
-      this.proc.send({ type: 'load', dir, kind: m.kind, language: language || 'auto', numThreads: 4 });
+      this.loadWaiters.set(loadId, { resolve, reject });
+      this.proc.send({ type: 'load', loadId, dir, kind: m.kind, language: language || 'auto', numThreads: 4 });
     });
   }
 
-  /** Transcribe Float32Array PCM at 16 kHz. */
+  /**
+   * Transcribe Float32Array PCM at 16 kHz.
+   * Times out (scaled to audio length) so the UI can never hang on "Computing".
+   */
   transcribe(pcm, sampleRate = 16000) {
     if (!this.proc || !this.ready) return Promise.reject(new Error('engine not ready'));
     const id = this.nextId++;
+    const audioSeconds = pcm.length / sampleRate;
+    const timeoutMs = Math.max(30000, audioSeconds * 2000 + 30000);
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        if (this.pending.delete(id)) {
+          reject(new Error('transcription timed out'));
+          // A wedged worker will not recover: restart it
+          if (this.proc) { this.proc.kill(); }
+        }
+      }, timeoutMs);
+      this.pending.set(id, {
+        resolve: (v) => { clearTimeout(timer); resolve(v); },
+        reject: (e) => { clearTimeout(timer); reject(e); }
+      });
       this.proc.send({ type: 'transcribe', id, sampleRate, pcm });
     });
   }

@@ -222,6 +222,7 @@ function modelCardHtml(m) {
         <div class="m-name">${esc(m.label)}${active ? '<span class="badge">Active</span>' : ''}</div>
         <div class="m-desc">${esc(m.tagline)}</div>
         ${downloading ? `<div class="progress"><div class="fill" style="width:${dl === -1 ? 100 : Math.round(dl * 100)}%"></div></div>` : ''}
+        ${S.models.lastError && S.models.lastError.id === m.id ? `<div class="m-desc" style="color:var(--red);margin-top:6px">Download failed: ${esc(S.models.lastError.message)}. Check your connection and retry.</div>` : ''}
       </div>
       ${downloading
         ? `<span class="mono" style="color:var(--text-dim);font-size:12px">${dl === -1 ? 'Extracting' : Math.round(dl * 100) + '%'}</span>`
@@ -535,8 +536,13 @@ document.getElementById('content').addEventListener('click', async (e) => {
 
 api.onPush(async (msg) => {
   if (msg.type === 'download-progress') {
-    if (msg.error || msg.done) S = await api.getState();
-    else S.models.downloads[msg.id] = msg.progress;
+    if (msg.error || msg.done) {
+      const err = msg.error ? { id: msg.id, message: msg.error } : null;
+      S = await api.getState();
+      S.models.lastError = err;
+    } else {
+      S.models.downloads[msg.id] = msg.progress;
+    }
     if (document.getElementById('onboard').classList.contains('visible')) renderOnboard();
     else if (currentTab === 'settings') {
       // Update just the progress bar to avoid re-rendering inputs mid-typing

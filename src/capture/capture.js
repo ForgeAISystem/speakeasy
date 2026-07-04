@@ -6,6 +6,8 @@
 let audioCtx = null;
 let stream = null;
 let workletNode = null;
+let sessionId = 0; // set by main per recording; echoed on every event so
+                   // late chunks from a cancelled session are never mixed in
 
 const WORKLET_SOURCE = `
 class PcmCapture extends AudioWorkletProcessor {
@@ -36,8 +38,10 @@ registerProcessor('pcm-capture', PcmCapture);
 `;
 
 async function start(opts) {
+  const mySession = (opts && opts.session) || 0;
   try {
     if (stream) await stop();
+    sessionId = mySession;
     const constraints = {
       audio: {
         channelCount: 1,
@@ -69,27 +73,30 @@ async function start(opts) {
 
     const source = audioCtx.createMediaStreamSource(stream);
     workletNode = new AudioWorkletNode(audioCtx, 'pcm-capture');
+    const chunkSession = mySession;
     workletNode.port.onmessage = (e) => {
       const pcm = e.data;
       let sum = 0;
       for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i];
       const rms = Math.sqrt(sum / pcm.length);
-      window.captureBridge.sendChunk(pcm, rms);
+      window.captureBridge.sendChunk(chunkSession, pcm, rms);
     };
     source.connect(workletNode);
     // Do not connect to destination: capture only, no monitoring
+    window.captureBridge.sendArmed(mySession);
   } catch (e) {
     window.captureBridge.sendError(e.message || String(e));
   }
 }
 
 async function stop() {
+  const stoppedSession = sessionId;
   try {
     if (workletNode) { workletNode.port.onmessage = null; workletNode.disconnect(); workletNode = null; }
     if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
     if (audioCtx) { await audioCtx.close(); audioCtx = null; }
   } finally {
-    window.captureBridge.sendStopped();
+    window.captureBridge.sendStopped(stoppedSession);
   }
 }
 

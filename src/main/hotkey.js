@@ -43,6 +43,10 @@ class HotkeyManager {
   }
 
   setKey(name) {
+    // Swapping keys mid-recording would orphan the session (the old key's
+    // keyup would be ignored): cancel cleanly first.
+    if (this.active) this._cancel();
+    this.keyIsDown = false;
     this.keycode = KEYCODES[name] || KEYCODES.AltRight;
   }
 
@@ -133,6 +137,7 @@ class HotkeyManager {
   _cancel() {
     this.active = false;
     this.handsFree = false;
+    this.lastTapAt = 0;
     clearTimeout(this.tapTimer);
     this._safe(this.onCancel);
   }
@@ -141,6 +146,7 @@ class HotkeyManager {
   reset() {
     this.active = false;
     this.handsFree = false;
+    this.lastTapAt = 0;
     clearTimeout(this.tapTimer);
   }
 

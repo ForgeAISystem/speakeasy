@@ -32,23 +32,27 @@ function installedModels() {
   return Object.keys(MODELS).filter(isInstalled);
 }
 
-function download(url, dest, onProgress) {
+function download(url, dest, onProgress, expectedBytes, redirects = 0) {
+  if (redirects > 5) return Promise.reject(new Error('too many redirects'));
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: { 'User-Agent': 'speakeasy' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        return download(res.headers.location, dest, onProgress).then(resolve, reject);
+        return download(res.headers.location, dest, onProgress, expectedBytes, redirects + 1)
+          .then(resolve, reject);
       }
       if (res.statusCode !== 200) {
         res.resume();
         return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
       }
-      const total = parseInt(res.headers['content-length'] || '0', 10);
+      // Fall back to the catalog size estimate when content-length is missing,
+      // so the progress bar still moves instead of sitting at 0%.
+      const total = parseInt(res.headers['content-length'] || '0', 10) || expectedBytes || 0;
       let received = 0;
       const out = fs.createWriteStream(dest);
       res.on('data', (chunk) => {
         received += chunk.length;
-        if (onProgress && total) onProgress(received / total);
+        if (onProgress && total) onProgress(Math.min(0.99, received / total));
       });
       res.pipe(out);
       out.on('finish', () => out.close(() => resolve()));
@@ -85,21 +89,44 @@ async function downloadModel(id, onProgress) {
 
   const root = modelsRoot();
   const tarball = path.join(root, `${m.dir}.tar.bz2`);
+  // Extract into a temp dir and rename on success: a failed extraction must
+  // not leave a half-populated model dir that passes isInstalled().
+  const tmpDir = path.join(root, `.tmp-${m.dir}`);
   activeDownloads.set(id, 0);
   try {
-    await download(m.url, tarball, (f) => {
-      activeDownloads.set(id, f);
-      onProgress && onProgress(id, f);
-    });
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await download(m.url, tarball, (f) => {
+          activeDownloads.set(id, f);
+          onProgress && onProgress(id, f);
+        }, m.sizeMB * 1024 * 1024);
+        lastError = null;
+        break;
+      } catch (e) {
+        lastError = e;
+        fs.rmSync(tarball, { force: true });
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * attempt));
+      }
+    }
+    if (lastError) throw lastError;
     activeDownloads.set(id, -1);
     onProgress && onProgress(id, -1);
-    await extractTarBz2(tarball, root);
-    if (!isInstalled(id)) throw new Error('extraction finished but no .onnx files found');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.mkdirSync(tmpDir, { recursive: true });
+    await extractTarBz2(tarball, tmpDir);
+    const extracted = path.join(tmpDir, m.dir);
+    if (!fs.existsSync(extracted) || !fs.readdirSync(extracted).some((f) => f.endsWith('.onnx'))) {
+      throw new Error('extraction finished but no .onnx files found');
+    }
+    fs.rmSync(modelDir(id), { recursive: true, force: true });
+    fs.renameSync(extracted, modelDir(id));
     onProgress && onProgress(id, 1);
     return modelDir(id);
   } finally {
     activeDownloads.delete(id);
     fs.rmSync(tarball, { force: true });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 

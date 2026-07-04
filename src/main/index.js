@@ -3,7 +3,7 @@
 const path = require('path');
 const {
   app, BrowserWindow, ipcMain, screen, globalShortcut,
-  systemPreferences, clipboard, shell
+  systemPreferences, clipboard, shell, powerMonitor
 } = require('electron');
 
 const { MODELS, HOLD_KEYS, MIN_RECORDING_SECONDS, SAMPLE_RATE } = require('../shared/constants');
@@ -32,8 +32,17 @@ let frontAppPromise = null;
 let overlayHideTimer = null;
 let stopWaiter = null; // resolves when capture:stopped arrives
 let engineState = 'off'; // off | loading | ready | error
+let engineCrashCount = 0;
+let maxDurationTimer = null;
+let captureSession = 0; // increments per recording; stale capture events are dropped
+
+const MAX_RECORDING_SECONDS = 15 * 60; // hard cap, like Wispr's 20-min limit
 
 const isMac = process.platform === 'darwin';
+
+process.on('uncaughtException', (e) => {
+  console.error('[main] uncaught exception:', e);
+});
 
 // ---------------------------------------------------------------- windows
 
@@ -50,6 +59,11 @@ function createCaptureWindow() {
   captureWindow.loadFile(path.join(__dirname, '..', 'capture', 'capture.html'));
   captureWindow.webContents.on('did-finish-load', () => {
     captureWindow.webContents.send('capture:gen-icons');
+  });
+  captureWindow.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[capture] renderer gone:', details.reason);
+    if (dictState === 'recording') onDictateCancel();
+    setTimeout(() => { try { captureWindow.destroy(); } catch { /* gone */ } createCaptureWindow(); }, 500);
   });
 }
 
@@ -75,6 +89,10 @@ function createOverlayWindow() {
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   overlayWindow.loadFile(path.join(__dirname, '..', 'overlay', 'overlay.html'));
+  overlayWindow.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[overlay] renderer gone:', details.reason);
+    setTimeout(() => { try { overlayWindow.destroy(); } catch { /* gone */ } createOverlayWindow(); }, 500);
+  });
 }
 
 function positionOverlay() {
@@ -121,7 +139,7 @@ function push(type, payload) {
 }
 
 function overlayState(state, extra = {}) {
-  if (!overlayWindow) return;
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
   clearTimeout(overlayHideTimer);
   if (state !== 'hidden') {
     positionOverlay();
@@ -134,8 +152,11 @@ function overlayState(state, extra = {}) {
   });
   if (['done', 'cancelled', 'error'].includes(state)) {
     overlayHideTimer = setTimeout(() => {
+      if (!overlayWindow || overlayWindow.isDestroyed()) return;
       overlayWindow.webContents.send('overlay:state', { state: 'hidden' });
-      setTimeout(() => overlayWindow && overlayWindow.hide(), 250);
+      setTimeout(() => {
+        if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide();
+      }, 250);
     }, 1300);
   }
   if (state === 'hidden') overlayWindow.hide();
@@ -169,17 +190,29 @@ async function ensureEngine() {
 }
 
 transcriber.onStateChange = (state, detail) => {
+  if (state === 'ready') engineCrashCount = 0;
   if (state === 'error' && engineState !== 'loading') {
-    // Crashed at runtime: try to recover automatically
+    // Crashed at runtime: recover with backoff, give up after repeated crashes
     engineState = 'error';
     push('engine', { state: 'error', message: detail });
-    setTimeout(ensureEngine, 1000);
+    engineCrashCount += 1;
+    if (engineCrashCount <= 3) {
+      setTimeout(ensureEngine, 1000 * engineCrashCount);
+    } else {
+      console.error('[engine] giving up after repeated crashes');
+      tray && tray.setState('idle', 'Engine failed. Switch models in Settings.');
+    }
   }
 };
 
 // ---------------------------------------------------------------- dictation
 
 function onDictateStart() {
+  if (dictState === 'processing') {
+    hotkeys.reset();
+    overlayState('error', { message: 'Still finishing the last one' });
+    return;
+  }
   if (dictState !== 'idle') return;
   if (engineState !== 'ready') {
     hotkeys.reset();
@@ -187,14 +220,25 @@ function onDictateStart() {
     return;
   }
   dictState = 'recording';
+  captureSession += 1;
   chunks = [];
   chunkSamples = 0;
   recordStartedAt = Date.now();
   frontAppPromise = getFrontAppName();
   overlayState('listening');
   tray.setState('recording', 'Listening...');
-  captureWindow.webContents.send('capture:start', { deviceId: store.settings().micDeviceId });
+  captureWindow.webContents.send('capture:start', {
+    deviceId: store.settings().micDeviceId,
+    session: captureSession
+  });
   push('dictation', { phase: 'recording' });
+  clearTimeout(maxDurationTimer);
+  maxDurationTimer = setTimeout(() => {
+    if (dictState === 'recording') {
+      hotkeys.reset();
+      onDictateStop();
+    }
+  }, MAX_RECORDING_SECONDS * 1000);
 }
 
 async function collectAudio() {
@@ -212,12 +256,14 @@ async function collectAudio() {
   for (const c of chunks) { pcm.set(c, o); o += c.length; }
   chunks = [];
   chunkSamples = 0;
+  captureSession += 1; // anything still in flight from this session is now stale
   return pcm;
 }
 
 async function onDictateStop() {
   if (dictState !== 'recording') return;
   dictState = 'processing';
+  clearTimeout(maxDurationTimer);
   overlayState('processing');
   tray.setState('processing', 'Computing...');
   push('dictation', { phase: 'processing' });
@@ -245,6 +291,11 @@ async function onDictateStop() {
 
     const ok = await injectText(text, { restoreClipboard: store.settings().restoreClipboard });
     const words = text.split(/\s+/).filter(Boolean).length;
+    if (!ok) {
+      // Paste failed (no focused field, blocked app): the text stays on the
+      // clipboard, tell the user how to recover instead of pretending success.
+      overlayState('error', { message: isMac ? 'On clipboard, press ⌘V' : 'On clipboard, press Ctrl+V' });
+    }
     const frontApp = await Promise.race([frontAppPromise, Promise.resolve('')]) || '';
 
     store.recordTranscription(words, speechSeconds);
@@ -261,7 +312,7 @@ async function onDictateStop() {
       pasted: ok
     });
 
-    overlayState('done', { words });
+    if (ok) overlayState('done', { words });
     push('dictation', { phase: 'done', text, words });
     push('stats', {});
   } catch (e) {
@@ -277,6 +328,8 @@ async function onDictateStop() {
 function onDictateCancel() {
   if (dictState !== 'recording') return;
   dictState = 'idle';
+  clearTimeout(maxDurationTimer);
+  captureSession += 1; // drop any in-flight chunks from the cancelled session
   captureWindow.webContents.send('capture:stop');
   chunks = [];
   chunkSamples = 0;
@@ -287,18 +340,29 @@ function onDictateCancel() {
 
 // ---------------------------------------------------------------- capture IPC
 
-ipcMain.on('capture:chunk', (_e, pcm, rms) => {
+ipcMain.on('capture:chunk', (_e, session, pcm, rms) => {
+  if (session !== captureSession) return; // stale audio from a previous session
   if (dictState !== 'recording' && dictState !== 'processing') return;
   const arr = pcm instanceof Float32Array ? pcm : new Float32Array(pcm);
   chunks.push(arr);
   chunkSamples += arr.length;
-  if (dictState === 'recording' && overlayWindow) {
+  if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send('overlay:level', rms);
   }
 });
 
-ipcMain.on('capture:stopped', () => {
+ipcMain.on('capture:stopped', (_e, session) => {
+  if (session !== captureSession) return; // a previous session finishing late
   if (stopWaiter) stopWaiter();
+});
+
+// Mic is actually flowing: play the "go" ping now, not when the key went down.
+// getUserMedia takes 100-300 ms to arm; speaking before this loses words.
+ipcMain.on('capture:armed', (_e, session) => {
+  if (session !== captureSession) return;
+  if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('overlay:armed', { sounds: store.settings().sounds });
+  }
 });
 
 ipcMain.on('capture:error', (_e, message) => {
@@ -480,6 +544,7 @@ if (!gotLock) {
       onOpen: () => showMainWindow(),
       onQuit: () => { app.isQuittingForReal = true; app.quit(); }
     });
+    tray.ensureTray();
 
     hotkeys = new HotkeyManager({
       onStart: onDictateStart,
@@ -495,6 +560,11 @@ if (!gotLock) {
       if (last) await injectText(last, { restoreClipboard: store.settings().restoreClipboard });
     });
 
+    powerMonitor.on('suspend', () => {
+      // Recording across a sleep produces a broken capture: cancel cleanly
+      if (dictState === 'recording') onDictateCancel();
+    });
+
     await ensureEngine();
 
     const cfg = store.settings();
@@ -508,6 +578,8 @@ if (!gotLock) {
   });
 
   app.on('will-quit', () => {
+    clearTimeout(overlayHideTimer);
+    clearTimeout(maxDurationTimer);
     globalShortcut.unregisterAll();
     try { hotkeys && hotkeys.stop(); } catch { /* shutting down */ }
     transcriber.dispose();

@@ -26,15 +26,38 @@ async function simulatePaste() {
 }
 
 let lastTranscript = '';
+let injectChain = Promise.resolve();
 
 /**
  * Insert text into the focused app: clipboard write -> simulated paste -> clipboard restore.
  * Same mechanism Wispr Flow uses. Restore is delayed so the paste lands first.
+ * Calls are serialized: concurrent injections (dictation + paste-last hotkey)
+ * would otherwise race the clipboard save/restore.
  */
-async function injectText(text, { restoreClipboard = true } = {}) {
+function injectText(text, opts = {}) {
+  const run = injectChain.then(() => doInject(text, opts), () => doInject(text, opts));
+  injectChain = run.catch(() => {});
+  return run;
+}
+
+let pendingRestore = null; // {timer, prevText, prevImage}
+
+async function doInject(text, { restoreClipboard = true } = {}) {
   if (!text) return false;
   lastTranscript = text;
-  const previous = clipboard.readText();
+
+  // If a previous injection's restore hasn't fired yet, inherit ITS snapshot:
+  // that snapshot is the user's real clipboard, ours would be the old transcript.
+  let prevText, prevImage;
+  if (pendingRestore) {
+    clearTimeout(pendingRestore.timer);
+    ({ prevText, prevImage } = pendingRestore);
+    pendingRestore = null;
+  } else {
+    prevText = clipboard.readText();
+    prevImage = prevText ? null : clipboard.readImage();
+  }
+
   clipboard.writeText(text);
   // Small settle delay so the clipboard write is visible to the target app
   await new Promise((r) => setTimeout(r, 60));
@@ -45,10 +68,16 @@ async function injectText(text, { restoreClipboard = true } = {}) {
     return false;
   }
   if (restoreClipboard) {
-    setTimeout(() => {
+    const entry = { prevText, prevImage, timer: null };
+    entry.timer = setTimeout(() => {
+      if (pendingRestore === entry) pendingRestore = null;
       // Only restore if nothing else claimed the clipboard in the meantime
-      if (clipboard.readText() === text) clipboard.writeText(previous);
+      if (clipboard.readText() !== text) return;
+      if (prevText) clipboard.writeText(prevText);
+      else if (prevImage && !prevImage.isEmpty()) clipboard.writeImage(prevImage);
+      else clipboard.clear();
     }, 900);
+    pendingRestore = entry;
   }
   return true;
 }

@@ -78,7 +78,7 @@ function setState(payload) {
     levels = new Array(BAR_COUNT).fill(0.05);
     recordStartedAt = Date.now();
     label.innerHTML = '<span class="accent">0:00</span>';
-    if (sounds && prev !== 'listening') blip(660, 990, 90);
+    // The "go" ping plays on overlay:armed, when the mic is actually live
   } else if (state === 'processing') {
     pill.classList.add('visible');
     dots.style.display = 'inline-flex';
@@ -106,5 +106,8 @@ function setState(payload) {
 
 window.overlayBridge.onState(setState);
 window.overlayBridge.onLevel((rms) => { targetLevel = rms; });
+window.overlayBridge.onArmed((payload) => {
+  if (state === 'listening' && payload.sounds !== false) blip(660, 990, 90);
+});
 
 raf = requestAnimationFrame(tick);

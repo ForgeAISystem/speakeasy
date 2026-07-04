@@ -38,6 +38,7 @@ class TranscriberManager {
       else if (process.platform === 'win32') env.PATH = lib + ';' + (env.PATH || '');
       else env.LD_LIBRARY_PATH = lib + (env.LD_LIBRARY_PATH ? ':' + env.LD_LIBRARY_PATH : '');
     }
+    console.log(`[transcriber] spawning worker (libs: ${lib || 'none found'})`);
     this.proc = fork(WORKER, [], { env, serialization: 'advanced', silent: true });
     this.proc.stdout && this.proc.stdout.on('data', (d) => console.log('[worker]', String(d).trim()));
     this.proc.stderr && this.proc.stderr.on('data', (d) => console.error('[worker]', String(d).trim()));

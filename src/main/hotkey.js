@@ -48,11 +48,18 @@ class HotkeyManager {
 
   start(keyName) {
     this.setKey(keyName);
-    if (this.running) return;
+    if (this.running) return true;
     uIOhook.on('keydown', this._down);
     uIOhook.on('keyup', this._up);
-    uIOhook.start();
+    try {
+      uIOhook.start();
+    } catch (e) {
+      uIOhook.removeListener('keydown', this._down);
+      uIOhook.removeListener('keyup', this._up);
+      throw e;
+    }
     this.running = true;
+    return true;
   }
 
   stop() {

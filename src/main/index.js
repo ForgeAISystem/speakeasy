@@ -157,10 +157,12 @@ async function ensureEngine() {
   try {
     await transcriber.load(cfg.model, cfg.language);
     engineState = 'ready';
+    console.log(`[engine] ready: ${cfg.model}`);
     push('engine', { state: 'ready', model: cfg.model });
     tray && tray.setState('idle', 'Ready');
   } catch (e) {
     engineState = 'error';
+    console.error(`[engine] load failed: ${e.message}`);
     push('engine', { state: 'error', message: e.message });
     tray && tray.setState('idle', `Engine error: ${e.message}`);
   }
@@ -424,6 +426,7 @@ ipcMain.handle('perm:request-mic', async () => {
 });
 ipcMain.handle('perm:request-accessibility', () => {
   if (isMac) systemPreferences.isTrustedAccessibilityClient(true);
+  if (hotkeys && !hotkeys.running) startHotkeysWithRetry();
   return permStatus();
 });
 ipcMain.handle('perm:open-settings', (_e, pane) => {
@@ -438,6 +441,27 @@ ipcMain.handle('perm:open-settings', (_e, pane) => {
   return true;
 });
 ipcMain.handle('perm:status', () => permStatus());
+
+// Global key listening needs Accessibility (mac). If it is not granted yet,
+// keep retrying quietly so the hotkey comes alive the moment the user grants it.
+let hotkeyRetryTimer = null;
+function startHotkeysWithRetry() {
+  const attempt = () => {
+    try {
+      hotkeys.start(store.settings().holdKey);
+      clearInterval(hotkeyRetryTimer);
+      hotkeyRetryTimer = null;
+      console.log('[hotkey] listener active');
+      return true;
+    } catch (e) {
+      console.error('[hotkey] not available yet:', e.message);
+      return false;
+    }
+  };
+  if (!attempt() && !hotkeyRetryTimer) {
+    hotkeyRetryTimer = setInterval(attempt, 8000);
+  }
+}
 
 // ---------------------------------------------------------------- lifecycle
 
@@ -462,11 +486,7 @@ if (!gotLock) {
       onStop: onDictateStop,
       onCancel: onDictateCancel
     });
-    try {
-      hotkeys.start(store.settings().holdKey);
-    } catch (e) {
-      console.error('[hotkey] failed to start listener:', e.message);
-    }
+    startHotkeysWithRetry();
 
     // Paste last transcript (Wispr parity: Cmd+Ctrl+V mac / Shift+Alt+Z win)
     const pasteAccel = isMac ? 'Command+Control+V' : 'Shift+Alt+Z';

@@ -17,18 +17,25 @@ Everything runs on your machine. No cloud. No account. No subscription. Your aud
 - **Optional AI polish**: a second cleanup pass through a local LLM (Ollama) or the Claude API. Off by default. Rule-based cleanup needs no LLM at all.
 - **Paste last transcript**: Cmd+Ctrl+V (Mac) / Shift+Alt+Z (Windows) re-pastes your most recent dictation.
 
-## Install (from source)
+## Install
 
-Requires [Node.js 20+](https://nodejs.org).
+**Easiest: download the installer** from [Releases](../../releases):
+
+- **Mac**: open the `.dmg`, drag SpeakEasy into Applications, launch it. First time only: right-click the app and choose Open (the build is not yet code-signed).
+- **Windows**: run `SpeakEasy Setup.exe`. One click, a desktop shortcut appears, and the app starts.
+
+First launch walks you through everything: your name, permissions, a one-time model download (240 MB fast start or 460 MB best accuracy), and a live test. Then you're dictating.
+
+**From source** (requires [Node.js 20+](https://nodejs.org)):
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/itsharshrpatel-arch/speakeasy.git
 cd speakeasy
 npm install
 npm start
 ```
 
-First launch walks you through permissions and downloads a model (240 MB fast start or 460 MB best accuracy). Then you're dictating.
+**Using an AI agent?** Point it at this repo — [CLAUDE.md](CLAUDE.md) is a complete runbook (setup, build, gotchas). "Set up SpeakEasy from this repo" is all the prompt it needs.
 
 ### macOS permissions
 
@@ -46,11 +53,11 @@ Microphone permission is requested on first recording. No other permissions need
 ## Build installers
 
 ```bash
-npm run dist:mac   # .dmg (Apple Silicon + Intel)
-npm run dist:win   # .exe installer
+npm run dist:mac   # .dmg for the current architecture
+npm run dist:win   # one-click .exe installer with desktop shortcut
 ```
 
-Output lands in `dist/`.
+Output lands in `dist/`. Or push a tag (`git tag v2.1.0 && git push --tags`) and GitHub Actions builds Mac (Apple Silicon + Intel) and Windows installers and attaches them to a Release automatically.
 
 ## Architecture
 

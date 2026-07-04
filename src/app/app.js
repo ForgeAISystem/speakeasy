@@ -381,7 +381,7 @@ async function renderOnboard() {
 
   el.innerHTML = `
     <div class="ob-step ${obStep === 0 ? 'active' : ''}">
-      <img class="ob-logo" src="../../build/icon.png" alt="">
+      <img class="ob-logo" src="../assets/icon.png" alt="">
       <h2 class="ob-brand">Speak<em>Easy</em></h2>
       <p class="lead">Voice dictation that lives on your machine. Hold a key, talk, release. Clean text lands wherever your cursor is. No cloud. No subscription. No audio ever leaves this computer.</p>
       <div class="ob-actions"><button class="btn" data-ob="next">Set it up</button></div>

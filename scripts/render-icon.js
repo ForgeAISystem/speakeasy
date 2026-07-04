@@ -41,9 +41,14 @@ app.whenReady().then(async () => {
   await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(HTML));
   await new Promise((r) => setTimeout(r, 600));
   const img = await win.webContents.capturePage({ x: 0, y: 0, width: 1024, height: 1024 });
-  const out = path.join(__dirname, '..', 'build', 'icon.png');
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, img.toPNG());
-  console.log('wrote', out, img.getSize());
+  const png = img.toPNG();
+  for (const out of [
+    path.join(__dirname, '..', 'build', 'icon.png'),        // installer icon source
+    path.join(__dirname, '..', 'src', 'assets', 'icon.png') // packaged in-app logo
+  ]) {
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, png);
+    console.log('wrote', out, img.getSize());
+  }
   app.quit();
 });

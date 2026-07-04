@@ -20,5 +20,7 @@ contextBridge.exposeInMainWorld('speakeasy', {
   requestMic: () => ipcRenderer.invoke('perm:request-mic'),
   requestAccessibility: () => ipcRenderer.invoke('perm:request-accessibility'),
   openPermSettings: (pane) => ipcRenderer.invoke('perm:open-settings', pane),
+  openLink: (which) => ipcRenderer.invoke('link:open', which),
+  redeemSupporterCode: (code) => ipcRenderer.invoke('supporter:redeem', code),
   onPush: (cb) => ipcRenderer.on('push', (_e, payload) => cb(payload))
 });

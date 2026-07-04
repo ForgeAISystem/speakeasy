@@ -58,7 +58,7 @@ function renderHome() {
   const greeting = S.settings.userName ? `${period}, ${esc(S.settings.userName)}` : period;
 
   el.innerHTML = `
-    <h1>${greeting}.</h1>
+    <h1>${greeting}.${S.settings.supporter ? '<span class="supporter-chip">SUPPORTER</span>' : ''}</h1>
     <p class="sub">Local dictation. No cloud. No subscription. Your words never leave this machine.</p>
     <div class="hero-card">
       <div class="headline">Hold <em>${esc(holdKeyLabel())}</em> to dictate</div>
@@ -328,6 +328,29 @@ async function renderSettings() {
       </div>
     </div>
 
+    <div class="section-title">Support</div>
+    <div class="set-group">
+      ${cfg.supporter ? `
+      <div class="set-row">
+        <div class="info"><div class="name">You are a supporter<span class="supporter-chip" style="vertical-align:1px">SUPPORTER</span></div><div class="desc">Thank you. Coffee money is what ships the next free tool. Manage or cancel anytime from your Stripe receipt email.</div></div>
+      </div>` : `
+      <div class="set-row">
+        <div class="info"><div class="name">Buy the developer a coffee</div><div class="desc">SpeakEasy is free forever. If it saves you real time, $4.99/month keeps the free tools coming. Completely optional.</div></div>
+        <button class="btn ghost" id="btn-coffee">Support for $4.99/mo</button>
+      </div>
+      <div class="set-row">
+        <div class="info"><div class="name">Supporter code</div><div class="desc">Got a code from the thank-you page? Redeem it here for your badge.</div><div class="desc" id="redeem-msg" style="margin-top:4px"></div></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="supporter-code" placeholder="FORGE-XXXXXX-XXXXXX" style="width:200px">
+          <button class="btn ghost" id="btn-redeem">Redeem</button>
+        </div>
+      </div>`}
+      <div class="set-row">
+        <div class="info"><div class="name">More free tools from The Forge</div><div class="desc">Everything we open up lives at tools.forgeaisystem.com.</div></div>
+        <button class="btn ghost" id="btn-forge-site">Visit</button>
+      </div>
+    </div>
+
     <div class="section-title">About</div>
     <div class="set-group">
       <div class="set-row">
@@ -353,6 +376,27 @@ async function renderSettings() {
   document.getElementById('set-ollama-model').addEventListener('change', (e) => save({ polishOllamaModel: e.target.value.trim() }));
   document.getElementById('set-anthropic-key').addEventListener('change', (e) => save({ polishAnthropicKey: e.target.value.trim() }));
   document.getElementById('btn-rerun-onboard').addEventListener('click', () => { obStep = 0; showOnboard(true); });
+  document.getElementById('btn-forge-site').addEventListener('click', () => api.openLink('tools'));
+  const coffeeBtn = document.getElementById('btn-coffee');
+  if (coffeeBtn) coffeeBtn.addEventListener('click', () => api.openLink('coffee'));
+  const redeemBtn = document.getElementById('btn-redeem');
+  if (redeemBtn) redeemBtn.addEventListener('click', async () => {
+    const input = document.getElementById('supporter-code');
+    const msg = document.getElementById('redeem-msg');
+    redeemBtn.disabled = true;
+    redeemBtn.textContent = 'Checking...';
+    const res = await api.redeemSupporterCode(input.value);
+    if (res.ok) {
+      S = await api.getState();
+      renderSettings();
+      renderHomeIfActive();
+    } else {
+      redeemBtn.disabled = false;
+      redeemBtn.textContent = 'Redeem';
+      msg.style.color = 'var(--red)';
+      msg.textContent = res.error;
+    }
+  });
 }
 
 function renderHomeIfActive() {
@@ -530,6 +574,9 @@ function switchTab(tab) {
 document.querySelectorAll('.nav-item').forEach((item) => {
   item.addEventListener('click', () => switchTab(item.getAttribute('data-tab')));
 });
+
+document.getElementById('link-forge').addEventListener('click', () => api.openLink('tools'));
+document.getElementById('link-coffee').addEventListener('click', () => api.openLink('coffee'));
 
 // Cmd/Ctrl+1-5 jumps straight to a tab
 const TAB_ORDER = ['home', 'history', 'dictionary', 'snippets', 'settings'];

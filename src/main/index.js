@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const {
   app, BrowserWindow, ipcMain, screen, globalShortcut,
   systemPreferences, clipboard, shell, powerMonitor
@@ -110,7 +111,7 @@ function createMainWindow() {
     minHeight: 560,
     show: false,
     title: 'SpeakEasy',
-    backgroundColor: '#0c0c0e',
+    backgroundColor: '#f5f4f0',
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: path.join(__dirname, '..', 'app', 'preload.js')
@@ -575,6 +576,20 @@ if (!gotLock) {
     }
 
     app.on('activate', () => showMainWindow());
+
+    // Dev utility: SPEAKEASY_SHOT=/path.png captures the main window after
+    // load (used for docs/screenshots; no Screen Recording permission needed).
+    if (process.env.SPEAKEASY_SHOT) {
+      setTimeout(async () => {
+        try {
+          const img = await mainWindow.webContents.capturePage();
+          fs.writeFileSync(process.env.SPEAKEASY_SHOT, img.toPNG());
+          console.log('[shot] saved', process.env.SPEAKEASY_SHOT);
+        } catch (e) {
+          console.error('[shot]', e.message);
+        }
+      }, 3500);
+    }
   });
 
   app.on('will-quit', () => {

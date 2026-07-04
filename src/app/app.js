@@ -59,7 +59,10 @@ function renderHome() {
   el.innerHTML = `
     <h1>${greeting}.</h1>
     <p class="sub">Local dictation. No cloud. No subscription. Your words never leave this machine.</p>
-    <div class="hotkey-hint">Hold <kbd>${esc(holdKeyLabel())}</kbd> and speak &middot; double-tap for hands-free &middot; <kbd>Esc</kbd> cancels</div>
+    <div class="hero-card">
+      <div class="headline">Hold <em>${esc(holdKeyLabel())}</em> to dictate</div>
+      <div class="subcopy">Speak naturally, release, and clean text lands wherever your cursor is. Double-tap for hands-free. <kbd>Esc</kbd> cancels.</div>
+    </div>
 
     <div class="stat-grid">
       <div class="stat-card">
@@ -194,7 +197,7 @@ async function renderSnippets() {
     <div class="row-list">
       ${entries.length ? entries.map((s) => `
         <div class="h-row" data-id="${s.id}">
-          <div class="txt"><strong>${esc(s.trigger)}</strong><div class="meta" style="font-family:'Outfit'">${esc(s.expansion)}</div></div>
+          <div class="txt"><strong>${esc(s.trigger)}</strong><div class="meta" style="font-family:'Figtree'">${esc(s.expansion)}</div></div>
           <div class="actions"><button class="icon-btn danger" data-action="snip-delete">&#x2715;</button></div>
         </div>`).join('') : '<div class="empty">No snippets yet.</div>'}
     </div>
@@ -222,7 +225,7 @@ function modelCardHtml(m) {
         <div class="m-name">${esc(m.label)}${active ? '<span class="badge">Active</span>' : ''}</div>
         <div class="m-desc">${esc(m.tagline)}</div>
         ${downloading ? `<div class="progress"><div class="fill" style="width:${dl === -1 ? 100 : Math.round(dl * 100)}%"></div></div>` : ''}
-        ${S.models.lastError && S.models.lastError.id === m.id ? `<div class="m-desc" style="color:var(--red);margin-top:6px">Download failed: ${esc(S.models.lastError.message)}. Check your connection and retry.</div>` : ''}
+        ${S.models.lastError && S.models.lastError.id === m.id ? `<div class="m-desc" style="color:var(--red, #b3261e);margin-top:6px">Download failed: ${esc(S.models.lastError.message)}. Check your connection and retry.</div>` : ''}
       </div>
       ${downloading
         ? `<span class="mono" style="color:var(--text-dim);font-size:12px">${dl === -1 ? 'Extracting' : Math.round(dl * 100) + '%'}</span>`

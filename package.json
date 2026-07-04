@@ -13,9 +13,9 @@
     "dist:win": "electron-builder --win"
   },
   "dependencies": {
-    "@fontsource/instrument-serif": "^5.2.8",
+    "@fontsource/eb-garamond": "^5.2.7",
+    "@fontsource/figtree": "^5.2.10",
     "@fontsource/jetbrains-mono": "^5.2.8",
-    "@fontsource/outfit": "^5.2.8",
     "sherpa-onnx-node": "^1.13.3",
     "uiohook-napi": "^1.5.5"
   },

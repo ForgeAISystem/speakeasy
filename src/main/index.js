@@ -15,6 +15,7 @@ const { HotkeyManager } = require('./hotkey');
 const models = require('./models');
 const { TranscriberManager } = require('./transcriber');
 const { TrayController } = require('./tray');
+const audioStore = require('./audio-store');
 
 let mainWindow = null;
 let overlayWindow = null;
@@ -274,23 +275,25 @@ async function onDictateStop() {
   tray.setState('processing', 'Computing...');
   push('dictation', { phase: 'processing' });
 
+  let wavName = null;
+  let speechSeconds = 0;
   try {
     const pcm = await collectAudio();
-    const speechSeconds = pcm.length / SAMPLE_RATE;
+    speechSeconds = pcm.length / SAMPLE_RATE;
     if (speechSeconds < MIN_RECORDING_SECONDS) {
       overlayState('cancelled');
       return;
     }
 
+    // Safety net: the audio hits disk BEFORE transcription. Deleted on
+    // success; survives a failed or crashed transcription for retry.
+    try { wavName = audioStore.saveRecording(pcm); } catch (e) { console.error('[audio-store]', e.message); }
+
     const t0 = Date.now();
     const { text: rawText, ms: engineMs } = await transcriber.transcribe(pcm, SAMPLE_RATE);
-    if (!rawText) {
-      overlayState('error', { message: 'Nothing heard' });
-      return;
-    }
-
-    const { text } = await cleanup(rawText);
+    const { text } = rawText ? await cleanup(rawText) : { text: '' };
     if (!text) {
+      audioStore.removeRecording(wavName);
       overlayState('error', { message: 'Nothing heard' });
       return;
     }
@@ -317,14 +320,30 @@ async function onDictateStop() {
       model: store.settings().model,
       pasted: ok
     });
+    audioStore.removeRecording(wavName);
 
     if (ok) overlayState('done', { words });
     push('dictation', { phase: 'done', text, words });
     push('stats', {});
   } catch (e) {
     console.error('[dictation]', e);
-    overlayState('error', { message: 'Transcription failed' });
+    if (wavName) {
+      // Keep the audio and surface a retryable entry in History
+      store.addHistory({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ts: Date.now(),
+        text: '',
+        failed: true,
+        audioFile: wavName,
+        speechSeconds: Math.round(speechSeconds * 10) / 10,
+        model: store.settings().model
+      });
+      overlayState('error', { message: 'Failed. Audio saved, retry in History' });
+    } else {
+      overlayState('error', { message: 'Transcription failed' });
+    }
     push('dictation', { phase: 'error', message: e.message });
+    push('stats', {});
   } finally {
     dictState = 'idle';
     tray.setState('idle', 'Ready');
@@ -466,8 +485,52 @@ ipcMain.handle('models:remove', (_e, id) => {
 });
 
 ipcMain.handle('history:list', () => store.history().data);
-ipcMain.handle('history:remove', (_e, id) => { store.removeHistory(id); return store.history().data; });
-ipcMain.handle('history:clear', () => { store.clearHistory(); return []; });
+ipcMain.handle('history:remove', (_e, id) => {
+  const entry = store.history().data.find((h) => h.id === id);
+  if (entry && entry.audioFile) audioStore.removeRecording(entry.audioFile);
+  store.removeHistory(id);
+  return store.history().data;
+});
+ipcMain.handle('history:clear', () => {
+  for (const h of store.history().data) {
+    if (h.audioFile) audioStore.removeRecording(h.audioFile);
+  }
+  store.clearHistory();
+  return [];
+});
+
+// Retry a failed dictation from its saved audio. On success the text is
+// placed on the clipboard (the original cursor position is long gone).
+ipcMain.handle('history:retry', async (_e, id) => {
+  const entry = store.history().data.find((h) => h.id === id);
+  if (!entry || !entry.failed) return { ok: false, error: 'Nothing to retry' };
+  if (engineState !== 'ready') return { ok: false, error: 'Engine not ready yet' };
+  const file = entry.audioFile && audioStore.recordingPath(entry.audioFile);
+  if (!file || !fs.existsSync(file)) return { ok: false, error: 'Audio no longer available' };
+  try {
+    const pcm = audioStore.readRecordingPcm(file);
+    const { text: rawText, ms: engineMs } = await transcriber.transcribe(pcm, SAMPLE_RATE);
+    const { text } = rawText ? await cleanup(rawText) : { text: '' };
+    if (!text) return { ok: false, error: 'Nothing heard in the recording' };
+
+    entry.text = text;
+    entry.raw = rawText !== text ? rawText : undefined;
+    entry.failed = false;
+    entry.engineMs = engineMs;
+    audioStore.removeRecording(entry.audioFile);
+    delete entry.audioFile;
+    delete entry.recovered;
+    store.history().save();
+
+    const words = text.split(/\s+/).filter(Boolean).length;
+    store.recordTranscription(words, entry.speechSeconds || 0);
+    clipboard.writeText(text);
+    push('stats', {});
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 
 ipcMain.handle('dict:list', () => store.dictionary().data);
 ipcMain.handle('dict:save', (_e, entries) => {
@@ -570,6 +633,33 @@ if (!gotLock) {
       // Recording across a sleep produces a broken capture: cancel cleanly
       if (dictState === 'recording') onDictateCancel();
     });
+
+    // Crash recovery: recordings on disk with no history entry are dictations
+    // the app died on. Surface them as retryable, then prune old audio.
+    // Runs BEFORE the slow engine load so the renderer sees them on first paint.
+    try {
+      const referenced = new Set(store.history().data.map((h) => h.audioFile).filter(Boolean));
+      let recoveredAny = false;
+      for (const rec of audioStore.listRecordings()) {
+        if (referenced.has(rec.name)) continue;
+        if (rec.seconds < MIN_RECORDING_SECONDS) { audioStore.removeRecording(rec.name); continue; }
+        store.addHistory({
+          id: `${Math.round(rec.mtimeMs)}-${Math.random().toString(36).slice(2, 7)}`,
+          ts: Math.round(rec.mtimeMs),
+          text: '',
+          failed: true,
+          recovered: true,
+          audioFile: rec.name,
+          speechSeconds: Math.round(rec.seconds * 10) / 10,
+          model: store.settings().model
+        });
+        recoveredAny = true;
+      }
+      audioStore.pruneRecordings(14);
+      if (recoveredAny) push('stats', {}); // refresh if the renderer beat us to it
+    } catch (e) {
+      console.error('[recovery]', e.message);
+    }
 
     await ensureEngine();
 

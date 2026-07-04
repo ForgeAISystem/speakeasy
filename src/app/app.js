@@ -110,6 +110,18 @@ function renderHome() {
 }
 
 function historyRowHtml(r) {
+  if (r.failed) {
+    return `
+      <div class="h-row failed" data-id="${r.id}">
+        <div class="txt"><span class="failed-label">${r.recovered ? 'Recovered recording' : 'Transcription failed'}</span>
+          <div class="meta">Audio saved &middot; ${timeAgo(r.ts)} &middot; ${r.speechSeconds}s</div>
+        </div>
+        <div class="actions">
+          <button class="btn ghost btn-sm" data-action="retry">Retry</button>
+          <button class="icon-btn danger" data-action="delete" title="Delete">&#x2715;</button>
+        </div>
+      </div>`;
+  }
   return `
     <div class="h-row" data-id="${r.id}">
       <div class="txt">${esc(r.text)}
@@ -516,6 +528,18 @@ document.getElementById('content').addEventListener('click', async (e) => {
     if (r) await api.copy(r.text);
     btn.textContent = '✓';
     setTimeout(() => { btn.innerHTML = '&#x2398;'; }, 900);
+  } else if (action === 'retry' && row) {
+    btn.disabled = true;
+    btn.textContent = 'Retrying';
+    const res = await api.historyRetry(row.getAttribute('data-id'));
+    if (res.ok) {
+      renderers[currentTab]();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Retry';
+      const meta = row.querySelector('.meta');
+      if (meta) meta.textContent = res.error;
+    }
   } else if (action === 'delete' && row) {
     await api.historyRemove(row.getAttribute('data-id'));
     renderers[currentTab]();

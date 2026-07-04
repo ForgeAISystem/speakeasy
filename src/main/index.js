@@ -7,7 +7,7 @@ const {
   systemPreferences, clipboard, shell, powerMonitor
 } = require('electron');
 
-const { MODELS, HOLD_KEYS, MIN_RECORDING_SECONDS, SAMPLE_RATE, FORGE_URLS } = require('../shared/constants');
+const { MODELS, HOLD_KEYS, MIN_RECORDING_SECONDS, SAMPLE_RATE } = require('../shared/constants');
 const store = require('./store');
 const { cleanup } = require('./cleanup');
 const { injectText, getLastTranscript, setLastTranscript, getFrontAppName } = require('./injector');
@@ -551,32 +551,6 @@ ipcMain.handle('snippets:save', (_e, entries) => {
 
 ipcMain.handle('mics:list', () => listMics());
 ipcMain.handle('clipboard:copy', (_e, text) => { clipboard.writeText(text); return true; });
-
-// External links: whitelist only, never arbitrary URLs from the renderer
-ipcMain.handle('link:open', (_e, which) => {
-  const url = FORGE_URLS[which];
-  if (url) shell.openExternal(url);
-  return Boolean(url);
-});
-
-// Supporter code redeem: one HTTPS call (text only) to validate the code
-ipcMain.handle('supporter:redeem', async (_e, code) => {
-  const cleaned = String(code || '').trim().toUpperCase();
-  if (!/^FORGE-[0-9A-F]{6}-[0-9A-F]{6}$/.test(cleaned)) {
-    return { ok: false, error: 'That does not look like a supporter code' };
-  }
-  try {
-    const res = await fetch(`${FORGE_URLS.checkCode}?code=${encodeURIComponent(cleaned)}`, {
-      signal: AbortSignal.timeout(10000)
-    });
-    const data = await res.json();
-    if (!data.valid) return { ok: false, error: 'Code not recognized. Check for typos.' };
-    store.updateSettings({ supporter: true, supporterCode: cleaned });
-    return { ok: true };
-  } catch {
-    return { ok: false, error: 'Could not reach the verification server. Try again later.' };
-  }
-});
 
 ipcMain.handle('perm:request-mic', async () => {
   if (isMac) {

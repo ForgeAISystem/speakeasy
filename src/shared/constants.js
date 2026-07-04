@@ -69,20 +69,10 @@ const DEFAULT_SETTINGS = {
   polishProvider: 'off', // 'off' | 'ollama' | 'anthropic'
   polishOllamaModel: 'llama3.2',
   polishAnthropicKey: '',
-  polishAnthropicModel: 'claude-haiku-4-5',
-  supporter: false,
-  supporterCode: ''
+  polishAnthropicModel: 'claude-haiku-4-5'
 };
 
 const MIN_RECORDING_SECONDS = 0.35;
 const SAMPLE_RATE = 16000;
 
-// The Forge: free-tools site + optional coffee subscription. The only
-// network calls in the app besides model downloads, all user-initiated.
-const FORGE_URLS = {
-  tools: 'https://tools.forgeaisystem.com',
-  coffee: 'https://buy.stripe.com/6oUeVd7bY8HVeqJ2z057W0s',
-  checkCode: 'https://tools.forgeaisystem.com/api/check'
-};
-
-module.exports = { MODELS, HOLD_KEYS, DEFAULT_SETTINGS, MIN_RECORDING_SECONDS, SAMPLE_RATE, FORGE_URLS };
+module.exports = { MODELS, HOLD_KEYS, DEFAULT_SETTINGS, MIN_RECORDING_SECONDS, SAMPLE_RATE };

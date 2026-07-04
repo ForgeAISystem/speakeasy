@@ -8,11 +8,13 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
+    "icon": "electron scripts/render-icon.js",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win"
   },
   "dependencies": {
+    "@fontsource/bricolage-grotesque": "^5.2.10",
     "@fontsource/eb-garamond": "^5.2.7",
     "@fontsource/figtree": "^5.2.10",
     "@fontsource/jetbrains-mono": "^5.2.8",

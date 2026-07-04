@@ -56,6 +56,7 @@ const HOLD_KEYS = {
 
 const DEFAULT_SETTINGS = {
   onboarded: false,
+  userName: '',
   model: null,
   holdKey: process.platform === 'darwin' ? 'AltRight' : 'CtrlRight',
   mode: 'hold', // 'hold' = press and hold, 'toggle' = tap to start/stop

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:">
 <title>SpeakEasy</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/bricolage-grotesque/700.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/bricolage-grotesque/800.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/figtree/400.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/figtree/500.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/figtree/600.css">
@@ -19,8 +21,16 @@
 <div id="layout">
   <aside id="sidebar">
     <div class="brand-block">
-      <div class="brand">Speak<em>Easy</em></div>
-      <div class="brand-forge">Coded by <span>The Forge</span></div>
+      <svg class="logo-mark" viewBox="0 0 44 44" aria-hidden="true">
+        <rect x="1" y="1" width="42" height="42" rx="11" fill="#1a1a1a"/>
+        <rect x="11" y="16" width="5" height="13" rx="2.5" fill="#ffffeb"/>
+        <rect x="19.5" y="10" width="5" height="24" rx="2.5" fill="#ffa946"/>
+        <rect x="28" y="18" width="5" height="9" rx="2.5" fill="#ffffeb"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand">Speak<em>Easy</em></div>
+        <div class="brand-forge">Coded by <span>The Forge</span></div>
+      </div>
     </div>
     <div class="nav-item active" data-tab="home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>

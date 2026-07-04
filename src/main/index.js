@@ -119,6 +119,7 @@ function createMainWindow() {
     visualEffectState: 'active',
     backgroundMaterial: process.platform === 'win32' ? 'acrylic' : undefined,
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
+    icon: path.join(__dirname, '..', '..', 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'app', 'preload.js')
     }
@@ -605,6 +606,10 @@ if (!gotLock) {
   app.on('second-instance', () => showMainWindow());
 
   app.whenReady().then(async () => {
+    if (isMac && app.dock) {
+      const iconPng = path.join(__dirname, '..', '..', 'build', 'icon.png');
+      if (fs.existsSync(iconPng)) app.dock.setIcon(iconPng);
+    }
     createCaptureWindow();
     createOverlayWindow();
     createMainWindow();

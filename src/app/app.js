@@ -54,7 +54,8 @@ function renderHome() {
   const el = document.getElementById('tab-home');
   const st = S.stats;
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const period = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const greeting = S.settings.userName ? `${period}, ${esc(S.settings.userName)}` : period;
 
   el.innerHTML = `
     <h1>${greeting}.</h1>
@@ -380,12 +381,24 @@ async function renderOnboard() {
 
   el.innerHTML = `
     <div class="ob-step ${obStep === 0 ? 'active' : ''}">
-      <h2>Speak<em>Easy</em></h2>
+      <img class="ob-logo" src="../../build/icon.png" alt="">
+      <h2 class="ob-brand">Speak<em>Easy</em></h2>
       <p class="lead">Voice dictation that lives on your machine. Hold a key, talk, release. Clean text lands wherever your cursor is. No cloud. No subscription. No audio ever leaves this computer.</p>
       <div class="ob-actions"><button class="btn" data-ob="next">Set it up</button></div>
+      <div class="ob-forge">Coded by <span>The Forge</span></div>
     </div>
 
     <div class="ob-step ${obStep === 1 ? 'active' : ''}">
+      <h2>First, your <em>name</em></h2>
+      <p class="lead">SpeakEasy greets you by name and personalizes your dashboard. Stored locally, like everything else here.</p>
+      <input type="text" id="ob-name" placeholder="What should we call you?" value="${esc(S.settings.userName)}" autofocus>
+      <div class="ob-actions">
+        <button class="btn" id="ob-name-save">Continue</button>
+        <button class="muted-link" data-ob="next">Skip</button>
+      </div>
+    </div>
+
+    <div class="ob-step ${obStep === 2 ? 'active' : ''}">
       <h2>Permissions</h2>
       <p class="lead">${isMac ? 'macOS needs two approvals: the microphone to hear you, Accessibility to type for you. Input Monitoring may also be requested for the hotkey.' : 'Windows will ask for microphone access on first recording.'}</p>
       ${obPermRow('Microphone', 'To hear you dictate', micOk, 'ob-mic')}
@@ -396,8 +409,8 @@ async function renderOnboard() {
       </div>
     </div>
 
-    <div class="ob-step ${obStep === 2 ? 'active' : ''}">
-      <h2>Pick your engine</h2>
+    <div class="ob-step ${obStep === 3 ? 'active' : ''}">
+      <h2>Pick your <em>engine</em></h2>
       <p class="lead">Both run fully offline. You can switch or add more later in Settings.</p>
       <div class="ob-model" data-ob-model="moonshine-base">
         <div class="t">Fast start</div>
@@ -405,7 +418,7 @@ async function renderOnboard() {
         ${downloadingId === 'moonshine-base' ? `<div class="progress"><div class="fill" style="width:${dl['moonshine-base'] === -1 ? 100 : Math.round((dl['moonshine-base'] || 0) * 100)}%"></div></div>` : ''}
       </div>
       <div class="ob-model" data-ob-model="parakeet-v2">
-        <div class="t">Best accuracy <span style="color:var(--accent);font-size:11px;letter-spacing:0.06em;">RECOMMENDED</span></div>
+        <div class="t">Best accuracy <span style="color:#a35708;font-size:11px;letter-spacing:0.06em;">RECOMMENDED</span></div>
         <div class="d">Parakeet 0.6B v2 &middot; 460 MB &middot; the model the best dictation apps use</div>
         ${downloadingId === 'parakeet-v2' ? `<div class="progress"><div class="fill" style="width:${dl['parakeet-v2'] === -1 ? 100 : Math.round((dl['parakeet-v2'] || 0) * 100)}%"></div></div>` : ''}
       </div>
@@ -414,8 +427,8 @@ async function renderOnboard() {
       </div>
     </div>
 
-    <div class="ob-step ${obStep === 3 ? 'active' : ''}">
-      <h2>Try it</h2>
+    <div class="ob-step ${obStep === 4 ? 'active' : ''}">
+      <h2>Try it${S.settings.userName ? ', ' + esc(S.settings.userName) : ''}</h2>
       <p class="lead">Click into the box, hold <strong>${esc(holdKeyLabel())}</strong>, say something, release.</p>
       <textarea class="ob-test" id="ob-test" placeholder="Your words land here..."></textarea>
       <div class="ob-phase" id="ob-phase"></div>
@@ -426,6 +439,18 @@ async function renderOnboard() {
   `;
 
   el.querySelectorAll('[data-ob="next"]').forEach((b) => b.addEventListener('click', () => { obStep += 1; renderOnboard(); }));
+  const nameSave = document.getElementById('ob-name-save');
+  if (nameSave) {
+    const saveName = async () => {
+      const v = document.getElementById('ob-name').value.trim();
+      if (v) S = await api.updateSettings({ userName: v });
+      obStep = 2;
+      renderOnboard();
+    };
+    nameSave.addEventListener('click', saveName);
+    document.getElementById('ob-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(); });
+    setTimeout(() => { const i = document.getElementById('ob-name'); if (i && obStep === 1) i.focus(); }, 50);
+  }
   const fin = el.querySelector('[data-ob="finish"]');
   if (fin) fin.addEventListener('click', async () => {
     S = await api.updateSettings({ onboarded: true });
@@ -447,7 +472,7 @@ async function renderOnboard() {
     const id = card.getAttribute('data-ob-model');
     if (S.models.installed.includes(id)) {
       S = await api.updateSettings({ model: id });
-      obStep = 3;
+      obStep = 4;
       renderOnboard();
       return;
     }
@@ -455,7 +480,7 @@ async function renderOnboard() {
     api.downloadModel(id).then(async (res) => {
       if (res.ok) {
         S = await api.updateSettings({ model: id });
-        obStep = 3;
+        obStep = 4;
       }
       renderOnboard();
     });

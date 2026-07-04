@@ -482,13 +482,25 @@ function renderAll() {
   renderers[currentTab]();
 }
 
+function switchTab(tab) {
+  if (!renderers[tab]) return;
+  currentTab = tab;
+  document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n.getAttribute('data-tab') === tab));
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${tab}`));
+  renderers[tab]();
+}
+
 document.querySelectorAll('.nav-item').forEach((item) => {
-  item.addEventListener('click', () => {
-    currentTab = item.getAttribute('data-tab');
-    document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n === item));
-    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${currentTab}`));
-    renderers[currentTab]();
-  });
+  item.addEventListener('click', () => switchTab(item.getAttribute('data-tab')));
+});
+
+// Cmd/Ctrl+1-5 jumps straight to a tab
+const TAB_ORDER = ['home', 'history', 'dictionary', 'snippets', 'settings'];
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '5') {
+    e.preventDefault();
+    switchTab(TAB_ORDER[Number(e.key) - 1]);
+  }
 });
 
 document.getElementById('content').addEventListener('click', async (e) => {

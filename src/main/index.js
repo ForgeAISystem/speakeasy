@@ -111,7 +111,12 @@ function createMainWindow() {
     minHeight: 560,
     show: false,
     title: 'SpeakEasy',
-    backgroundColor: '#f5f4f0',
+    // Liquid glass: native vibrancy on mac (desktop blurs through the
+    // chrome), acrylic on Win 11, plain warm canvas elsewhere.
+    backgroundColor: isMac ? '#00000000' : '#f5f4f0',
+    vibrancy: isMac ? 'sidebar' : undefined,
+    visualEffectState: 'active',
+    backgroundMaterial: process.platform === 'win32' ? 'acrylic' : undefined,
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: path.join(__dirname, '..', 'app', 'preload.js')

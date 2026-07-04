@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SpeakEasy Bar</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; background: transparent; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  }
+  #wrap {
+    position: fixed; inset: 0;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 14px;
+  }
+  #pill {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(16, 16, 20, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 999px;
+    padding: 9px 18px;
+    min-width: 148px;
+    justify-content: center;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+    transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #pill.visible { opacity: 1; transform: translateY(0) scale(1); }
+  #wave { display: block; }
+  #label {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  #label .accent { color: #d4a857; }
+  .dotpulse { display: inline-flex; gap: 4px; align-items: center; }
+  .dotpulse span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #d4a857;
+    animation: pulse 1s infinite ease-in-out;
+  }
+  .dotpulse span:nth-child(2) { animation-delay: 0.15s; }
+  .dotpulse span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.25; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+  #check { color: #46c07a; font-size: 14px; font-weight: 700; display: none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="pill">
+    <canvas id="wave" width="72" height="26"></canvas>
+    <div class="dotpulse" id="dots" style="display:none"><span></span><span></span><span></span></div>
+    <div id="check">&#10003;</div>
+    <div id="label">Listening</div>
+  </div>
+</div>
+<script src="./overlay.js"></script>
+</body>
+</html>

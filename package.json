@@ -1,0 +1,26 @@
+{
+  "name": "speakeasy",
+  "productName": "SpeakEasy",
+  "version": "2.0.0",
+  "description": "Local, private voice dictation for Mac and Windows. Hold a key, speak, release. Your words appear in any app. No cloud, no subscription.",
+  "main": "src/main/index.js",
+  "author": "Harsh Patel",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "@fontsource/instrument-serif": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/outfit": "^5.2.8",
+    "sherpa-onnx-node": "^1.13.3",
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

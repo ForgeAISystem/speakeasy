@@ -1,0 +1,27 @@
+appId: com.speakeasy.app
+productName: SpeakEasy
+directories:
+  output: dist
+files:
+  - src/**/*
+  - package.json
+  - node_modules/**/*
+asarUnpack:
+  - node_modules/sherpa-onnx-*/**
+  - node_modules/uiohook-napi/**
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  extendInfo:
+    NSMicrophoneUsageDescription: SpeakEasy needs the microphone to hear your dictation. Audio never leaves this computer.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: true
+  perMachine: false

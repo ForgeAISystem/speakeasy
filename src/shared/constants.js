@@ -23,27 +23,67 @@ const MODELS = {
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2',
     dir: 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'
   },
-  'whisper-base': {
-    id: 'whisper-base',
-    label: 'Whisper Base',
-    tagline: 'Multilingual. 99 languages. 200 MB download.',
-    sizeMB: 200,
+  'whisper-turbo': {
+    id: 'whisper-turbo',
+    label: 'Whisper Turbo (multilingual)',
+    tagline: 'Best multilingual pick. 99 languages, strong on Hindi, Gujarati, Spanish. Fast. 540 MB download.',
+    sizeMB: 540,
     languages: 'multi',
     kind: 'whisper',
-    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2',
-    dir: 'sherpa-onnx-whisper-base'
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2',
+    dir: 'sherpa-onnx-whisper-turbo'
   },
   'whisper-small': {
     id: 'whisper-small',
-    label: 'Whisper Small',
-    tagline: 'Multilingual, more accurate. 99 languages. 610 MB download.',
+    label: 'Whisper Small (multilingual)',
+    tagline: 'Lighter multilingual option. 99 languages. 610 MB download.',
     sizeMB: 610,
     languages: 'multi',
     kind: 'whisper',
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2',
     dir: 'sherpa-onnx-whisper-small'
+  },
+  'whisper-large-v3': {
+    id: 'whisper-large-v3',
+    label: 'Whisper Large v3 (multilingual)',
+    tagline: 'Maximum accuracy across 99 languages. Slower on CPU. 1 GB download.',
+    sizeMB: 1020,
+    languages: 'multi',
+    kind: 'whisper',
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-large-v3.tar.bz2',
+    dir: 'sherpa-onnx-whisper-large-v3'
+  },
+  'whisper-base': {
+    id: 'whisper-base',
+    label: 'Whisper Base (multilingual)',
+    tagline: 'Smallest multilingual option. 99 languages, lower accuracy. 200 MB download.',
+    sizeMB: 200,
+    languages: 'multi',
+    kind: 'whisper',
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2',
+    dir: 'sherpa-onnx-whisper-base'
   }
 };
+
+// Languages surfaced on the Home screen out of the box. Auto-detect covers all
+// 99 Whisper languages; these are the ones we call out for Harsh's workflow.
+const FEATURED_LANGUAGES = ['en', 'es', 'hi', 'gu'];
+
+// Whisper language code -> display name. Covers the featured set plus the
+// common ones offered in Settings, so detected-language readouts render nicely.
+const LANGUAGE_NAMES = {
+  en: 'English', es: 'Spanish', hi: 'Hindi', gu: 'Gujarati',
+  fr: 'French', de: 'German', pt: 'Portuguese', zh: 'Chinese',
+  ja: 'Japanese', ko: 'Korean', it: 'Italian', ru: 'Russian',
+  ar: 'Arabic', pa: 'Punjabi', bn: 'Bengali', ta: 'Tamil',
+  te: 'Telugu', mr: 'Marathi', ur: 'Urdu', nl: 'Dutch'
+};
+
+function languageName(code) {
+  if (!code) return '';
+  const c = String(code).replace(/[<|>]/g, '').trim().toLowerCase();
+  return LANGUAGE_NAMES[c] || (c ? c.toUpperCase() : '');
+}
 
 const HOLD_KEYS = {
   AltRight: { label: 'Right Option (⌥)', winLabel: 'Right Alt' },
@@ -69,10 +109,14 @@ const DEFAULT_SETTINGS = {
   polishProvider: 'off', // 'off' | 'ollama' | 'anthropic'
   polishOllamaModel: 'llama3.2',
   polishAnthropicKey: '',
-  polishAnthropicModel: 'claude-haiku-4-5'
+  polishAnthropicModel: 'claude-haiku-4-5',
+  organizeOnCommand: true // say "organize my thoughts" to restructure a rambling dictation (needs an AI cleanup provider)
 };
 
 const MIN_RECORDING_SECONDS = 0.35;
 const SAMPLE_RATE = 16000;
 
-module.exports = { MODELS, HOLD_KEYS, DEFAULT_SETTINGS, MIN_RECORDING_SECONDS, SAMPLE_RATE };
+module.exports = {
+  MODELS, HOLD_KEYS, DEFAULT_SETTINGS, MIN_RECORDING_SECONDS, SAMPLE_RATE,
+  FEATURED_LANGUAGES, LANGUAGE_NAMES, languageName
+};

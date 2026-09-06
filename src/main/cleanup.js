@@ -65,9 +65,46 @@ Rules:
 - If the speaker dictates a list, format it as a list.
 - Never add new information, never answer questions in the text, never comment.
 - Preserve the speaker's tone and wording otherwise.
+- Keep the speaker's own language: if they dictated in Spanish, Hindi, or Gujarati, return the cleaned text in that same language. Never translate.
 Return ONLY the cleaned text, nothing else.`;
 
-async function polishWithOllama(text, cfg) {
+const ORGANIZE_SYSTEM_PROMPT = `You turn a rambling, spoken stream of consciousness into clear, organized written text.
+The speaker dictated their raw thoughts out loud and asked you to organize them.
+Rules:
+- Restructure into a logical flow: group related ideas, order them sensibly, drop repetition and dead ends.
+- Use short paragraphs, and bullet points or numbered steps when the content is a list or a sequence.
+- Remove filler, false starts, and tangents that go nowhere. Keep every real idea the speaker expressed.
+- Do NOT invent facts, opinions, or details the speaker did not say. Do not answer questions posed in the text.
+- Keep it tight and readable. Preserve the speaker's voice and intent.
+- Keep the speaker's own language: if they dictated in Spanish, Hindi, or Gujarati, organize and return the text in that same language. Never translate.
+Return ONLY the organized text, nothing else.`;
+
+// Spoken commands that ask for the organize pass. Matched at the very start or
+// very end of a dictation (people say it before or after their thoughts), then
+// stripped so the command itself never lands in the output.
+const ORGANIZE_TRIGGERS = [
+  'organi[sz]e my thoughts',
+  'organi[sz]e these thoughts',
+  'organi[sz]e this',
+  'clean up my thoughts',
+  'clean this up',
+  'tidy (?:this|these) up',
+  'help me organi[sz]e (?:my|these) thoughts'
+];
+
+function detectOrganize(text) {
+  const alt = ORGANIZE_TRIGGERS.join('|');
+  // leading: "organize my thoughts, ..." / trailing: "... clean this up."
+  const lead = new RegExp(`^\\s*(?:${alt})\\s*[,.:;-]?\\s*`, 'i');
+  const trail = new RegExp(`\\s*[,.:;-]?\\s*(?:${alt})\\s*[.!?]?\\s*$`, 'i');
+  let stripped = text;
+  let triggered = false;
+  if (lead.test(stripped)) { stripped = stripped.replace(lead, ''); triggered = true; }
+  if (trail.test(stripped)) { stripped = stripped.replace(trail, ''); triggered = true; }
+  return { triggered, text: stripped.trim() };
+}
+
+async function llmWithOllama(text, cfg, systemPrompt) {
   const res = await fetch('http://127.0.0.1:11434/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -75,11 +112,11 @@ async function polishWithOllama(text, cfg) {
       model: cfg.polishOllamaModel || 'llama3.2',
       stream: false,
       messages: [
-        { role: 'system', content: POLISH_SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: text }
       ]
     }),
-    signal: AbortSignal.timeout(15000)
+    signal: AbortSignal.timeout(20000)
   });
   if (!res.ok) throw new Error(`ollama ${res.status}`);
   const data = await res.json();
@@ -87,7 +124,7 @@ async function polishWithOllama(text, cfg) {
   return out || text;
 }
 
-async function polishWithAnthropic(text, cfg) {
+async function llmWithAnthropic(text, cfg, systemPrompt) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -98,10 +135,10 @@ async function polishWithAnthropic(text, cfg) {
     body: JSON.stringify({
       model: cfg.polishAnthropicModel || 'claude-haiku-4-5',
       max_tokens: 2048,
-      system: POLISH_SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: text }]
     }),
-    signal: AbortSignal.timeout(15000)
+    signal: AbortSignal.timeout(20000)
   });
   if (!res.ok) throw new Error(`anthropic ${res.status}`);
   const data = await res.json();
@@ -109,27 +146,60 @@ async function polishWithAnthropic(text, cfg) {
   return out || text;
 }
 
+// Run a system prompt through whichever provider is configured. Returns the
+// original text unchanged if no provider is set or the call fails.
+async function runLLM(text, cfg, systemPrompt) {
+  if (cfg.polishProvider === 'ollama') {
+    return { text: await llmWithOllama(text, cfg, systemPrompt), used: true };
+  }
+  if (cfg.polishProvider === 'anthropic' && cfg.polishAnthropicKey) {
+    return { text: await llmWithAnthropic(text, cfg, systemPrompt), used: true };
+  }
+  return { text, used: false };
+}
+
 /**
  * Full cleanup pipeline. Rule-based steps always run fast and locally.
- * LLM polish is optional and falls back to the rule-based result on any failure.
+ * LLM polish/organize is optional and falls back to the rule-based result on
+ * any failure. Returns { text, polished, organized, providerMissing }.
+ * - "organize my thoughts" (spoken) triggers a stronger restructuring pass.
  */
 async function cleanup(rawText) {
   const cfg = settings();
   let text = rawText.trim();
-  if (!text) return { text: '', polished: false };
+  if (!text) return { text: '', polished: false, organized: false };
+
+  // Detect the spoken organize command before other cleanup mangles it.
+  let wantsOrganize = false;
+  if (cfg.organizeOnCommand !== false) {
+    const det = detectOrganize(text);
+    if (det.triggered) { wantsOrganize = true; text = det.text; }
+  }
 
   if (cfg.fillerRemoval) text = removeFillers(text);
   text = applyDictionary(text);
   text = applySnippets(text);
 
   let polished = false;
-  if (cfg.polishProvider === 'ollama') {
-    try { text = await polishWithOllama(text, cfg); polished = true; } catch (e) { console.error('[polish]', e.message); }
-  } else if (cfg.polishProvider === 'anthropic' && cfg.polishAnthropicKey) {
-    try { text = await polishWithAnthropic(text, cfg); polished = true; } catch (e) { console.error('[polish]', e.message); }
+  let organized = false;
+  let providerMissing = false;
+
+  if (wantsOrganize) {
+    try {
+      const r = await runLLM(text, cfg, ORGANIZE_SYSTEM_PROMPT);
+      text = r.text;
+      organized = r.used;
+      providerMissing = !r.used; // asked to organize but no AI provider configured
+    } catch (e) { console.error('[organize]', e.message); }
+  } else if (cfg.polishProvider !== 'off') {
+    try {
+      const r = await runLLM(text, cfg, POLISH_SYSTEM_PROMPT);
+      text = r.text;
+      polished = r.used;
+    } catch (e) { console.error('[polish]', e.message); }
   }
 
-  return { text, polished };
+  return { text, polished, organized, providerMissing, wantsOrganize };
 }
 
-module.exports = { cleanup, removeFillers, applyDictionary, applySnippets };
+module.exports = { cleanup, removeFillers, applyDictionary, applySnippets, detectOrganize };

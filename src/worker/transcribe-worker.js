@@ -11,10 +11,15 @@ let recognizer = null;
 let loadedKey = '';
 let loadedKind = '';
 
-// sherpa's offline Whisper decodes at most ~30 s of audio per pass. Longer
-// dictations are split at the quietest point of each segment boundary window
-// so nothing gets silently truncated.
-const WHISPER_MAX_SECONDS = 28;
+// Max audio (seconds) fed to the model in a single decode pass. Whisper's
+// architecture hard-caps at ~30 s. Moonshine/Parakeet have no hard cap, but a
+// multi-minute buffer in one shot blows up native memory and crashes the worker
+// ("transcription engine crashed"), so every model is chunked at quiet points.
+const MAX_SECONDS_BY_KIND = {
+  whisper: 28,
+  moonshine: 30,
+  nemo_transducer: 60
+};
 
 function splitAtQuietPoints(samples, rate, maxSeconds) {
   const max = Math.floor(maxSeconds * rate);
@@ -106,7 +111,9 @@ function decodeOne(samples, sampleRate) {
   stream.acceptWaveform({ sampleRate, samples });
   recognizer.decode(stream);
   const result = recognizer.getResult(stream);
-  return (result && result.text ? result.text : '').trim();
+  // Whisper auto-detect reports the spoken language (e.g. "en", "<|hi|>").
+  const lang = result && result.lang ? String(result.lang).replace(/[<|>]/g, '').trim() : '';
+  return { text: (result && result.text ? result.text : '').trim(), lang };
 }
 
 function transcribe(msg) {
@@ -114,11 +121,12 @@ function transcribe(msg) {
   if (!recognizer) throw new Error('model not loaded');
   const rate = msg.sampleRate || 16000;
   const samples = msg.pcm instanceof Float32Array ? msg.pcm : new Float32Array(msg.pcm);
-  const parts = loadedKind === 'whisper'
-    ? splitAtQuietPoints(samples, rate, WHISPER_MAX_SECONDS)
-    : [samples];
-  const text = parts.map((p) => decodeOne(p, rate)).filter(Boolean).join(' ').trim();
-  process.send({ type: 'result', id: msg.id, text, ms: Date.now() - t0 });
+  const maxSeconds = MAX_SECONDS_BY_KIND[loadedKind] || 30;
+  const parts = splitAtQuietPoints(samples, rate, maxSeconds);
+  const decoded = parts.map((p) => decodeOne(p, rate));
+  const text = decoded.map((d) => d.text).filter(Boolean).join(' ').trim();
+  const lang = (decoded.find((d) => d.lang) || {}).lang || '';
+  process.send({ type: 'result', id: msg.id, text, lang, ms: Date.now() - t0 });
 }
 
 process.on('message', (msg) => {

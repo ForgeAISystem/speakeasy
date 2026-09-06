@@ -362,6 +362,50 @@ select { appearance: none; -webkit-appearance: none; cursor: pointer; }
 .toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .toolbar input { max-width: 300px; }
 
+/* home: instructions + languages, two glass cards side by side */
+.info-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+.info-card {
+  background: var(--glass);
+  border-radius: 16px; padding: 18px 20px;
+  box-shadow: inset 0 0 0 1px var(--highlight), var(--shadow-1);
+}
+.info-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; margin-bottom: 14px; }
+.how-item { display: flex; gap: 10px; align-items: baseline; font-size: 13px; line-height: 1.5; margin-bottom: 10px; color: var(--ink); }
+.how-item:last-child { margin-bottom: 0; }
+.how-item .k {
+  flex-shrink: 0; min-width: 108px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+  color: var(--charcoal); font-weight: 600;
+}
+.how-item span:last-child { color: var(--muted); }
+.how-item b { color: var(--ink); font-weight: 600; }
+
+.lang-top { display: flex; justify-content: space-between; align-items: baseline; }
+.lang-detected { font-size: 11px; color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.lang-mode { font-size: 13px; color: var(--ink); font-weight: 600; margin-bottom: 12px; }
+.lang-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip {
+  font-size: 12px; font-weight: 600; color: var(--charcoal);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(255, 169, 70, 0.3);
+  border-radius: 99px; padding: 3px 11px;
+}
+.lang-note { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.lang-warn { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.lang-warn a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.lang-warn a:hover { text-decoration: underline; }
+
+/* small pill tag inside history meta (language, "Organized") */
+.h-row .meta .tag {
+  display: inline-block; margin-right: 7px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--charcoal);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(255, 169, 70, 0.28);
+  border-radius: 5px; padding: 1px 6px;
+  vertical-align: middle;
+}
+
 ::-webkit-scrollbar { width: 9px; }
 ::-webkit-scrollbar-thumb { background: rgba(26, 26, 26, 0.14); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(26, 26, 26, 0.22); }

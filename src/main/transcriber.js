@@ -71,7 +71,7 @@ class TranscriberManager {
       if (waiter) waiter.resolve();
     } else if (msg.type === 'result') {
       const p = this.pending.get(msg.id);
-      if (p) { this.pending.delete(msg.id); p.resolve({ text: msg.text, ms: msg.ms }); }
+      if (p) { this.pending.delete(msg.id); p.resolve({ text: msg.text, lang: msg.lang || '', ms: msg.ms }); }
     } else if (msg.type === 'error') {
       if (msg.id && this.pending.has(msg.id)) {
         const p = this.pending.get(msg.id);
@@ -115,7 +115,10 @@ class TranscriberManager {
     if (!this.proc || !this.ready) return Promise.reject(new Error('engine not ready'));
     const id = this.nextId++;
     const audioSeconds = pcm.length / sampleRate;
-    const timeoutMs = Math.max(30000, audioSeconds * 2000 + 30000);
+    // Headroom scaled to audio length: long dictations get chunked and decoded
+    // sequentially, and heavy models (Whisper Large) run well under realtime on
+    // CPU. Too tight a timeout kills a still-working worker and looks like a crash.
+    const timeoutMs = Math.max(60000, audioSeconds * 6000 + 30000);
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.pending.delete(id)) {

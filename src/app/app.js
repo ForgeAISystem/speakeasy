@@ -35,6 +35,23 @@ function holdKeyLabel() {
 
 function num(n) { return (n || 0).toLocaleString(); }
 
+function langName(code) {
+  if (!code) return '';
+  const c = String(code).replace(/[<|>]/g, '').trim().toLowerCase();
+  return (S.languages && S.languages.names[c]) || (c ? c.toUpperCase() : '');
+}
+
+// True when the active model can only do English (Moonshine / Parakeet), so the
+// multilingual featured languages won't actually work until a Whisper model is on.
+function activeModelIsEnglishOnly() {
+  const m = S.settings.model && S.models.catalog[S.settings.model];
+  return !!m && m.languages === 'en';
+}
+
+function pasteShortcutLabel() {
+  return S.platform === 'darwin' ? '⌘⌃V' : 'Shift+Alt+Z';
+}
+
 // ---------------------------------------------------------------- engine pill
 
 function renderEnginePill() {
@@ -63,6 +80,29 @@ function renderHome() {
     <div class="hero-card">
       <div class="headline">Hold <em>${esc(holdKeyLabel())}</em> to dictate</div>
       <div class="subcopy">Speak naturally, release, and clean text lands wherever your cursor is. Double-tap for hands-free. <kbd>Esc</kbd> cancels.</div>
+    </div>
+
+    <div class="info-2col">
+      <div class="info-card how-card">
+        <div class="label">How to use it</div>
+        <div class="how-item"><span class="k">Hold ${esc(holdKeyLabel())}</span><span>Speak, then release. Clean text lands at your cursor.</span></div>
+        <div class="how-item"><span class="k">Double-tap</span><span>Hands-free. Tap again to stop. <b>Esc</b> cancels.</span></div>
+        <div class="how-item"><span class="k">Say &ldquo;organize my thoughts&rdquo;</span><span>Restructures a rambling dictation into clean text.</span></div>
+        <div class="how-item"><span class="k">${esc(pasteShortcutLabel())}</span><span>Re-paste your last transcript into any app.</span></div>
+      </div>
+      <div class="info-card lang-card">
+        <div class="lang-top">
+          <div class="label">Languages</div>
+          <div class="lang-detected" id="home-lang-detected"></div>
+        </div>
+        <div class="lang-mode">${S.settings.language === 'auto' ? 'Auto-detect, all 99 languages' : 'Fixed: ' + esc(langName(S.settings.language))}</div>
+        <div class="lang-chips">
+          ${(S.languages ? S.languages.featured : ['en','es','hi','gu']).map((c) => `<span class="chip">${esc(langName(c))}</span>`).join('')}
+        </div>
+        ${activeModelIsEnglishOnly()
+          ? `<div class="lang-warn">Your model is English-only. <a href="#" id="home-get-multi">Get Whisper Turbo</a> to dictate Hindi, Gujarati, and Spanish.</div>`
+          : `<div class="lang-note">Speak any language, SpeakEasy writes it back in that same language.</div>`}
+      </div>
     </div>
 
     <div class="stat-grid">
@@ -105,9 +145,14 @@ function renderHome() {
 
   api.historyList().then((rows) => {
     const target = document.getElementById('home-recent');
-    if (!target || !rows.length) return;
-    target.innerHTML = rows.slice(0, 5).map(historyRowHtml).join('');
+    if (target && rows.length) target.innerHTML = rows.slice(0, 5).map(historyRowHtml).join('');
+    const lastLang = (rows.find((r) => r.lang) || {}).lang;
+    const det = document.getElementById('home-lang-detected');
+    if (det && lastLang) det.textContent = `Last: ${langName(lastLang)}`;
   });
+
+  const getMulti = document.getElementById('home-get-multi');
+  if (getMulti) getMulti.addEventListener('click', (e) => { e.preventDefault(); switchTab('settings'); });
 }
 
 function historyRowHtml(r) {
@@ -123,10 +168,14 @@ function historyRowHtml(r) {
         </div>
       </div>`;
   }
+  const tags = [
+    r.lang ? langName(r.lang) : '',
+    r.organized ? 'Organized' : ''
+  ].filter(Boolean).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
   return `
     <div class="h-row" data-id="${r.id}">
       <div class="txt">${esc(r.text)}
-        <div class="meta">${r.app ? esc(r.app) + ' &middot; ' : ''}${timeAgo(r.ts)} &middot; ${r.speechSeconds}s &middot; ${r.engineMs}ms engine</div>
+        <div class="meta">${tags}${r.app ? esc(r.app) + ' &middot; ' : ''}${timeAgo(r.ts)} &middot; ${r.speechSeconds}s &middot; ${r.engineMs}ms engine</div>
       </div>
       <div class="actions">
         <button class="icon-btn" data-action="copy" title="Copy">&#x2398;</button>
@@ -280,7 +329,7 @@ async function renderSettings() {
         <select id="set-mic">${micOptions}</select>
       </div>
       <div class="set-row">
-        <div class="info"><div class="name">Language</div><div class="desc">Applies to Whisper models. Moonshine and Parakeet are English-only.</div></div>
+        <div class="info"><div class="name">Language</div><div class="desc">Auto-detect covers all 99 languages (Hindi, Gujarati, Spanish included) and writes back in the language you spoke. Needs a multilingual Whisper model, Moonshine and Parakeet are English-only.</div></div>
         <select id="set-lang">${langOptions}</select>
       </div>
     </div>
@@ -309,6 +358,10 @@ async function renderSettings() {
       <div class="set-row" id="row-anthropic" style="display:${cfg.polishProvider === 'anthropic' ? 'flex' : 'none'}">
         <div class="info"><div class="name">Anthropic API key</div><div class="desc">Stored locally in settings.json.</div></div>
         <input type="password" id="set-anthropic-key" value="${esc(cfg.polishAnthropicKey)}" placeholder="sk-ant-...">
+      </div>
+      <div class="set-row">
+        <div class="info"><div class="name">Organize my thoughts</div><div class="desc">Say &ldquo;organize my thoughts&rdquo; (or &ldquo;clean this up&rdquo;) at the start or end of a dictation and SpeakEasy restructures your rambling into clean, organized text. Needs an AI cleanup provider above.</div></div>
+        <label class="switch"><input type="checkbox" id="set-organize" ${cfg.organizeOnCommand !== false ? 'checked' : ''}><span class="track"></span></label>
       </div>
     </div>
 
@@ -350,6 +403,7 @@ async function renderSettings() {
     document.getElementById('row-ollama').style.display = e.target.value === 'ollama' ? 'flex' : 'none';
     document.getElementById('row-anthropic').style.display = e.target.value === 'anthropic' ? 'flex' : 'none';
   });
+  document.getElementById('set-organize').addEventListener('change', (e) => save({ organizeOnCommand: e.target.checked }));
   document.getElementById('set-ollama-model').addEventListener('change', (e) => save({ polishOllamaModel: e.target.value.trim() }));
   document.getElementById('set-anthropic-key').addEventListener('change', (e) => save({ polishAnthropicKey: e.target.value.trim() }));
   document.getElementById('btn-rerun-onboard').addEventListener('click', () => { obStep = 0; showOnboard(true); });
@@ -418,12 +472,17 @@ async function renderOnboard() {
         ${downloadingId === 'moonshine-base' ? `<div class="progress"><div class="fill" style="width:${dl['moonshine-base'] === -1 ? 100 : Math.round((dl['moonshine-base'] || 0) * 100)}%"></div></div>` : ''}
       </div>
       <div class="ob-model" data-ob-model="parakeet-v2">
-        <div class="t">Best accuracy <span style="color:#a35708;font-size:11px;letter-spacing:0.06em;">RECOMMENDED</span></div>
+        <div class="t">Best accuracy, English <span style="color:#a35708;font-size:11px;letter-spacing:0.06em;">RECOMMENDED</span></div>
         <div class="d">Parakeet 0.6B v2 &middot; 460 MB &middot; the model the best dictation apps use</div>
         ${downloadingId === 'parakeet-v2' ? `<div class="progress"><div class="fill" style="width:${dl['parakeet-v2'] === -1 ? 100 : Math.round((dl['parakeet-v2'] || 0) * 100)}%"></div></div>` : ''}
       </div>
+      <div class="ob-model" data-ob-model="whisper-turbo">
+        <div class="t">Multilingual <span style="color:#a35708;font-size:11px;letter-spacing:0.06em;">HINDI · GUJARATI · SPANISH</span></div>
+        <div class="d">Whisper Turbo &middot; 540 MB &middot; 99 languages, auto-detected, written back in the language you speak</div>
+        ${downloadingId === 'whisper-turbo' ? `<div class="progress"><div class="fill" style="width:${dl['whisper-turbo'] === -1 ? 100 : Math.round((dl['whisper-turbo'] || 0) * 100)}%"></div></div>` : ''}
+      </div>
       <div class="ob-actions">
-        ${hasModel ? '<button class="btn" data-ob="next">Continue</button>' : downloadingId ? `<span class="ob-phase">Downloading ${downloadingId === 'moonshine-base' ? 'Moonshine' : 'Parakeet'}... ${dl[downloadingId] === -1 ? 'extracting' : Math.round((dl[downloadingId] || 0) * 100) + '%'}</span>` : ''}
+        ${hasModel ? '<button class="btn" data-ob="next">Continue</button>' : downloadingId ? `<span class="ob-phase">Downloading ${esc((S.models.catalog[downloadingId] || {}).label || downloadingId)}... ${dl[downloadingId] === -1 ? 'extracting' : Math.round((dl[downloadingId] || 0) * 100) + '%'}</span>` : ''}
       </div>
     </div>
 

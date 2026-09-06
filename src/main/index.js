@@ -7,7 +7,10 @@ const {
   systemPreferences, clipboard, shell, powerMonitor
 } = require('electron');
 
-const { MODELS, HOLD_KEYS, MIN_RECORDING_SECONDS, SAMPLE_RATE } = require('../shared/constants');
+const {
+  MODELS, HOLD_KEYS, MIN_RECORDING_SECONDS, SAMPLE_RATE,
+  FEATURED_LANGUAGES, LANGUAGE_NAMES, languageName
+} = require('../shared/constants');
 const store = require('./store');
 const { cleanup } = require('./cleanup');
 const { injectText, getLastTranscript, setLastTranscript, getFrontAppName } = require('./injector');
@@ -291,8 +294,13 @@ async function onDictateStop() {
     try { wavName = audioStore.saveRecording(pcm); } catch (e) { console.error('[audio-store]', e.message); }
 
     const t0 = Date.now();
-    const { text: rawText, ms: engineMs } = await transcriber.transcribe(pcm, SAMPLE_RATE);
-    const { text } = rawText ? await cleanup(rawText) : { text: '' };
+    const { text: rawText, lang, ms: engineMs } = await transcriber.transcribe(pcm, SAMPLE_RATE);
+    // A second AI pass (polish or "organize my thoughts") is about to run:
+    // tell the overlay so the pill switches to the refine words + spinner.
+    if (rawText && store.settings().polishProvider !== 'off') {
+      overlayState('processing', { phase: 'refine' });
+    }
+    const { text, organized } = rawText ? await cleanup(rawText) : { text: '', organized: false };
     if (!text) {
       audioStore.removeRecording(wavName);
       overlayState('error', { message: 'Nothing heard' });
@@ -319,6 +327,8 @@ async function onDictateStop() {
       engineMs,
       totalMs: Date.now() - t0,
       model: store.settings().model,
+      lang: lang || undefined,
+      organized: organized || undefined,
       pasted: ok
     });
     audioStore.removeRecording(wavName);
@@ -445,6 +455,7 @@ function fullState() {
       downloads: models.downloadStatus()
     },
     holdKeys: HOLD_KEYS,
+    languages: { featured: FEATURED_LANGUAGES, names: LANGUAGE_NAMES },
     engine: { state: engineState },
     permissions: permStatus(),
     platform: process.platform,

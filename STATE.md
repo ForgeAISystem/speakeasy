@@ -2,6 +2,8 @@
 
 Updated: 2026-09-06
 
+Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. GitHub reported the owner transfer during the successful branch push; the local origin has been updated. The implementation is committed and pushed on `codex/speakeasy-easy-start`.
+
 ## Where things stand
 
 v2.3.0 is installed at `/Applications/SpeakEasy.app` and is a local review build on `codex/speakeasy-easy-start`. The user's existing v2.2 work was preserved separately in `d1ab868`. Last published/tagged state observed at session start was v2.1.1 on main, `aa45aae`.

@@ -33,7 +33,7 @@ The first-run guide walks through four steps:
 
 Close the window to keep SpeakEasy running in the menu bar or tray. Quit from its menu when you want to stop it entirely.
 
-**Build status:** this branch is v2.3.0. Its Apple Silicon installer is generated at `dist/SpeakEasy-2.3.0-arm64.dmg`. This version has not been published as a GitHub release. The repository is private. Published installers, when available, live under [Releases](https://github.com/itsharshrpatel-arch/speakeasy/releases).
+**Build status:** this branch is v2.3.0. Its Apple Silicon installer is generated at `dist/SpeakEasy-2.3.0-arm64.dmg`. This version has not been published as a GitHub release. The repository is private. Published installers, when available, live under [Releases](https://github.com/ForgeAISystem/speakeasy/releases).
 
 **Signing:** the current local installer is unsigned and not notarized. macOS may block a downloaded copy. A normal warning-free distribution requires a Developer ID Application certificate and Apple notarization. See [HANDOFF.md](HANDOFF.md). Do not disable Gatekeeper to install it.
 

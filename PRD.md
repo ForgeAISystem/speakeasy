@@ -21,3 +21,7 @@ SpeakEasy retains its independent warm, minimal desktop identity. It is not a Fo
 ## v2.4 refinement pass
 
 The user requested ImageGen artwork, minimal UI, subtle parallax, and functional improvements informed by Wispr Flow and Glaido. Delivered scope: original glass-wave artwork, event-driven shallow depth, reduced-motion controls, explicit cleanup modes, original transcript recovery, better search, editable multiline snippets/dictionary, truthful overlay stages, and native Quit. No new service, screen-reading feature, or account requirement was added.
+
+## v2.4.1 desktop usability
+
+Harsh needs to continue other work while SpeakEasy is developed and used. Scope: standard native window chrome, a 560x480 minimum with usable compact layouts, saved position/size, disconnected-display recovery, minimized-window restoration, and less hidden setup activity. Verification must run without taking focus or controlling the installed app. Stage one tested update and coordinate its single restart. Native drag/resize acceptance follows installation. Do not claim a whole-system speedup from an idle CPU snapshot.

@@ -53,3 +53,9 @@ Unsigned builds: macOS users right-click the app > Open on first launch (Gatekee
 Original ImageGen artwork lives in src/app/assets/voice-glass.png; prompt and provenance in docs/IMAGEGEN.md. refinement.css and motion.js implement event-driven depth with reduced-motion support. Overlay animation runs only while an armed recording is visible. Native Quit is handled in before-quit; window close still hides.
 
 Run npm test (39 checks), then env -u ELECTRON_RUN_AS_NODE npx electron scripts/visual-check.cjs for nine real-renderer screens with synthetic data. After the Mac build, node scripts/package-check.cjs verifies source, artwork, native helper, version, and installer hash. Visual fixtures do not prove OS permissions or live microphone/paste.
+
+## v2.4.1 desktop usability notes
+
+Read STATE.md before installing. Harsh reported disruption while working on the same computer. Keep tests hidden/non-focusable and avoid controlling, restarting, or replacing the running app until he chooses the restart moment. Run the offscreen visual script and installer build sequentially at lower priority using nice -n 10. Do not launch the full app for screenshots during concurrent work.
+
+The main window now uses standard native chrome. Bounds live in window.json, separate from dictation preferences; window-bounds.js restores them on connected displays. Compact layouts support a 560x480 outer window. Hidden onboarding skips readiness reads; audio capture retains its existing timing settings. Current verification: 47 automated checks and 20 offscreen fixture screens. Evidence is under docs/verification/v2.4.1/. Fixtures are synthetic and do not prove native drag handles or actual microphone/paste.

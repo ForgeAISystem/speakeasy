@@ -1,8 +1,14 @@
-# SpeakEasy v2.4
+# SpeakEasy v2.4.1
 
-The app is now installed at `/Applications/SpeakEasy.app`. Its new welcome screen has been verified. Complete the setup guide and physical dictation test; those remain user acceptance steps.
+The v2.4.1 update is built and staged. The running app at `/Applications/SpeakEasy.app` is still v2.4.0, left untouched while Harsh works. Install this update at a convenient break, then reopen once. Complete the setup guide and physical dictation test; those remain user acceptance steps.
 
-Open `dist/SpeakEasy-2.4.0-arm64.dmg`, then open SpeakEasy. Choose **Install in Applications**, or drag the app onto the Applications shortcut. No developer tools are needed by the recipient.
+Quit SpeakEasy before replacing an existing installation. Open `dist/SpeakEasy-2.4.1-arm64.dmg`, then drag the app onto the Applications shortcut. A new installation also offers **Install in Applications** when opened outside Applications. No developer tools are needed by the recipient.
+
+## Window controls in v2.4.1
+
+Drag the native title bar to move the app between screens. Drag an edge or corner to resize it, down to 560x480. The layout adapts to the available width, and longer pages scroll. Use the standard yellow/green controls to minimize or enter full screen. Size and position are remembered across restarts, with recovery onto an available screen when a monitor is unplugged. Opening from the Dock or menu bar restores a minimized window.
+
+The warm artwork and subtle motion remain. Native desktop blur is removed, and setup does not poll for readiness while the window is hidden. No whole-system performance improvement has been benchmarked.
 
 Follow the welcome flow:
 

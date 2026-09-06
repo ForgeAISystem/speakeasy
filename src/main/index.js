@@ -12,6 +12,7 @@ const {
   FEATURED_LANGUAGES, LANGUAGE_NAMES, languageName
 } = require('../shared/constants');
 const store = require('./store');
+const { MIN_WIDTH, MIN_HEIGHT, restoreBounds } = require('./window-bounds');
 const { cleanup } = require('./cleanup');
 const writing = require('../shared/writing');
 const { injectText, getLastTranscript, setLastTranscript, getFrontAppName } = require('./injector');
@@ -115,19 +116,21 @@ function positionOverlay() {
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 980,
-    height: 680,
-    minWidth: 760,
-    minHeight: 560,
+    ...restoreBounds(store.windowState(), screen.getAllDisplays(), screen.getPrimaryDisplay()),
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     show: false,
     title: 'SpeakEasy',
-    // Liquid glass: native vibrancy on mac (desktop blurs through the
-    // chrome), acrylic on Win 11, plain warm canvas elsewhere.
-    backgroundColor: isMac ? '#00000000' : '#f5f4f0',
-    vibrancy: isMac ? 'sidebar' : undefined,
-    visualEffectState: 'active',
-    backgroundMaterial: process.platform === 'win32' ? 'acrylic' : undefined,
-    titleBarStyle: isMac ? 'hiddenInset' : 'default',
+    // Native window chrome keeps dragging, resizing and desktop controls
+    // available even when onboarding covers the entire web content.
+    titleBarStyle: 'default',
+    frame: true,
+    movable: true,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    fullscreenable: true,
+    backgroundColor: '#f8f8f2',
     icon: path.join(__dirname, '..', '..', 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'app', 'preload.js')
@@ -135,7 +138,22 @@ function createMainWindow() {
   });
   mainWindow.loadFile(path.join(__dirname, '..', 'app', 'index.html'));
   mainWindow.once('ready-to-show', () => mainWindow.show());
+  let boundsTimer;
+  const saveBounds = () => {
+    clearTimeout(boundsTimer);
+    if (mainWindow.isDestroyed() || mainWindow.isMinimized()) return;
+    try { store.saveWindowState(mainWindow.getNormalBounds()); }
+    catch (e) { console.error('[window] could not save placement:', e.message); }
+  };
+  const scheduleBounds = () => {
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(saveBounds, 400);
+  };
+  mainWindow.on('move', scheduleBounds);
+  mainWindow.on('resize', scheduleBounds);
+  mainWindow.on('closed', () => clearTimeout(boundsTimer));
   mainWindow.on('close', (e) => {
+    saveBounds();
     // Keep running in the tray; quit only from the tray menu
     if (!app.isQuittingForReal) {
       e.preventDefault();
@@ -148,6 +166,7 @@ function createMainWindow() {
 
 function showMainWindow() {
   if (!mainWindow) createMainWindow();
+  if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   mainWindow.focus();
 }

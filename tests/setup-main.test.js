@@ -17,10 +17,20 @@ function fixture() {
     moveToApplicationsFolder: () => { writes.push(['install']); return true; }
   };
   const modules = {
-    electron: { app, BrowserWindow: class { loadFile() {} once() {} on(event, fn) { windowEvents.set(event, fn); } hide() { writes.push(['hide']); } },
+    electron: { app, BrowserWindow: class {
+      constructor(options) { writes.push(['window', options]); }
+      loadFile() {} once() {} on(event, fn) { windowEvents.set(event, fn); }
+      hide() { writes.push(['hide']); } show() {} focus() {}
+      isDestroyed() { return false; } isMinimized() { return false; }
+      getNormalBounds() { return { x: -1100, y: 100, width: 600, height: 500 }; }
+    },
+      screen: { getAllDisplays: () => [{ workArea: { x: 0, y: 25, width: 1440, height: 875 } }],
+        getPrimaryDisplay: () => ({ workArea: { x: 0, y: 25, width: 1440, height: 875 } }) },
       ipcMain: { handle: (name, cb) => handlers.set(name, cb), on() {} },
       systemPreferences: { getMediaAccessStatus: () => permissions.mic, isTrustedAccessibilityClient: () => permissions.accessibility } },
-    './store': { updateSettings: (value) => writes.push(['settings', value]), settings: () => ({}) },
+    './store': { updateSettings: (value) => writes.push(['settings', value]), settings: () => ({}),
+      windowState: () => ({}), saveWindowState: (value) => writes.push(['bounds', value]) },
+    './window-bounds': require('../src/main/window-bounds'),
     './cleanup': {}, './injector': {}, './hotkey': {}, './models': {}, './tray': {}, './audio-store': {},
     './transcriber': { TranscriberManager: class {} },
     '../shared/constants': require('../src/shared/constants'),
@@ -73,8 +83,44 @@ test('closing the window hides it, but a native Quit closes it without intercept
   const close = () => f.windowEvents.get('close')({ preventDefault: () => prevented++ });
   close();
   assert.equal(prevented, 1);
+  assert.equal(f.writes.at(-2)[0], 'bounds');
   assert.equal(f.writes.at(-1)[0], 'hide');
   f.lifecycle.get('before-quit')();
   close();
   assert.equal(prevented, 1);
+});
+
+test('main window retains native movement and resize controls during onboarding', () => {
+  const f = fixture();
+  f.set('createMainWindow()');
+  const options = f.writes.find((row) => row[0] === 'window')[1];
+  assert.equal(options.titleBarStyle, 'default');
+  for (const key of ['frame', 'movable', 'resizable', 'minimizable', 'maximizable', 'fullscreenable']) assert.equal(options[key], true);
+  assert.equal(options.minWidth, 560);
+  assert.equal(options.minHeight, 480);
+  assert.equal(options.vibrancy, undefined);
+  assert.equal(options.alwaysOnTop, undefined);
+});
+
+test('explicitly reopening a minimized main window restores it', () => {
+  const f = fixture();
+  f.set('createMainWindow(); mainWindow.isMinimized = () => true; mainWindow.restore = () => { mainWindow.restored = true; }; showMainWindow();');
+  assert.equal(f.set('mainWindow.restored'), true);
+});
+
+test('window movement is saved once after settling and flushed before close', async () => {
+  const f = fixture();
+  f.set('createMainWindow()');
+  f.windowEvents.get('move')();
+  f.windowEvents.get('resize')();
+  f.windowEvents.get('move')();
+  assert.equal(f.writes.filter((row) => row[0] === 'bounds').length, 0);
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(f.writes.filter((row) => row[0] === 'bounds').length, 1);
+  assert.equal(f.writes.find((row) => row[0] === 'bounds')[1].x, -1100);
+  f.windowEvents.get('resize')();
+  f.windowEvents.get('close')({ preventDefault() {} });
+  assert.equal(f.writes.filter((row) => row[0] === 'bounds').length, 2);
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(f.writes.filter((row) => row[0] === 'bounds').length, 2);
 });

@@ -1,0 +1,38 @@
+{
+  "installedVersion": "2.4.0",
+  "processes": [
+    {
+      "pid": 5795,
+      "cpuPercent": 0.0,
+      "rssKiB": 166080
+    },
+    {
+      "pid": 5796,
+      "cpuPercent": 0.0,
+      "rssKiB": 104768
+    },
+    {
+      "pid": 5797,
+      "cpuPercent": 0.0,
+      "rssKiB": 45856
+    },
+    {
+      "pid": 5798,
+      "cpuPercent": 0.0,
+      "rssKiB": 90464
+    },
+    {
+      "pid": 5799,
+      "cpuPercent": 0.0,
+      "rssKiB": 94608
+    },
+    {
+      "pid": 5800,
+      "cpuPercent": 0.0,
+      "rssKiB": 149376
+    }
+  ],
+  "summedCpuPercent": 0.0,
+  "summedRssMiB": 635.9,
+  "note": "Single snapshot of existing v2.4.0 during installer verification. RSS can double-count shared pages. Not a whole-system slowdown diagnosis or a before/after benchmark. The running app was not controlled, stopped, or replaced."
+}

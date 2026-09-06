@@ -2,6 +2,15 @@
 
 Date: 2026-09-06
 
+## v2.4.1 checks
+
+- 47 automated checks pass. New coverage verifies window restoration on negative-coordinate monitors, disconnected/changed displays, invalid saved placement, resize limits, native window controls, debounced placement writes, close-time flush, minimized-window restoration, and hidden setup polling.
+- Twenty offscreen Electron fixtures pass without horizontal overflow. All app tabs and onboarding steps render at a 560x450 content viewport, below the new 560x480 native outer size. The final practice action remains reachable by scrolling. Reduced motion remains effective.
+- The renderer is hidden, non-focusable, offscreen, and separate from the personal profile. Screenshots of compact Home, Settings, and welcome were inspected from disk.
+- All 29 packaged source files and native Fn helper match. The final DMG checksum passes. Installer: dist/SpeakEasy-2.4.1-arm64.dmg. Evidence: docs/verification/v2.4.1/.
+- Existing v2.4.0 remains installed/running. No actual app window was controlled or restarted during this pass. Physical title-bar dragging, cross-monitor placement, and native resizing of v2.4.1 await a convenient install/restart.
+- Current idle CPU was low. Summed RSS is approximately 636 MiB and may count shared pages more than once. This snapshot neither diagnoses the earlier slowdown nor establishes a before/after improvement. Audio and transcription code were not changed.
+
 ## v2.4 checks
 
 - 39 automated checks pass, including Original preserving text, local-only Clean behavior, missing/failing AI recovery, multiline snippets, original-history search/copy, filters, duplicate prevention, keyboard access, recording animation lifecycle, and native Quit.

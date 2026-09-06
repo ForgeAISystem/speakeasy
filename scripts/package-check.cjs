@@ -25,6 +25,8 @@ const dmg = path.join(root, `dist/SpeakEasy-${version}-arm64.dmg`);
 const result = { version, sourceFilesChecked: files.length, failures,
   artworkPackaged: files.includes('src/app/assets/voice-glass.png'),
   dmg: { file: path.basename(dmg), bytes: fs.statSync(dmg).size, sha256: digest(fs.readFileSync(dmg)) } };
-fs.writeFileSync(path.join(root, 'docs/verification/v2.4/package-check.json'), JSON.stringify(result, null, 2) + '\n');
+const out = path.join(root, 'docs/verification', `v${version}`);
+fs.mkdirSync(out, { recursive: true });
+fs.writeFileSync(path.join(out, 'package-check.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result));
 if (failures.length) process.exitCode = 1;

@@ -25,6 +25,9 @@ class SpeakEasySetup {
     this.el.addEventListener('change', (e) => {
       if (e.target.id === 'setup-login') this.login = e.target.checked;
     });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this.refresh().catch(() => {});
+    });
   }
 
   escape(value) {
@@ -57,7 +60,7 @@ class SpeakEasySetup {
   }
 
   async refresh() {
-    if (!this.visible || this.refreshing) return;
+    if (!this.visible || document.hidden || this.refreshing) return;
     this.refreshing = true;
     try {
       const previous = this.state();

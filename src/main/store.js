@@ -52,6 +52,18 @@ function updateSettings(partial) {
   return settingsStore.data;
 }
 
+// Window placement is separate from dictation preferences and personal data.
+let windowStore;
+function windowState() {
+  if (!windowStore) windowStore = new JsonStore('window', {});
+  return windowStore.data;
+}
+function saveWindowState(bounds) {
+  windowState();
+  windowStore.data = bounds;
+  windowStore.save();
+}
+
 // ---- History (most recent first, capped) ----
 const HISTORY_CAP = 500;
 let historyStore;
@@ -169,6 +181,7 @@ function statsSummary() {
 
 module.exports = {
   settings, updateSettings,
+  windowState, saveWindowState,
   history, addHistory, removeHistory, clearHistory,
   dictionary, snippets,
   recordTranscription, statsSummary

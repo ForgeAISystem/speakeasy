@@ -16,12 +16,15 @@ Speech recognition runs on your machine. No account or subscription is required.
 - **History**: local search across final and original text, date groups, attention filters, original comparison, and copy. Cmd/Ctrl+F finds your words. Home shows today’s words, estimated time saved, and total dictations.
 - **Optional AI polish**: a second cleanup pass through a local LLM (Ollama) or the Claude API. Off by default. Rule-based cleanup needs no LLM at all.
 - **Paste last transcript**: Cmd+Ctrl+V (Mac) / Shift+Alt+Z (Windows) re-pastes your most recent dictation.
+- **A flexible desktop window**: native dragging, minimize/full-screen controls, compact layouts down to 560x480, and remembered size/screen position. Reopening restores a minimized window; disconnected screens recover onto an available display.
 
 The interface uses original ImageGen glass artwork with subtle pointer depth. System reduced motion and the Subtle motion setting disable these effects. [Research and design decisions](docs/COMPETITOR-RESEARCH-2026-09-06.md) · [Artwork and prompt](docs/IMAGEGEN.md)
 
 ## Install
 
 You do not need Node.js, a terminal, or an AI agent to use the app.
+
+When updating an existing installation, quit SpeakEasy before replacing the app, then reopen it once.
 
 - **Mac:** open the DMG, then open SpeakEasy. Choose **Install in Applications**, or drag the app into the Applications shortcut. macOS permissions are requested after installation.
 - **Windows:** run the setup EXE. The existing one-click installer creates the shortcut and launches SpeakEasy.

@@ -7,7 +7,7 @@ const { JSDOM } = require('jsdom');
 const { MODELS, HOLD_KEYS, DEFAULT_SETTINGS } = require('../src/shared/constants');
 
 function fixture(t, overrides = {}) {
-  const dom = new JSDOM('<div id="layout"></div><div id="onboard"></div>', { runScripts: 'outside-only' });
+  const dom = new JSDOM('<div id="layout"></div><div id="onboard"></div>', { runScripts: 'outside-only', pretendToBeVisual: true });
   dom.window.eval(fs.readFileSync(path.join(__dirname, '../src/app/onboarding.js'), 'utf8'));
   let state = {
     settings: { ...DEFAULT_SETTINGS, holdKey: 'Fn' },
@@ -143,4 +143,21 @@ test('Windows setup offers supported keys instead of Fn', async (t) => {
   await f.setup.go(3);
   assert.equal(f.dom.window.document.querySelector('[data-key="Fn"]'), null);
   assert.ok(f.dom.window.document.querySelector('[data-key="CtrlRight"]'));
+});
+
+test('hidden onboarding stops polling state and refreshes on return', async (t) => {
+  const f = fixture(t);
+  let reads = 0;
+  f.api.getState = async () => { reads++; return structuredClone(f.state()); };
+  await f.setup.open();
+  Object.defineProperty(f.dom.window.document, 'hidden', { configurable: true, value: true });
+  await f.setup.refresh();
+  assert.equal(reads, 0);
+  Object.defineProperty(f.dom.window.document, 'hidden', { configurable: true, value: false });
+  f.dom.window.document.dispatchEvent(new f.dom.window.Event('visibilitychange'));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(reads, 1);
+  f.setup.close();
+  await f.setup.refresh();
+  assert.equal(reads, 1);
 });

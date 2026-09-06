@@ -4,7 +4,7 @@ const { DEFAULT_SETTINGS, MODELS, HOLD_KEYS, LANGUAGE_NAMES } = require('../src/
 const now = Date.now();
 const state = {
   settings: { ...DEFAULT_SETTINGS, onboarded: true, model: 'moonshine-base', cleanupMode: 'clean' },
-  platform: 'darwin', version: '2.4.0', installation: { needsMove: false },
+  platform: 'darwin', version: require('../package.json').version, installation: { needsMove: false },
   engine: { state: 'ready' }, permissions: { mic: 'granted', accessibility: true }, shortcut: { ready: true },
   holdKeys: HOLD_KEYS, languages: { names: LANGUAGE_NAMES },
   models: { installed: ['moonshine-base'], downloads: {}, catalog: MODELS },

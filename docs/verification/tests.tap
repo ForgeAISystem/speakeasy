@@ -1,0 +1,146 @@
+
+> speakeasy@2.3.0 test
+> node --test tests/*.test.js
+
+TAP version 13
+# Subtest: cancel while the microphone is opening stops late-arriving tracks
+ok 1 - cancel while the microphone is opening stops late-arriving tracks
+  ---
+  duration_ms: 1.526625
+  type: 'test'
+  ...
+# Subtest: normal stop releases the mic and closes audio after flushing
+ok 2 - normal stop releases the mic and closes audio after flushing
+  ---
+  duration_ms: 1.061
+  type: 'test'
+  ...
+# Subtest: permission failure surfaces a recoverable error instead of arming
+ok 3 - permission failure surfaces a recoverable error instead of arming
+  ---
+  duration_ms: 0.338459
+  type: 'test'
+  ...
+# Subtest: worklet flush preserves the last partial audio chunk
+ok 4 - worklet flush preserves the last partial audio chunk
+  ---
+  duration_ms: 0.349542
+  type: 'test'
+  ...
+# Subtest: Fn hold release records exactly once and ignores key repeat
+ok 5 - Fn hold release records exactly once and ignores key repeat
+  ---
+  duration_ms: 1.1915
+  type: 'test'
+  ...
+# Subtest: Fn double tap enters hands-free and the next tap stops
+ok 6 - Fn double tap enters hands-free and the next tap stops
+  ---
+  duration_ms: 0.374542
+  type: 'test'
+  ...
+# Subtest: switching shortcuts cancels a held recording and ignores the old release
+ok 7 - switching shortcuts cancels a held recording and ignores the old release
+  ---
+  duration_ms: 0.247375
+  type: 'test'
+  ...
+# Subtest: reset after suspend or error accepts the next press
+ok 8 - reset after suspend or error accepts the next press
+  ---
+  duration_ms: 0.143083
+  type: 'test'
+  ...
+# Subtest: a single tap cancels after the double-tap window
+ok 9 - a single tap cancels after the double-tap window
+  ---
+  duration_ms: 951.097333
+  type: 'test'
+  ...
+# Subtest: first launch offers one install action only when outside Applications
+ok 10 - first launch offers one install action only when outside Applications
+  ---
+  duration_ms: 50.854917
+  type: 'test'
+  ...
+# Subtest: permissions cannot be skipped, and a denied mic opens the right settings
+ok 11 - permissions cannot be skipped, and a denied mic opens the right settings
+  ---
+  duration_ms: 13.589
+  type: 'test'
+  ...
+# Subtest: failed voice downloads stay recoverable and do not advance
+ok 12 - failed voice downloads stay recoverable and do not advance
+  ---
+  duration_ms: 13.469208
+  type: 'test'
+  ...
+# Subtest: downloaded voice must load before continuing and existing voices are reused
+ok 13 - downloaded voice must load before continuing and existing voices are reused
+  ---
+  duration_ms: 12.167125
+  type: 'test'
+  ...
+# Subtest: the selected shortcut must actually report a release before proceeding
+ok 14 - the selected shortcut must actually report a release before proceeding
+  ---
+  duration_ms: 11.887958
+  type: 'test'
+  ...
+# Subtest: typing into practice cannot fake a successful dictation
+ok 15 - typing into practice cannot fake a successful dictation
+  ---
+  duration_ms: 7.543166
+  type: 'test'
+  ...
+# Subtest: successful recognition with failed paste does not complete setup
+ok 16 - successful recognition with failed paste does not complete setup
+  ---
+  duration_ms: 258.301792
+  type: 'test'
+  ...
+# Subtest: actual recognized text pasted in practice unlocks completion
+ok 17 - actual recognized text pasted in practice unlocks completion
+  ---
+  duration_ms: 258.180042
+  type: 'test'
+  ...
+# Subtest: Windows setup offers supported keys instead of Fn
+ok 18 - Windows setup offers supported keys instead of Fn
+  ---
+  duration_ms: 12.628833
+  type: 'test'
+  ...
+# Subtest: main process refuses setup completion without a successful practice dictation
+ok 19 - main process refuses setup completion without a successful practice dictation
+  ---
+  duration_ms: 1.909042
+  type: 'test'
+  ...
+# Subtest: revoked permissions block completion even after a successful test
+ok 20 - revoked permissions block completion even after a successful test
+  ---
+  duration_ms: 0.824
+  type: 'test'
+  ...
+# Subtest: completed setup saves only the explicit launch preference
+ok 21 - completed setup saves only the explicit launch preference
+  ---
+  duration_ms: 0.434334
+  type: 'test'
+  ...
+# Subtest: install button delegates the move only for a packaged Mac app outside Applications
+ok 22 - install button delegates the move only for a packaged Mac app outside Applications
+  ---
+  duration_ms: 0.39075
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1025.356916

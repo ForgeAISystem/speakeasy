@@ -1,6 +1,8 @@
 'use strict';
 
 const { uIOhook, UiohookKey } = require('uiohook-napi');
+const { spawn } = require('child_process');
+const path = require('path');
 
 // Map our settings keys to uiohook keycodes
 const KEYCODES = {
@@ -24,10 +26,15 @@ const DOUBLE_TAP_MS = 900; // second tap within this window = hands-free toggle
  * Callbacks: onStart(), onStop(), onCancel()  (onStop/onCancel only fire while active)
  */
 class HotkeyManager {
-  constructor({ onStart, onStop, onCancel }) {
+  constructor({ onStart, onStop, onCancel, onKey, onStatus }) {
     this.onStart = onStart;
     this.onStop = onStop;
     this.onCancel = onCancel;
+    this.onKey = onKey;
+    this.onStatus = onStatus;
+    this.helper = null;
+    this.keyName = null;
+    this.error = '';
     this.keycode = null;
     this.running = false;
 
@@ -46,13 +53,17 @@ class HotkeyManager {
     // Swapping keys mid-recording would orphan the session (the old key's
     // keyup would be ignored): cancel cleanly first.
     if (this.active) this._cancel();
-    this.keyIsDown = false;
-    this.keycode = KEYCODES[name] || KEYCODES.AltRight;
+    this.reset();
+    this.keyName = name;
+    this.keycode = name === 'Fn' ? -1 : KEYCODES[name] || KEYCODES.AltRight;
   }
 
-  start(keyName) {
+  async start(keyName) {
+    if (this.running && this.keyName === keyName) return true;
+    this.stop();
     this.setKey(keyName);
-    if (this.running) return true;
+    this.error = '';
+    if (keyName === 'Fn') return this._startFn();
     uIOhook.on('keydown', this._down);
     uIOhook.on('keyup', this._up);
     try {
@@ -63,15 +74,78 @@ class HotkeyManager {
       throw e;
     }
     this.running = true;
+    this._status();
     return true;
   }
 
   stop() {
-    if (!this.running) return;
+    if (this.active) this._cancel();
+    this.reset();
+    if (this.helper) {
+      const child = this.helper;
+      this.helper = null;
+      child.kill();
+    }
     uIOhook.removeListener('keydown', this._down);
     uIOhook.removeListener('keyup', this._up);
-    try { uIOhook.stop(); } catch { /* already stopped */ }
+    if (this.running && this.keyName !== 'Fn') {
+      try { uIOhook.stop(); } catch { /* already stopped */ }
+    }
     this.running = false;
+  }
+
+  _status() {
+    if (this.onStatus) this.onStatus({ ready: this.running, error: this.error, key: this.keyName });
+  }
+
+  _startFn() {
+    if (process.platform !== 'darwin') throw new Error('Fn dictation is available on Mac. Choose another key.');
+    const { app } = require('electron');
+    const executable = app.isPackaged
+      ? path.join(process.resourcesPath, 'native', 'speakeasy-fn')
+      : path.join(__dirname, '..', '..', 'build', 'native', 'speakeasy-fn');
+    return new Promise((resolve, reject) => {
+      const child = spawn(executable, [], { stdio: ['ignore', 'pipe', 'pipe'] });
+      this.helper = child;
+      let pending = true;
+      let buffer = '';
+      const fail = (message) => {
+        if (this.helper !== child) {
+          if (pending) { pending = false; clearTimeout(timer); reject(new Error('Shortcut changed')); }
+          return;
+        }
+        this.error = message;
+        this.running = false;
+        this.helper = null;
+        child.kill();
+        if (this.active) this._cancel();
+        this.reset();
+        this._status();
+        if (pending) { pending = false; clearTimeout(timer); reject(new Error(message)); }
+      };
+      const timer = setTimeout(() => fail('The Fn listener did not start. Retry after checking permissions.'), 5000);
+      child.on('error', () => fail('The Fn listener is unavailable. Reinstall SpeakEasy or choose Right Option.'));
+      child.on('exit', () => fail('Allow SpeakEasy in Accessibility and Input Monitoring, then retry.'));
+      child.stdout.on('data', (data) => {
+        buffer += data.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          let event;
+          try { event = JSON.parse(line).event; } catch { continue; }
+          if (this.helper !== child) continue;
+          if (event === 'ready') {
+            this.running = true;
+            this.error = '';
+            this._status();
+            if (pending) { pending = false; clearTimeout(timer); resolve(true); }
+          } else if (event === 'down') this._down({ keycode: -1 });
+          else if (event === 'up') this._up({ keycode: -1 });
+          else if (event === 'cancel' && this.active) this._cancel();
+          else if (event === 'permission-required') fail('Allow SpeakEasy in Accessibility and Input Monitoring, then retry.');
+        }
+      });
+    });
   }
 
   _down(e) {
@@ -82,6 +156,7 @@ class HotkeyManager {
     if (e.keycode !== this.keycode) return;
     if (this.keyIsDown) return; // OS key-repeat
     this.keyIsDown = true;
+    if (this.onKey) this.onKey({ down: true, key: this.keyName });
     this.pressedAt = Date.now();
 
     if (this.active && this.handsFree) return; // tap-to-stop handled on keyup
@@ -98,6 +173,7 @@ class HotkeyManager {
     if (e.keycode !== this.keycode) return;
     if (!this.keyIsDown) return;
     this.keyIsDown = false;
+    if (this.onKey) this.onKey({ down: false, key: this.keyName });
     const heldMs = Date.now() - this.pressedAt;
     const now = Date.now();
 
@@ -144,6 +220,7 @@ class HotkeyManager {
 
   /** Force-reset state (used when recording is stopped from elsewhere). */
   reset() {
+    this.keyIsDown = false;
     this.active = false;
     this.handsFree = false;
     this.lastTapAt = 0;

@@ -40,6 +40,11 @@ let engineState = 'off'; // off | loading | ready | error
 let engineCrashCount = 0;
 let maxDurationTimer = null;
 let captureSession = 0; // increments per recording; stale capture events are dropped
+let setupMode = 'off';
+let setupHasDictated = false;
+
+// An isolated profile is useful for first-run QA without touching personal history.
+if (process.env.SPEAKEASY_USER_DATA) app.setPath('userData', path.resolve(process.env.SPEAKEASY_USER_DATA));
 
 const MAX_RECORDING_SECONDS = 15 * 60; // hard cap, like Wispr's 20-min limit
 
@@ -111,7 +116,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 980,
     height: 680,
-    minWidth: 820,
+    minWidth: 760,
     minHeight: 560,
     show: false,
     title: 'SpeakEasy',
@@ -128,10 +133,13 @@ function createMainWindow() {
     }
   });
   mainWindow.loadFile(path.join(__dirname, '..', 'app', 'index.html'));
+  mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('close', (e) => {
     // Keep running in the tray; quit only from the tray menu
     if (!app.isQuittingForReal) {
       e.preventDefault();
+      if (setupMode !== 'off' && dictState === 'recording') onDictateCancel();
+      setupMode = 'off';
       mainWindow.hide();
     }
   });
@@ -219,6 +227,7 @@ transcriber.onStateChange = (state, detail) => {
 // ---------------------------------------------------------------- dictation
 
 function onDictateStart() {
+  if (setupMode === 'shortcut') return;
   if (dictState === 'processing') {
     hotkeys.reset();
     overlayState('error', { message: 'Still finishing the last one' });
@@ -308,6 +317,7 @@ async function onDictateStop() {
     }
 
     const ok = await injectText(text, { restoreClipboard: store.settings().restoreClipboard });
+    if (setupMode === 'practice' && ok && mainWindow.isFocused()) setupHasDictated = true;
     const words = text.split(/\s+/).filter(Boolean).length;
     if (!ok) {
       // Paste failed (no focused field, blocked app): the text stays on the
@@ -334,7 +344,7 @@ async function onDictateStop() {
     audioStore.removeRecording(wavName);
 
     if (ok) overlayState('done', { words });
-    push('dictation', { phase: 'done', text, words });
+    push('dictation', { phase: 'done', text, words, pasted: ok });
     push('stats', {});
   } catch (e) {
     console.error('[dictation]', e);
@@ -397,6 +407,7 @@ ipcMain.on('capture:stopped', (_e, session) => {
 ipcMain.on('capture:armed', (_e, session) => {
   if (session !== captureSession) return;
   if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
+    push('dictation', { phase: 'armed' });
     overlayWindow.webContents.send('overlay:armed', { sounds: store.settings().sounds });
   }
 });
@@ -404,10 +415,12 @@ ipcMain.on('capture:armed', (_e, session) => {
 ipcMain.on('capture:error', (_e, message) => {
   console.error('[capture]', message);
   if (dictState === 'recording') {
+    clearTimeout(maxDurationTimer);
     dictState = 'idle';
     hotkeys.reset();
     overlayState('error', { message: 'Microphone error' });
     tray.setState('idle', 'Mic error');
+    push('dictation', { phase: 'error', message: 'Microphone unavailable. Check the selected microphone and permission in Settings.' });
   }
 });
 
@@ -441,7 +454,7 @@ function permStatus() {
       accessibility: systemPreferences.isTrustedAccessibilityClient(false)
     };
   }
-  return { mic: 'granted', accessibility: true };
+  return { mic: process.platform === 'win32' ? systemPreferences.getMediaAccessStatus('microphone') : 'granted', accessibility: true };
 }
 
 function fullState() {
@@ -457,6 +470,8 @@ function fullState() {
     holdKeys: HOLD_KEYS,
     languages: { featured: FEATURED_LANGUAGES, names: LANGUAGE_NAMES },
     engine: { state: engineState },
+    shortcut: { ready: !!hotkeys?.running, error: hotkeys?.error || '', key: cfg.holdKey },
+    installation: { needsMove: isMac && app.isPackaged && !app.isInApplicationsFolder() },
     permissions: permStatus(),
     platform: process.platform,
     version: app.getVersion()
@@ -464,6 +479,35 @@ function fullState() {
 }
 
 ipcMain.handle('state:get', () => fullState());
+
+ipcMain.handle('app:install', () => {
+  if (!isMac || !app.isPackaged || app.isInApplicationsFolder()) return { ok: true };
+  try {
+    const ok = app.moveToApplicationsFolder();
+    return { ok, error: ok ? '' : 'Installation was cancelled. You can also drag SpeakEasy into Applications.' };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+ipcMain.handle('app:hide', () => { setupMode = 'off'; mainWindow.hide(); });
+ipcMain.handle('setup:mode', (_e, mode) => {
+  if (!['off', 'shortcut', 'practice'].includes(mode)) return false;
+  if (dictState === 'recording') onDictateCancel();
+  hotkeys?.reset();
+  setupMode = mode;
+  if (mode === 'shortcut') setupHasDictated = false;
+  return true;
+});
+ipcMain.handle('setup:complete', (_e, launchAtLogin) => {
+  const perms = permStatus();
+  if (!setupHasDictated || engineState !== 'ready' || !hotkeys?.running || !perms.accessibility || perms.mic !== 'granted') {
+    return { ok: false, error: 'Finish a test dictation and check the permissions before continuing.' };
+  }
+  store.updateSettings({ onboarded: true, launchAtLogin: launchAtLogin === true });
+  app.setLoginItemSettings({ openAtLogin: launchAtLogin === true });
+  setupMode = 'off';
+  return { ok: true };
+});
+ipcMain.handle('engine:retry', async () => { await ensureEngine(); return fullState(); });
+ipcMain.handle('shortcut:retry', async () => { await startHotkeysWithRetry(); return fullState(); });
 
 ipcMain.handle('settings:update', async (_e, partial) => {
   const before = store.settings();
@@ -473,7 +517,11 @@ ipcMain.handle('settings:update', async (_e, partial) => {
   const loginChanged = partial.launchAtLogin !== undefined && partial.launchAtLogin !== before.launchAtLogin;
 
   const cfg = store.updateSettings(partial);
-  if (keyChanged) hotkeys.setKey(cfg.holdKey);
+  if (keyChanged) {
+    hotkeys.stop();
+    if (hotkeyStarting) await hotkeyStarting;
+    await startHotkeysWithRetry();
+  }
   if (loginChanged) app.setLoginItemSettings({ openAtLogin: cfg.launchAtLogin });
   if (modelChanged || langChanged) await ensureEngine();
   return fullState();
@@ -566,6 +614,8 @@ ipcMain.handle('clipboard:copy', (_e, text) => { clipboard.writeText(text); retu
 ipcMain.handle('perm:request-mic', async () => {
   if (isMac) {
     try { await systemPreferences.askForMediaAccess('microphone'); } catch { /* user decides */ }
+  } else if (process.platform === 'win32') {
+    await shell.openExternal('ms-settings:privacy-microphone');
   }
   return permStatus();
 });
@@ -579,9 +629,12 @@ ipcMain.handle('perm:open-settings', (_e, pane) => {
     const urls = {
       accessibility: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
       microphone: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone',
-      input: 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent'
+      input: 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent',
+      keyboard: 'x-apple.systempreferences:com.apple.Keyboard-Settings.extension'
     };
     shell.openExternal(urls[pane] || urls.accessibility);
+  } else if (process.platform === 'win32' && pane === 'microphone') {
+    shell.openExternal('ms-settings:privacy-microphone');
   }
   return true;
 });
@@ -590,22 +643,33 @@ ipcMain.handle('perm:status', () => permStatus());
 // Global key listening needs Accessibility (mac). If it is not granted yet,
 // keep retrying quietly so the hotkey comes alive the moment the user grants it.
 let hotkeyRetryTimer = null;
+let hotkeyStarting = null;
 function startHotkeysWithRetry() {
-  const attempt = () => {
+  if (hotkeyStarting) return hotkeyStarting;
+  const attempt = async () => {
+    if (isMac && !systemPreferences.isTrustedAccessibilityClient(false)) {
+      hotkeys.error = 'Allow Accessibility to activate your dictation key.';
+      push('shortcut', { ready: false, error: hotkeys.error });
+      return false;
+    }
     try {
-      hotkeys.start(store.settings().holdKey);
+      await hotkeys.start(store.settings().holdKey);
       clearInterval(hotkeyRetryTimer);
       hotkeyRetryTimer = null;
       console.log('[hotkey] listener active');
       return true;
     } catch (e) {
+      hotkeys.error = e.message;
+      push('shortcut', { ready: false, error: e.message });
       console.error('[hotkey] not available yet:', e.message);
       return false;
     }
   };
-  if (!attempt() && !hotkeyRetryTimer) {
-    hotkeyRetryTimer = setInterval(attempt, 8000);
-  }
+  hotkeyStarting = attempt().then((ok) => {
+    if (!ok && !hotkeyRetryTimer) hotkeyRetryTimer = setInterval(startHotkeysWithRetry, 5000);
+    return ok;
+  }).finally(() => { hotkeyStarting = null; });
+  return hotkeyStarting;
 }
 
 // ---------------------------------------------------------------- lifecycle
@@ -634,7 +698,12 @@ if (!gotLock) {
     hotkeys = new HotkeyManager({
       onStart: onDictateStart,
       onStop: onDictateStop,
-      onCancel: onDictateCancel
+      onCancel: onDictateCancel,
+      onKey: (event) => push('shortcut-key', event),
+      onStatus: (status) => {
+        push('shortcut', status);
+        if (!status.ready && !hotkeyRetryTimer) hotkeyRetryTimer = setInterval(startHotkeysWithRetry, 5000);
+      }
     });
     startHotkeysWithRetry();
 
@@ -648,7 +717,9 @@ if (!gotLock) {
     powerMonitor.on('suspend', () => {
       // Recording across a sleep produces a broken capture: cancel cleanly
       if (dictState === 'recording') onDictateCancel();
+      hotkeys.reset();
     });
+    powerMonitor.on('resume', () => startHotkeysWithRetry());
 
     // Crash recovery: recordings on disk with no history entry are dictations
     // the app died on. Surface them as retryable, then prune old audio.
@@ -679,13 +750,6 @@ if (!gotLock) {
 
     await ensureEngine();
 
-    const cfg = store.settings();
-    if (!cfg.onboarded || !cfg.model) {
-      showMainWindow();
-    } else {
-      mainWindow.show(); // first paint, then straight to tray? Keep visible on manual launch.
-    }
-
     app.on('activate', () => showMainWindow());
 
     // Dev utility: SPEAKEASY_SHOT=/path.png captures the main window after
@@ -704,6 +768,7 @@ if (!gotLock) {
   });
 
   app.on('will-quit', () => {
+    clearInterval(hotkeyRetryTimer);
     clearTimeout(overlayHideTimer);
     clearTimeout(maxDurationTimer);
     globalShortcut.unregisterAll();

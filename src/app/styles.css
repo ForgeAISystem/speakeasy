@@ -299,62 +299,6 @@ select { appearance: none; -webkit-appearance: none; cursor: pointer; }
   background: linear-gradient(90deg, var(--accent), #ffc37a);
 }
 
-/* onboarding: cream glass full-bleed */
-#onboard {
-  position: fixed; inset: 0; background: #ffffeb; z-index: 50;
-  display: none; align-items: center; justify-content: center;
-}
-#onboard.visible { display: flex; }
-.ob-step { max-width: 520px; width: 100%; padding: 40px; display: none; }
-.ob-step.active { display: block; animation: rise 0.25s var(--ease); }
-.ob-step h2 {
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 46px; font-weight: 400; letter-spacing: 0;
-  margin-bottom: 12px;
-}
-.ob-step h2 em { font-style: italic; color: inherit; }
-.ob-logo {
-  width: 84px; height: 84px; margin-bottom: 18px; margin-left: -8px;
-  filter: drop-shadow(0 6px 16px rgba(26, 26, 26, 0.25));
-}
-.ob-step h2.ob-brand {
-  font-family: 'Bricolage Grotesque', 'Figtree', sans-serif;
-  font-size: 52px; font-weight: 800; letter-spacing: -0.03em;
-}
-.ob-step h2.ob-brand em { font-style: normal; color: #cf7a0e; }
-.ob-forge {
-  margin-top: 34px;
-  font-size: 10.5px; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.16em;
-  color: var(--muted);
-}
-.ob-forge span { color: #a35708; }
-#ob-name { max-width: 340px; font-size: 15px; padding: 12px 14px; }
-.ob-step p.lead { color: var(--muted); font-size: 15px; line-height: 1.6; margin-bottom: 30px; }
-.ob-perm {
-  display: flex; align-items: center; justify-content: space-between;
-  background: var(--glass-strong);
-  border-radius: 14px; padding: 16px 18px; margin-bottom: 12px;
-  box-shadow: inset 0 0 0 1px var(--highlight), var(--shadow-1);
-}
-.ob-perm .status { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
-.ob-perm .status.ok { color: var(--green); background: var(--green-soft); padding: 4px 10px; border-radius: 99px; }
-.ob-perm .status.bad { color: var(--faint); }
-.ob-model {
-  background: var(--glass-strong);
-  border-radius: 16px; padding: 20px; margin-bottom: 12px; cursor: pointer;
-  box-shadow: inset 0 0 0 1px var(--highlight), var(--shadow-1);
-  transition: box-shadow 0.15s var(--ease), transform 0.15s var(--ease);
-}
-.ob-model:hover { box-shadow: inset 0 0 0 1.5px var(--ink), var(--shadow-2); transform: translateY(-1px); }
-.ob-model .t { font-weight: 600; margin-bottom: 4px; }
-.ob-model .d { color: var(--muted); font-size: 13px; }
-.ob-actions { margin-top: 28px; display: flex; gap: 10px; align-items: center; }
-.ob-test {
-  width: 100%; min-height: 110px; resize: none; margin-bottom: 6px;
-  font-size: 15px; line-height: 1.6;
-}
-.ob-phase { color: var(--muted); font-size: 12.5px; min-height: 18px; }
 .muted-link { color: var(--faint); font-size: 12.5px; background: none; border: none; cursor: pointer; text-decoration: underline; }
 .muted-link:hover { color: var(--muted); }
 

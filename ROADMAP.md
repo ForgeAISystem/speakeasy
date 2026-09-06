@@ -2,6 +2,16 @@
 
 Feature parity target: Wispr Flow (researched July 2026), minus the cloud, minus the $12-15/month.
 
+## Added in v2.3 (local review build)
+
+- Welcome plus four guided steps: access, offline voice, shortcut, first dictation.
+- Applications install action on packaged Mac builds; no source setup for end users.
+- Native Fn / Globe support on Mac, with Right Option fallback and a real key check.
+- Completion gated on an actual successful dictation and paste, checked in renderer and main process.
+- Quiet home screen, advanced model/AI settings disclosure, semantic navigation, focus states, reduced motion.
+- Microphone cancellation race fix and final partial audio chunk flushing.
+- See STATE.md for current evidence and release blockers.
+
 ## Shipped in v2.0
 
 - Hold-to-talk + double-tap hands-free + Esc cancel (Wispr's exact interaction model)
@@ -27,7 +37,7 @@ Feature parity target: Wispr Flow (researched July 2026), minus the cloud, minus
 - **"Undo AI edit"**: history already stores `raw`; add a button to re-paste the raw version
 - **Streaming preview**: show words appearing in the flow bar while still speaking (sherpa-onnx streaming models or chunked decode)
 - **VAD auto-stop** in hands-free mode (Silero VAD via sherpa-onnx, stop after N seconds of silence)
-- **Custom hotkey capture UI** (record any key/combo including mouse buttons 4/5) and Fn-key support on Mac (needs a small native flagsChanged tap; uiohook does not see Fn)
+- **Custom hotkey capture UI** (record any key/combo including mouse buttons 4/5) (Fn-key support is now implemented on Mac)
 - **Whisper mode tuning**: gain boost + model prompt for whispered speech
 - **Command mode**: select text anywhere, hold a second hotkey, speak an instruction ("make this more concise"), replace selection via the polish LLM
 - **Scratchpad**: tiny floating notepad window for capturing thoughts without a target app

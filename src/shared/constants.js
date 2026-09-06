@@ -86,6 +86,7 @@ function languageName(code) {
 }
 
 const HOLD_KEYS = {
+  Fn: { label: 'Fn', winLabel: 'Fn', macOnly: true },
   AltRight: { label: 'Right Option (⌥)', winLabel: 'Right Alt' },
   MetaRight: { label: 'Right Command (⌘)', winLabel: 'Right Win' },
   CtrlRight: { label: 'Right Control (⌃)', winLabel: 'Right Ctrl' },
@@ -98,7 +99,7 @@ const DEFAULT_SETTINGS = {
   onboarded: false,
   userName: '',
   model: null,
-  holdKey: process.platform === 'darwin' ? 'AltRight' : 'CtrlRight',
+  holdKey: process.platform === 'darwin' ? 'Fn' : 'CtrlRight',
   mode: 'hold', // 'hold' = press and hold, 'toggle' = tap to start/stop
   language: 'auto', // whisper models only
   micDeviceId: 'default',

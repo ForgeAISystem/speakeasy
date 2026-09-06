@@ -9,10 +9,15 @@ asarUnpack:
   - node_modules/sherpa-onnx-*/**
   - node_modules/uiohook-napi/**
 mac:
+  extraResources:
+    - from: build/native/speakeasy-fn
+      to: native/speakeasy-fn
+  binaries:
+    - Contents/Resources/native/speakeasy-fn
   category: public.app-category.productivity
   target:
     - dmg
-  identity: null # unsigned for now; users right-click > Open on first launch
+  # Uses an available Developer ID certificate when configured by the release owner.
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist

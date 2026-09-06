@@ -3,7 +3,10 @@
 const api = window.speakeasy;
 let S = null; // full state cache
 let currentTab = 'home';
-let obStep = 0; // onboarding step index
+const setup = new window.SpeakEasySetup({
+  api, state: () => S, update: (next) => { S = next; },
+  finish: () => { renderAll(); document.querySelector('[data-tab=home]')?.focus(); }
+});
 
 // ---------------------------------------------------------------- utils
 
@@ -57,9 +60,10 @@ function pasteShortcutLabel() {
 function renderEnginePill() {
   const pill = document.getElementById('engine-pill');
   const label = document.getElementById('engine-label');
-  const st = S.engine.state;
+  const st = S.engine.state === 'ready' && !S.shortcut?.ready ? 'shortcut' : S.engine.state;
   pill.className = st;
-  label.textContent = st === 'ready' ? 'Engine ready'
+  label.textContent = st === 'ready' ? 'Ready to dictate'
+    : st === 'shortcut' ? 'Check shortcut'
     : st === 'loading' ? 'Loading model'
     : st === 'error' ? 'Engine error'
     : 'No model';
@@ -70,89 +74,26 @@ function renderEnginePill() {
 function renderHome() {
   const el = document.getElementById('tab-home');
   const st = S.stats;
-  const hour = new Date().getHours();
-  const period = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const greeting = S.settings.userName ? `${period}, ${esc(S.settings.userName)}` : period;
-
+  const local = S.settings.polishProvider !== 'anthropic';
+  const ready = S.engine.state === 'ready' && S.shortcut?.ready && S.permissions.mic === 'granted' && S.permissions.accessibility;
+  const key = S.settings.holdKey === 'Fn' ? 'fn' : holdKeyLabel();
   el.innerHTML = `
-    <h1>${greeting}.</h1>
-    <p class="sub">Local dictation. No cloud. No subscription. Your words never leave this machine.</p>
-    <div class="hero-card">
-      <div class="headline">Hold <em>${esc(holdKeyLabel())}</em> to dictate</div>
-      <div class="subcopy">Speak naturally, release, and clean text lands wherever your cursor is. Double-tap for hands-free. <kbd>Esc</kbd> cancels.</div>
-    </div>
-
-    <div class="info-2col">
-      <div class="info-card how-card">
-        <div class="label">How to use it</div>
-        <div class="how-item"><span class="k">Hold ${esc(holdKeyLabel())}</span><span>Speak, then release. Clean text lands at your cursor.</span></div>
-        <div class="how-item"><span class="k">Double-tap</span><span>Hands-free. Tap again to stop. <b>Esc</b> cancels.</span></div>
-        <div class="how-item"><span class="k">Say &ldquo;organize my thoughts&rdquo;</span><span>Restructures a rambling dictation into clean text.</span></div>
-        <div class="how-item"><span class="k">${esc(pasteShortcutLabel())}</span><span>Re-paste your last transcript into any app.</span></div>
-      </div>
-      <div class="info-card lang-card">
-        <div class="lang-top">
-          <div class="label">Languages</div>
-          <div class="lang-detected" id="home-lang-detected"></div>
-        </div>
-        <div class="lang-mode">${S.settings.language === 'auto' ? 'Auto-detect, all 99 languages' : 'Fixed: ' + esc(langName(S.settings.language))}</div>
-        <div class="lang-chips">
-          ${(S.languages ? S.languages.featured : ['en','es','hi','gu']).map((c) => `<span class="chip">${esc(langName(c))}</span>`).join('')}
-        </div>
-        ${activeModelIsEnglishOnly()
-          ? `<div class="lang-warn">Your model is English-only. <a href="#" id="home-get-multi">Get Whisper Turbo</a> to dictate Hindi, Gujarati, and Spanish.</div>`
-          : `<div class="lang-note">Speak any language, SpeakEasy writes it back in that same language.</div>`}
-      </div>
-    </div>
-
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="label">Today</div>
-        <div class="value">${num(st.today.words)} <small>words</small></div>
-        <div class="detail">${fmtDuration(st.today.timeSavedSeconds)} saved &middot; ${num(st.today.transcriptions)} dictations</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">This week</div>
-        <div class="value">${num(st.week.words)} <small>words</small></div>
-        <div class="detail">${fmtDuration(st.week.timeSavedSeconds)} saved &middot; ${num(st.week.transcriptions)} dictations</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">All time</div>
-        <div class="value">${num(st.allTime.words)} <small>words</small></div>
-        <div class="detail">${fmtDuration(st.allTime.timeSavedSeconds)} saved &middot; ${num(st.allTime.transcriptions)} dictations</div>
-      </div>
-      <div class="stat-card stat-wide">
-        <div class="stat-inline">
-          <div>
-            <div class="label">Speaking pace</div>
-            <div class="value">${st.wpm ? num(st.wpm) : '&ndash;'} <small>wpm</small></div>
-          </div>
-          <div>
-            <div class="label">vs typing (40 wpm)</div>
-            <div class="value">${st.wpm ? Math.max(1, Math.round(st.wpm / 40)) : '&ndash;'}<small>x faster</small></div>
-          </div>
-          <div>
-            <div class="label">Daily streak</div>
-            <div class="value">${num(st.streak)} <small>day${st.streak === 1 ? '' : 's'}</small></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-title">Recent dictations</div>
-    <div class="row-list" id="home-recent"><div class="empty">Nothing yet. Hold ${esc(holdKeyLabel())} and start talking.</div></div>
+    <div class="home-heading"><h1>${S.settings.userName ? 'Hello, ' + esc(S.settings.userName) + '.' : 'A little less typing.'}</h1><span class="local-badge"><span class="local-dot"></span>${local ? 'Local dictation' : 'Cloud polish enabled'}</span></div>
+    ${!ready ? `<div class="readiness-message">${S.engine.state === 'loading' ? 'Your voice is getting ready.' : S.engine.state === 'error' ? 'Your voice needs a restart.' : 'Let’s check your voice and permissions.'} <button class="muted-link" id="home-setup">Open setup</button></div>` : ''}
+    <div class="daily-hero"><div><div class="eyebrow">${ready ? 'READY WHEN YOU ARE' : 'YOUR DICTATION SHORTCUT'}</div><h2>Your thoughts.<br>Already written.</h2><p>Click where you want to write. Hold ${esc(holdKeyLabel())}, speak, then release.</p></div><kbd class="daily-key ${key.length > 3 ? 'long' : ''}">${esc(key)}</kbd></div>
+    <div class="home-shortcuts"><span><kbd>Double-tap</kbd> Hands-free</span><span><kbd>Esc</kbd> Cancel</span><span><kbd>${esc(pasteShortcutLabel())}</kbd> Paste last</span></div>
+    <div class="home-summary"><div><strong>${num(st.today.words)}</strong><span>words today</span></div><div><strong>${fmtDuration(st.today.timeSavedSeconds)}</strong><span>estimated time saved</span></div><div><strong>${num(st.allTime.transcriptions)}</strong><span>dictations so far</span></div></div>
+    <div class="home-section-head"><h2>Recent words</h2><button class="muted-link" id="home-history">View history</button></div>
+    <div class="row-list" id="home-recent"><div class="home-empty">Your next thought goes here.<br>Try a sentence in Notes, Mail, or your favorite app.</div></div>
+    <div class="home-footer"><span>${activeModelIsEnglishOnly() ? 'English voice' : 'Multilingual voice'} · ${local ? 'Audio stays on your computer.' : 'Text cleanup uses Anthropic.'}</span><button class="btn ghost btn-sm" id="home-hide">Keep running in ${S.platform === 'darwin' ? 'menu bar' : 'tray'}</button></div>
   `;
-
   api.historyList().then((rows) => {
     const target = document.getElementById('home-recent');
-    if (target && rows.length) target.innerHTML = rows.slice(0, 5).map(historyRowHtml).join('');
-    const lastLang = (rows.find((r) => r.lang) || {}).lang;
-    const det = document.getElementById('home-lang-detected');
-    if (det && lastLang) det.textContent = `Last: ${langName(lastLang)}`;
+    if (target && rows.length) target.innerHTML = rows.slice(0, 3).map(historyRowHtml).join('');
   });
-
-  const getMulti = document.getElementById('home-get-multi');
-  if (getMulti) getMulti.addEventListener('click', (e) => { e.preventDefault(); switchTab('settings'); });
+  document.getElementById('home-setup')?.addEventListener('click', () => showOnboard(true));
+  document.getElementById('home-history').addEventListener('click', () => switchTab('history'));
+  document.getElementById('home-hide').addEventListener('click', () => api.hideApp());
 }
 
 function historyRowHtml(r) {
@@ -304,6 +245,7 @@ async function renderSettings() {
   const isMac = S.platform === 'darwin';
 
   const keyOptions = Object.entries(S.holdKeys)
+    .filter(([, v]) => !v.macOnly || isMac)
     .map(([k, v]) => `<option value="${k}" ${cfg.holdKey === k ? 'selected' : ''}>${isMac ? v.label : v.winLabel}</option>`).join('');
 
   const langs = [['auto', 'Auto-detect'], ['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['de', 'German'], ['pt', 'Portuguese'], ['hi', 'Hindi'], ['gu', 'Gujarati'], ['zh', 'Chinese'], ['ja', 'Japanese'], ['ko', 'Korean'], ['it', 'Italian'], ['ru', 'Russian'], ['ar', 'Arabic']];
@@ -316,7 +258,7 @@ async function renderSettings() {
 
   el.innerHTML = `
     <h1>Settings</h1>
-    <p class="sub">Everything runs on this machine. Change anything, it applies instantly.</p>
+    <p class="sub">Your voice, your shortcut, your preferences.</p>
 
     <div class="section-title">Dictation</div>
     <div class="set-group">
@@ -334,7 +276,7 @@ async function renderSettings() {
       </div>
     </div>
 
-    <div class="section-title">Model</div>
+    <details class="advanced-settings"><summary>Voice models &amp; optional AI cleanup</summary><div class="section-title">Voice models</div>
     ${Object.values(S.models.catalog).map(modelCardHtml).join('')}
 
     <div class="section-title">Cleanup</div>
@@ -365,7 +307,7 @@ async function renderSettings() {
       </div>
     </div>
 
-    <div class="section-title">System</div>
+    </details><div class="section-title">System</div>
     <div class="set-group">
       <div class="set-row">
         <div class="info"><div class="name">Sounds</div><div class="desc">Start, stop, and done blips.</div></div>
@@ -390,6 +332,11 @@ async function renderSettings() {
     </div>
   `;
 
+  el.querySelectorAll('.set-row').forEach((row) => {
+    const label = row.querySelector('.name')?.textContent;
+    row.querySelectorAll('input, select').forEach((input) => input.setAttribute('aria-label', label || 'Setting'));
+  });
+
   const save = (partial) => api.updateSettings(partial).then((s) => { S = s; renderEnginePill(); });
   document.getElementById('set-holdkey').addEventListener('change', (e) => save({ holdKey: e.target.value }).then(renderHomeIfActive));
   document.getElementById('set-mic').addEventListener('change', (e) => save({ micDeviceId: e.target.value }));
@@ -406,7 +353,7 @@ async function renderSettings() {
   document.getElementById('set-organize').addEventListener('change', (e) => save({ organizeOnCommand: e.target.checked }));
   document.getElementById('set-ollama-model').addEventListener('change', (e) => save({ polishOllamaModel: e.target.value.trim() }));
   document.getElementById('set-anthropic-key').addEventListener('change', (e) => save({ polishAnthropicKey: e.target.value.trim() }));
-  document.getElementById('btn-rerun-onboard').addEventListener('click', () => { obStep = 0; showOnboard(true); });
+  document.getElementById('btn-rerun-onboard').addEventListener('click', () => { showOnboard(true); });
 }
 
 function renderHomeIfActive() {
@@ -415,152 +362,9 @@ function renderHomeIfActive() {
 
 // ---------------------------------------------------------------- onboarding
 
-function obPermRow(name, desc, ok, btnId) {
-  return `
-    <div class="ob-perm">
-      <div class="info"><div class="name" style="font-weight:600;margin-bottom:2px">${name}</div><div class="desc" style="color:var(--text-dim);font-size:12.5px">${desc}</div></div>
-      ${ok ? '<span class="status ok">GRANTED</span>' : `<button class="btn ghost" id="${btnId}">Grant</button>`}
-    </div>`;
-}
-
-async function renderOnboard() {
-  const el = document.getElementById('onboard');
-  const perms = await api.permStatus();
-  const isMac = S.platform === 'darwin';
-  const micOk = perms.mic === 'granted';
-  const axOk = perms.accessibility === true;
-  const dl = S.models.downloads;
-  const downloadingId = Object.keys(dl)[0];
-  const hasModel = S.settings.model && S.models.installed.includes(S.settings.model);
-
-  el.innerHTML = `
-    <div class="ob-step ${obStep === 0 ? 'active' : ''}">
-      <img class="ob-logo" src="../assets/icon.png" alt="">
-      <h2 class="ob-brand">Speak<em>Easy</em></h2>
-      <p class="lead">Voice dictation that lives on your machine. Hold a key, talk, release. Clean text lands wherever your cursor is. No cloud. No subscription. No audio ever leaves this computer.</p>
-      <div class="ob-actions"><button class="btn" data-ob="next">Set it up</button></div>
-      <div class="ob-forge">Coded by <span>The Forge</span></div>
-    </div>
-
-    <div class="ob-step ${obStep === 1 ? 'active' : ''}">
-      <h2>First, your <em>name</em></h2>
-      <p class="lead">SpeakEasy greets you by name and personalizes your dashboard. Stored locally, like everything else here.</p>
-      <input type="text" id="ob-name" placeholder="What should we call you?" value="${esc(S.settings.userName)}" autofocus>
-      <div class="ob-actions">
-        <button class="btn" id="ob-name-save">Continue</button>
-        <button class="muted-link" data-ob="next">Skip</button>
-      </div>
-    </div>
-
-    <div class="ob-step ${obStep === 2 ? 'active' : ''}">
-      <h2>Permissions</h2>
-      <p class="lead">${isMac ? 'macOS needs two approvals: the microphone to hear you, Accessibility to type for you. Input Monitoring may also be requested for the hotkey.' : 'Windows will ask for microphone access on first recording.'}</p>
-      ${obPermRow('Microphone', 'To hear you dictate', micOk, 'ob-mic')}
-      ${isMac ? obPermRow('Accessibility', 'To paste text into other apps', axOk, 'ob-ax') : ''}
-      <div class="ob-actions">
-        <button class="btn" data-ob="next" ${micOk && (!isMac || axOk) ? '' : 'disabled'}>Continue</button>
-        <button class="muted-link" data-ob="next">Skip for now</button>
-      </div>
-    </div>
-
-    <div class="ob-step ${obStep === 3 ? 'active' : ''}">
-      <h2>Pick your <em>engine</em></h2>
-      <p class="lead">Both run fully offline. You can switch or add more later in Settings.</p>
-      <div class="ob-model" data-ob-model="moonshine-base">
-        <div class="t">Fast start</div>
-        <div class="d">Moonshine Base &middot; 240 MB &middot; quick download, snappy on any machine</div>
-        ${downloadingId === 'moonshine-base' ? `<div class="progress"><div class="fill" style="width:${dl['moonshine-base'] === -1 ? 100 : Math.round((dl['moonshine-base'] || 0) * 100)}%"></div></div>` : ''}
-      </div>
-      <div class="ob-model" data-ob-model="parakeet-v2">
-        <div class="t">Best accuracy, English <span style="color:#a35708;font-size:11px;letter-spacing:0.06em;">RECOMMENDED</span></div>
-        <div class="d">Parakeet 0.6B v2 &middot; 460 MB &middot; the model the best dictation apps use</div>
-        ${downloadingId === 'parakeet-v2' ? `<div class="progress"><div class="fill" style="width:${dl['parakeet-v2'] === -1 ? 100 : Math.round((dl['parakeet-v2'] || 0) * 100)}%"></div></div>` : ''}
-      </div>
-      <div class="ob-model" data-ob-model="whisper-turbo">
-        <div class="t">Multilingual <span style="color:#a35708;font-size:11px;letter-spacing:0.06em;">HINDI · GUJARATI · SPANISH</span></div>
-        <div class="d">Whisper Turbo &middot; 540 MB &middot; 99 languages, auto-detected, written back in the language you speak</div>
-        ${downloadingId === 'whisper-turbo' ? `<div class="progress"><div class="fill" style="width:${dl['whisper-turbo'] === -1 ? 100 : Math.round((dl['whisper-turbo'] || 0) * 100)}%"></div></div>` : ''}
-      </div>
-      <div class="ob-actions">
-        ${hasModel ? '<button class="btn" data-ob="next">Continue</button>' : downloadingId ? `<span class="ob-phase">Downloading ${esc((S.models.catalog[downloadingId] || {}).label || downloadingId)}... ${dl[downloadingId] === -1 ? 'extracting' : Math.round((dl[downloadingId] || 0) * 100) + '%'}</span>` : ''}
-      </div>
-    </div>
-
-    <div class="ob-step ${obStep === 4 ? 'active' : ''}">
-      <h2>Try it${S.settings.userName ? ', ' + esc(S.settings.userName) : ''}</h2>
-      <p class="lead">Click into the box, hold <strong>${esc(holdKeyLabel())}</strong>, say something, release.</p>
-      <textarea class="ob-test" id="ob-test" placeholder="Your words land here..."></textarea>
-      <div class="ob-phase" id="ob-phase"></div>
-      <div class="ob-actions">
-        <button class="btn" data-ob="finish">Start using SpeakEasy</button>
-      </div>
-    </div>
-  `;
-
-  el.querySelectorAll('[data-ob="next"]').forEach((b) => b.addEventListener('click', () => { obStep += 1; renderOnboard(); }));
-  const nameSave = document.getElementById('ob-name-save');
-  if (nameSave) {
-    const saveName = async () => {
-      const v = document.getElementById('ob-name').value.trim();
-      if (v) S = await api.updateSettings({ userName: v });
-      obStep = 2;
-      renderOnboard();
-    };
-    nameSave.addEventListener('click', saveName);
-    document.getElementById('ob-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(); });
-    setTimeout(() => { const i = document.getElementById('ob-name'); if (i && obStep === 1) i.focus(); }, 50);
-  }
-  const fin = el.querySelector('[data-ob="finish"]');
-  if (fin) fin.addEventListener('click', async () => {
-    S = await api.updateSettings({ onboarded: true });
-    showOnboard(false);
-    renderAll();
-  });
-  const micBtn = document.getElementById('ob-mic');
-  if (micBtn) micBtn.addEventListener('click', async () => {
-    await api.requestMic();
-    setTimeout(renderOnboard, 500);
-  });
-  const axBtn = document.getElementById('ob-ax');
-  if (axBtn) axBtn.addEventListener('click', async () => {
-    await api.requestAccessibility();
-    api.openPermSettings('accessibility');
-    pollPerms();
-  });
-  el.querySelectorAll('[data-ob-model]').forEach((card) => card.addEventListener('click', async () => {
-    const id = card.getAttribute('data-ob-model');
-    if (S.models.installed.includes(id)) {
-      S = await api.updateSettings({ model: id });
-      obStep = 4;
-      renderOnboard();
-      return;
-    }
-    if (Object.keys(S.models.downloads).length) return; // already downloading
-    api.downloadModel(id).then(async (res) => {
-      if (res.ok) {
-        S = await api.updateSettings({ model: id });
-        obStep = 4;
-      }
-      renderOnboard();
-    });
-    S.models.downloads[id] = 0;
-    renderOnboard();
-  }));
-}
-
-let permPoll = null;
-function pollPerms() {
-  clearInterval(permPoll);
-  permPoll = setInterval(async () => {
-    const p = await api.permStatus();
-    if (p.accessibility) { clearInterval(permPoll); renderOnboard(); }
-  }, 1500);
-}
-
 function showOnboard(visible) {
-  document.getElementById('onboard').classList.toggle('visible', visible);
-  if (visible) renderOnboard();
-  else clearInterval(permPoll);
+  if (visible) setup.open();
+  else setup.close();
 }
 
 // ---------------------------------------------------------------- tabs + delegation
@@ -581,7 +385,7 @@ function renderAll() {
 function switchTab(tab) {
   if (!renderers[tab]) return;
   currentTab = tab;
-  document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n.getAttribute('data-tab') === tab));
+  document.querySelectorAll('.nav-item').forEach((n) => { const active = n.getAttribute('data-tab') === tab; n.classList.toggle('active', active); n.setAttribute('aria-current', active ? 'page' : 'false'); });
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${tab}`));
   renderers[tab]();
 }
@@ -658,6 +462,7 @@ document.getElementById('content').addEventListener('click', async (e) => {
 // ---------------------------------------------------------------- push events
 
 api.onPush(async (msg) => {
+  if (!S) return;
   if (msg.type === 'download-progress') {
     if (msg.error || msg.done) {
       const err = msg.error ? { id: msg.id, message: msg.error } : null;
@@ -666,7 +471,7 @@ api.onPush(async (msg) => {
     } else {
       S.models.downloads[msg.id] = msg.progress;
     }
-    if (document.getElementById('onboard').classList.contains('visible')) renderOnboard();
+    if (setup.visible) setup.push(msg);
     else if (currentTab === 'settings') {
       // Update just the progress bar to avoid re-rendering inputs mid-typing
       const card = document.querySelector(`.model-card[data-model="${msg.id}"]`);
@@ -682,18 +487,19 @@ api.onPush(async (msg) => {
   } else if (msg.type === 'engine') {
     S.engine.state = msg.state;
     renderEnginePill();
+    if (currentTab === 'home' && !setup.visible) renderHome();
+  } else if (msg.type === 'shortcut') {
+    S.shortcut = msg;
+    renderEnginePill();
+    if (setup.visible && setup.step === 3) setup.render();
+    else if (!setup.visible && currentTab === 'home') renderHome();
+  } else if (msg.type === 'shortcut-key') {
+    setup.push(msg);
   } else if (msg.type === 'stats') {
     S = await api.getState();
     if (currentTab === 'home') renderHome();
   } else if (msg.type === 'dictation') {
-    const phase = document.getElementById('ob-phase');
-    if (phase) {
-      phase.textContent = msg.phase === 'recording' ? 'Listening...'
-        : msg.phase === 'processing' ? 'Computing...'
-        : msg.phase === 'done' ? `Done. ${msg.words} words in.`
-        : msg.phase === 'cancelled' ? 'Cancelled.'
-        : msg.phase === 'error' ? `Error: ${msg.message}` : '';
-    }
+    setup.push(msg);
   }
 });
 

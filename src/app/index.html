@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:">
@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/400.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/600.css">
 <link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./setup.css">
 </head>
 <body>
 
@@ -32,26 +33,26 @@
         <div class="brand-forge">Coded by <span>The Forge</span></div>
       </div>
     </div>
-    <div class="nav-item active" data-tab="home">
+    <button class="nav-item active" data-tab="home" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
       Home
-    </div>
-    <div class="nav-item" data-tab="history">
+    </button>
+    <button class="nav-item" data-tab="history" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       History
-    </div>
-    <div class="nav-item" data-tab="dictionary">
+    </button>
+    <button class="nav-item" data-tab="dictionary" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z"/></svg>
       Dictionary
-    </div>
-    <div class="nav-item" data-tab="snippets">
+    </button>
+    <button class="nav-item" data-tab="snippets" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
       Snippets
-    </div>
-    <div class="nav-item" data-tab="settings">
+    </button>
+    <button class="nav-item" data-tab="settings" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Settings
-    </div>
+    </button>
     <div class="spacer"></div>
     <div id="engine-pill" class="off"><span class="dot"></span><span id="engine-label">Starting</span></div>
   </aside>
@@ -65,8 +66,9 @@
   </main>
 </div>
 
-<div id="onboard"></div>
+<div id="onboard" role="dialog" aria-modal="true" aria-labelledby="setup-title"></div>
 
+<script src="./onboarding.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>

@@ -2,11 +2,11 @@
 
 **Local voice dictation for Mac and Windows.** Hold a key, speak, release. Clean text lands wherever your cursor is, in any app.
 
-Everything runs on your machine. No cloud. No account. No subscription. Your audio never leaves your computer.
+Speech recognition runs on your machine. No account or subscription is required. Audio stays local. Optional cloud text cleanup is off by default.
 
 ## What it does
 
-- **Hold-to-talk dictation** into any app: hold your dictation key (Right Option on Mac, Right Ctrl on Windows by default), speak, release. Text is pasted at your cursor.
+- **Hold-to-talk dictation** into any app: hold your dictation key (Fn / Globe on Mac, Right Ctrl on Windows by default), speak, release. Text is pasted at your cursor.
 - **Hands-free mode**: double-tap the dictation key to keep recording without holding. Tap again to stop. Esc cancels.
 - **Flow bar**: a floating pill at the bottom of your screen shows a live waveform while listening, a "Computing" state while transcribing, and a word count when done. With start/stop sounds (toggleable).
 - **Local AI models**: NVIDIA Parakeet (best accuracy), Moonshine (fastest), or Whisper (99 languages), all running offline via sherpa-onnx. Downloaded once, inside the app.
@@ -19,23 +19,32 @@ Everything runs on your machine. No cloud. No account. No subscription. Your aud
 
 ## Install
 
-**Easiest: download the installer** from [Releases](../../releases):
+You do not need Node.js, a terminal, or an AI agent to use the app.
 
-- **Mac**: open the `.dmg`, drag SpeakEasy into Applications, launch it. First time only: right-click the app and choose Open (the build is not yet code-signed).
-- **Windows**: run `SpeakEasy Setup.exe`. One click, a desktop shortcut appears, and the app starts.
+- **Mac:** open the DMG, then open SpeakEasy. Choose **Install in Applications**, or drag the app into the Applications shortcut. macOS permissions are requested after installation.
+- **Windows:** run the setup EXE. The existing one-click installer creates the shortcut and launches SpeakEasy.
 
-First launch walks you through everything: your name, permissions, a one-time model download (240 MB fast start or 460 MB best accuracy), and a live test. Then you're dictating.
+The first-run guide walks through four steps:
 
-**From source** (requires [Node.js 20+](https://nodejs.org)):
+1. Allow microphone and Accessibility access, with live status checks.
+2. Prepare an English or multilingual offline voice pack.
+3. Press and release your shortcut. Mac users can choose Fn / Globe or Right Option.
+4. Dictate a real sentence into the practice box. Setup finishes only after the words land there.
+
+Close the window to keep SpeakEasy running in the menu bar or tray. Quit from its menu when you want to stop it entirely.
+
+**Build status:** this branch is v2.3.0. Its Apple Silicon installer is generated at `dist/SpeakEasy-2.3.0-arm64.dmg`. This version has not been published as a GitHub release. The repository is private. Published installers, when available, live under [Releases](https://github.com/itsharshrpatel-arch/speakeasy/releases).
+
+**Signing:** the current local installer is unsigned and not notarized. macOS may block a downloaded copy. A normal warning-free distribution requires a Developer ID Application certificate and Apple notarization. See [HANDOFF.md](HANDOFF.md). Do not disable Gatekeeper to install it.
+
+### Run from source (development only)
 
 ```bash
-git clone https://github.com/itsharshrpatel-arch/speakeasy.git
-cd speakeasy
-npm install
+npm ci
 npm start
 ```
 
-**Using an AI agent?** Point it at this repo — [CLAUDE.md](CLAUDE.md) is a complete runbook (setup, build, gotchas). "Set up SpeakEasy from this repo" is all the prompt it needs.
+On macOS, `npm start` compiles the small native Fn listener with Xcode Command Line Tools. End users receive that listener inside the installer and need no developer tools. In an Electron-hosted shell, use `env -u ELECTRON_RUN_AS_NODE npm start`.
 
 ### macOS permissions
 
@@ -53,11 +62,12 @@ Microphone permission is requested on first recording. No other permissions need
 ## Build installers
 
 ```bash
+npm test
 npm run dist:mac   # .dmg for the current architecture
 npm run dist:win   # one-click .exe installer with desktop shortcut
 ```
 
-Output lands in `dist/`. Or push a tag (`git tag v2.1.0 && git push --tags`) and GitHub Actions builds Mac (Apple Silicon + Intel) and Windows installers and attaches them to a Release automatically.
+Output lands in `dist/`. Tag-triggered GitHub Actions runs the tests, builds the native helper, and creates Mac and Windows installers. Intel Mac builds remain best effort. Publishing a tag creates a release; local builds use `--publish never` for review.
 
 ## Architecture
 
@@ -65,7 +75,7 @@ Output lands in `dist/`. Or push a tag (`git tag v2.1.0 && git push --tags`) and
 src/
 ├── main/            Electron main process
 │   ├── index.js     App lifecycle, windows, dictation state machine, IPC
-│   ├── hotkey.js    Global hold/double-tap key handling (uiohook-napi)
+│   ├── hotkey.js    Fn native helper on Mac; uiohook for other keys
 │   ├── injector.js  Clipboard write -> simulated paste -> clipboard restore
 │   ├── transcriber.js  Manages the transcription worker process
 │   ├── models.js    Model catalog, download, extract
@@ -82,7 +92,7 @@ Speech models: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) running Whis
 
 ## Privacy
 
-- Audio is processed in memory and never written to disk or sent anywhere.
+- Before transcription, a local WAV safety copy is saved. Successful dictations delete it. Failed or interrupted dictations can be retried from History; leftover audio is pruned after 14 days.
 - Transcripts, settings, and stats live in local JSON files under your user-data directory.
 - The only optional network calls: model downloads (GitHub), and AI polish if you explicitly enable Ollama (localhost) or the Claude API (text only, never audio).
 

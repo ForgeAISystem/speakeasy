@@ -3,6 +3,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('speakeasy', {
   getState: () => ipcRenderer.invoke('state:get'),
+  installApp: () => ipcRenderer.invoke('app:install'),
+  hideApp: () => ipcRenderer.invoke('app:hide'),
+  setupMode: (mode) => ipcRenderer.invoke('setup:mode', mode),
+  completeSetup: (login) => ipcRenderer.invoke('setup:complete', login),
+  retryEngine: () => ipcRenderer.invoke('engine:retry'),
+  retryShortcut: () => ipcRenderer.invoke('shortcut:retry'),
   updateSettings: (partial) => ipcRenderer.invoke('settings:update', partial),
   downloadModel: (id) => ipcRenderer.invoke('models:download', id),
   removeModel: (id) => ipcRenderer.invoke('models:remove', id),

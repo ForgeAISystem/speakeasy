@@ -17,6 +17,7 @@ Speech recognition runs on your machine. No account or subscription is required.
 - **Optional AI polish**: a second cleanup pass through a local LLM (Ollama) or the Claude API. Off by default. Rule-based cleanup needs no LLM at all.
 - **Paste last transcript**: Cmd+Ctrl+V (Mac) / Shift+Alt+Z (Windows) re-pastes your most recent dictation.
 - **A flexible desktop window**: native dragging, minimize/full-screen controls, compact layouts down to 560x480, and remembered size/screen position. Reopening restores a minimized window; disconnected screens recover onto an available display.
+- **Dictation checks and recovery**: Home's Check dictation shows permissions, shortcut detection, voice, microphone connection, and indicator readiness. Test indicator previews the bar without recording; Repair connection rechecks failed components while idle. Received audio from an interrupted recording stays recoverable in History.
 
 The interface uses original ImageGen glass artwork with subtle pointer depth. System reduced motion and the Subtle motion setting disable these effects. [Research and design decisions](docs/COMPETITOR-RESEARCH-2026-09-06.md) · [Artwork and prompt](docs/IMAGEGEN.md)
 
@@ -38,7 +39,7 @@ The first-run guide walks through four steps:
 
 Close the window to keep SpeakEasy running in the menu bar or tray. Quit from its menu when you want to stop it entirely.
 
-**Build status:** this branch is v2.4.0. Its Apple Silicon installer is generated at `dist/SpeakEasy-2.4.0-arm64.dmg`. This version has not been published as a GitHub release. The repository is private. Published installers, when available, live under [Releases](https://github.com/ForgeAISystem/speakeasy/releases).
+**Build status:** this branch is v2.4.2. Its Apple Silicon installer is generated at `dist/SpeakEasy-2.4.2-arm64.dmg` and installed on the development Mac. This version has not been published as a GitHub release. The repository is private. Published installers, when available, live under [Releases](https://github.com/ForgeAISystem/speakeasy/releases). See [STATE.md](STATE.md) for verification and remaining physical-device checks.
 
 **Signing:** the current local installer is unsigned and not notarized. macOS may block a downloaded copy. A normal warning-free distribution requires a Developer ID Application certificate and Apple notarization. See [HANDOFF.md](HANDOFF.md). Do not disable Gatekeeper to install it.
 

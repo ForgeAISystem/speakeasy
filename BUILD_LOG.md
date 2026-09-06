@@ -1,5 +1,18 @@
 # Build log
 
+## 2026-09-06: v2.4.2 dictation stability
+
+- Reproduced and fixed four regressions: an old fade hiding a newer recording, indicator updates sent before renderer readiness, state lost after indicator recreation, and stale capture errors cancelling a newer recording.
+- Added visible microphone-opening feedback, session-aware errors, a ten-second no-audio watchdog, recoverable received audio on capture failure, bounded renderer recovery, native Fn heartbeat/reset handling, and worker timeout/IPC/restart guards.
+- Added Home connection checks, shortcut detection time, microphone-free indicator preview, explicit repair while idle, and accurate sidebar recording/processing/error states.
+- 64 tests pass. Twenty-two hidden main-window fixtures and five indicator states pass. Generated speech through the real local Moonshine engine passed before and after worker restart. Package source/helper match and DMG checksum verified.
+- Built at lower scheduling priority. After Harsh approved “Install and check it now,” quit v2.4.0 normally, preserved it, installed v2.4.2 once, and relaunched. Installed archive/helper match; personal settings/history/stats/dictionary/snippets were unchanged.
+- Live app reports Ready to dictate and all six readiness checks Ready. Harsh confirmed “Indicator appeared and words pasted.” He then reported recognition errors with Moonshine; higher-accuracy model selection is the follow-up. No OS permission changed and no whole-computer performance improvement is claimed.
+- This install includes the previously staged v2.4.1 window improvements. Evidence: docs/verification/v2.4.2/.
+- Token/cost totals were not available from this runtime.
+
+Accuracy follow-up: after confirming the indicator/paste path, Harsh reported recognition errors. Researched NVIDIA Parakeet v2/v3 and Whisper Turbo from primary sources, prepared the already-supported Parakeet v2 model, and checked real decoding before/after worker restart (81/80 ms for generated 3.675625-second speech, 1843 MiB worker RSS). No new app restart or active-model change. Language preference and real-voice comparison remain pending; see docs/MODEL-ACCURACY-2026-09-06.md.
+
 ## 2026-09-06: v2.4.1 desktop usability
 
 - Responded to Harsh's report that app activity was disrupting other work. Kept the installed app untouched, stopped native UI automation, ran one hidden/non-focusable/offscreen visual check, and built at lower scheduling priority.

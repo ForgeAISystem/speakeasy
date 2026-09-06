@@ -126,6 +126,19 @@
 #tab-snippets .form-row { align-items: flex-start; }
 #tab-snippets .form-row > .btn { margin-top: 23px; }
 button[hidden] { display: none; }
+.runtime-check { border-bottom: 1px solid #dde2d4; padding: 10px 0; font-size: 11px; }
+.runtime-check summary { cursor: pointer; color: #53634b; width: fit-content; }
+.runtime-status { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 24px; margin: 20px 0; }
+.runtime-status > div { display: flex; justify-content: space-between; gap: 10px; }
+.runtime-status strong { font-weight: 500; }
+.runtime-status .ok { color: #386141; }
+.runtime-status .attention, .runtime-error { color: #925517; }
+.runtime-error { margin: 10px 0; line-height: 1.6; }
+.runtime-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0; }
+.runtime-actions .btn { font-size: 11px; padding: 8px 12px; }
+#engine-pill.recording .dot { background: #c74e37; }
+#engine-pill.processing .dot, #engine-pill.reconnecting .dot, #engine-pill.shortcut .dot, #engine-pill.permission .dot { background: #c7882a; }
+@media (max-width: 740px) { .runtime-status { grid-template-columns: 1fr; } }
 
 /* Keep controls reachable when the window shares a small screen. */
 #layout { grid-template-columns: 216px minmax(0, 1fr); }

@@ -1,0 +1,21 @@
+{
+  "fixture": "Generated speech through the real TranscriberManager and native Moonshine worker. No microphone, shortcut, or OS paste.",
+  "expected": "This is a test of local dictation. My words should appear clearly.",
+  "seconds": 3.675625,
+  "results": [
+    {
+      "afterWorkerRestart": false,
+      "text": "This is a test of local dictation. My words should appear clearly.",
+      "lang": "",
+      "ms": 42,
+      "passed": true
+    },
+    {
+      "afterWorkerRestart": true,
+      "text": "This is a test of local dictation. My words should appear clearly.",
+      "lang": "",
+      "ms": 37,
+      "passed": true
+    }
+  ]
+}

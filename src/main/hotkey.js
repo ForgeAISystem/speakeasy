@@ -44,6 +44,7 @@ class HotkeyManager {
     this.pressedAt = 0;
     this.lastTapAt = 0;
     this.tapTimer = null;
+    this.healthTimer = null;
 
     this._down = this._down.bind(this);
     this._up = this._up.bind(this);
@@ -79,6 +80,8 @@ class HotkeyManager {
   }
 
   stop() {
+    clearInterval(this.healthTimer);
+    this.healthTimer = null;
     if (this.active) this._cancel();
     this.reset();
     if (this.helper) {
@@ -109,12 +112,15 @@ class HotkeyManager {
       this.helper = child;
       let pending = true;
       let buffer = '';
+      let lastHeartbeat = Date.now();
       const fail = (message) => {
         if (this.helper !== child) {
           if (pending) { pending = false; clearTimeout(timer); reject(new Error('Shortcut changed')); }
           return;
         }
         this.error = message;
+        clearInterval(this.healthTimer);
+        this.healthTimer = null;
         this.running = false;
         this.helper = null;
         child.kill();
@@ -138,9 +144,16 @@ class HotkeyManager {
             this.running = true;
             this.error = '';
             this._status();
+            lastHeartbeat = Date.now();
+            clearInterval(this.healthTimer);
+            this.healthTimer = setInterval(() => {
+              if (Date.now() - lastHeartbeat > 10000) fail('The Fn listener stopped responding. Reconnecting.');
+            }, 3000);
             if (pending) { pending = false; clearTimeout(timer); resolve(true); }
           } else if (event === 'down') this._down({ keycode: -1 });
           else if (event === 'up') this._up({ keycode: -1 });
+          else if (event === 'heartbeat') lastHeartbeat = Date.now();
+          else if (event === 'reset') this._listenerReset();
           else if (event === 'cancel' && this.active) this._cancel();
           else if (event === 'permission-required') fail('Allow SpeakEasy in Accessibility and Input Monitoring, then retry.');
         }
@@ -216,6 +229,11 @@ class HotkeyManager {
     this.lastTapAt = 0;
     clearTimeout(this.tapTimer);
     this._safe(this.onCancel);
+  }
+
+  _listenerReset() {
+    if (this.active) this._cancel();
+    this.reset(); // a disabled tap may have swallowed the release event
   }
 
   /** Force-reset state (used when recording is stopped from elsewhere). */

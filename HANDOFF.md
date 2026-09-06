@@ -1,8 +1,14 @@
-# SpeakEasy v2.4.1
+# SpeakEasy v2.4.2
 
-The v2.4.1 update is built and staged. The running app at `/Applications/SpeakEasy.app` is still v2.4.0, left untouched while Harsh works. Install this update at a convenient break, then reopen once. Complete the setup guide and physical dictation test; those remain user acceptance steps.
+v2.4.2 is installed and running at `/Applications/SpeakEasy.app` after Harsh approved one restart. Existing permissions, local voice, and personal data were preserved. Harsh confirmed the indicator appeared and words pasted. Recognition accuracy is the next issue; Moonshine Base is currently selected. No further installation or setup reset is needed on this Mac.
 
-Quit SpeakEasy before replacing an existing installation. Open `dist/SpeakEasy-2.4.1-arm64.dmg`, then drag the app onto the Applications shortcut. A new installation also offers **Install in Applications** when opened outside Applications. No developer tools are needed by the recipient.
+For another installation, quit SpeakEasy before replacing it. Open `dist/SpeakEasy-2.4.2-arm64.dmg`, then drag the app onto the Applications shortcut. A new installation also offers **Install in Applications** when opened outside Applications. No developer tools are needed by the recipient.
+
+## If dictation needs attention
+
+On Home, expand **Check dictation** for permissions, shortcut, voice, microphone connection, and recording indicator status. Press and release Fn to update the detection time. **Test indicator** previews the bar without recording. **Repair connection** rechecks the listener and reconnects failed components; finish or cancel active dictation first.
+
+The bar shows Opening microphone before Listening. Startup/stall failures display an error. If received audio can be recovered, it appears in History with Retry. The bar uses the display nearest the pointer.
 
 ## Window controls in v2.4.1
 
@@ -39,4 +45,4 @@ Apple reference: [notarizing macOS software](https://developer.apple.com/documen
 
 Run `npm ci`, `npm test`, and `npm start`. Command Line Tools are required to compile Fn support in a source checkout. Use `SPEAKEASY_USER_DATA` with a temporary absolute path for isolated QA. The user’s real profile is under `~/Library/Application Support/SpeakEasy`.
 
-Read STATE.md before continuing. Physical microphone/paste acceptance, packaged permission onboarding, signing, notarization, and Windows validation are separate from the passing automated checks.
+Read STATE.md before continuing. Recognition accuracy, broader app/monitor acceptance, signing, notarization, and Windows validation remain separate checks. Physical Fn/indicator/paste worked on Harsh's test; permissions and completed onboarding are already present.

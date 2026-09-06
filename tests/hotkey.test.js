@@ -48,3 +48,13 @@ test('a single tap cancels after the double-tap window', async (t) => {
   await new Promise((resolve) => setTimeout(resolve, 950));
   assert.deepEqual(calls, ['start', 'cancel']);
 });
+
+test('a disabled native tap clears a held key even when its release was lost', (t) => {
+  const { h, calls, key } = fixture(t);
+  h._down(key);
+  h._listenerReset();
+  h._down(key);
+  h.pressedAt -= 500;
+  h._up(key);
+  assert.deepEqual(calls, ['start', 'cancel', 'start', 'stop']);
+});

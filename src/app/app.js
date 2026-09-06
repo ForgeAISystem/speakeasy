@@ -6,6 +6,7 @@ let currentTab = 'home';
 const writing = window.SpeakEasyWriting;
 let historyQuery = '', historyFilter = 'all', historyRows = [], historyRequest = 0;
 let toastTimer;
+let runtimeOpen = false, repairing = false;
 function toast(message) {
   const el = document.getElementById('toast');
   el.textContent = message;
@@ -88,13 +89,52 @@ function pasteShortcutLabel() {
 function renderEnginePill() {
   const pill = document.getElementById('engine-pill');
   const label = document.getElementById('engine-label');
-  const st = S.engine.state === 'ready' && !S.shortcut?.ready ? 'shortcut' : S.engine.state;
+  const phase = S.runtime?.phase;
+  const st = phase === 'recording' || phase === 'armed' ? 'recording' : phase === 'processing' ? 'processing' : phase === 'error' ? 'error'
+    : S.permissions.mic !== 'granted' || !S.permissions.accessibility ? 'permission'
+    : S.engine.state === 'ready' && !S.shortcut?.ready ? 'shortcut'
+    : S.engine.state === 'ready' && (S.runtime?.captureReady === false || S.runtime?.overlayReady === false) ? 'reconnecting' : S.engine.state;
   pill.className = st;
   label.textContent = st === 'ready' ? 'Ready to dictate'
+    : st === 'recording' ? (phase === 'armed' ? 'Listening' : 'Opening microphone')
+    : st === 'processing' ? 'Transcribing'
+    : st === 'permission' ? 'Check permissions'
+    : st === 'reconnecting' ? 'Reconnecting'
     : st === 'shortcut' ? 'Check shortcut'
     : st === 'loading' ? 'Loading model'
-    : st === 'error' ? 'Engine error'
+    : st === 'error' ? (phase === 'error' ? 'Check dictation' : 'Engine error')
     : 'No model';
+}
+
+function renderRuntime() {
+  const target = document.getElementById('runtime-body');
+  if (!target) return;
+  const status = [
+    ['Microphone permission', S.permissions.mic === 'granted'],
+    ['Accessibility permission', S.permissions.accessibility],
+    ['Dictation shortcut', S.shortcut?.ready],
+    ['Local voice', S.engine.state === 'ready'],
+    ['Microphone connection', S.runtime?.captureReady],
+    ['Recording indicator', S.runtime?.overlayReady]
+  ];
+  target.innerHTML = `<div class="runtime-status">${status.map(([name, ok]) => `<div><span>${name}</span><strong class="${ok ? 'ok' : 'attention'}">${ok ? 'Ready' : 'Check'}</strong></div>`).join('')}</div>
+    <p id="runtime-key">${S.runtime?.lastKeyAt ? `Shortcut detected at ${new Date(S.runtime.lastKeyAt).toLocaleTimeString()}.` : 'Press and release your shortcut to check detection.'}</p>
+    <p class="runtime-error" role="status">${esc(S.runtime?.message || S.shortcut?.error || '')}</p>
+    <div class="runtime-actions"><button class="btn ghost btn-sm" id="runtime-test">Test indicator</button><button class="btn ghost btn-sm" id="runtime-repair" ${repairing ? 'disabled' : ''}>${repairing ? 'Reconnecting…' : 'Repair connection'}</button><button class="muted-link" id="runtime-setup">Check permissions</button></div>`;
+  document.getElementById('runtime-test').onclick = async () => {
+    try { const result = await api.testOverlay(); if (!result.ok) toast(result.error); }
+    catch { toast('The indicator could not be checked. Try Repair connection.'); }
+  };
+  document.getElementById('runtime-repair').onclick = async () => {
+    repairing = true; renderRuntime();
+    try {
+      const result = await api.repairDictation();
+      if (result.state) S = result.state;
+      toast(result.ok ? 'Connection rechecked. Hold your shortcut to try again.' : result.error);
+    } catch { toast('Connection could not restart. Quit and reopen SpeakEasy.'); }
+    finally { repairing = false; renderRuntime(); renderEnginePill(); }
+  };
+  document.getElementById('runtime-setup').onclick = () => showOnboard(true);
 }
 
 // ---------------------------------------------------------------- home
@@ -103,13 +143,14 @@ function renderHome() {
   const el = document.getElementById('tab-home');
   const st = S.stats;
   const local = writing.mode(S.settings) !== 'polished' || S.settings.polishProvider !== 'anthropic';
-  const ready = S.engine.state === 'ready' && S.shortcut?.ready && S.permissions.mic === 'granted' && S.permissions.accessibility;
+  const ready = S.engine.state === 'ready' && S.shortcut?.ready && S.permissions.mic === 'granted' && S.permissions.accessibility && S.runtime?.captureReady !== false && S.runtime?.overlayReady !== false;
   const key = S.settings.holdKey === 'Fn' ? 'fn' : holdKeyLabel();
   el.innerHTML = `
     <div class="home-heading"><h1>${S.settings.userName ? 'Hello, ' + esc(S.settings.userName) + '.' : 'A little less typing.'}</h1><span class="local-badge"><span class="local-dot"></span>${local ? 'Local dictation' : 'Cloud polish enabled'}</span></div>
     ${!ready ? `<div class="readiness-message">${S.engine.state === 'loading' ? 'Your voice is getting ready.' : S.engine.state === 'error' ? 'Your voice needs a restart.' : 'Let’s check your voice and permissions.'} <button class="muted-link" id="home-setup">Open setup</button></div>` : ''}
     <div class="daily-hero"><div><div class="eyebrow">${ready ? 'READY WHEN YOU ARE' : 'YOUR DICTATION SHORTCUT'}</div><h2>Your thoughts.<br><em>Already written.</em></h2><p>Click where you want to write. Hold ${esc(holdKeyLabel())}, speak, then release.</p></div><div class="daily-art" data-parallax><img class="glass-art depth-layer" src="./assets/voice-glass.png" alt="" aria-hidden="true"><kbd class="daily-key depth-layer ${key.length > 3 ? 'long' : ''}" style="--depth:10px">${esc(key)}</kbd></div></div>
     <div class="home-shortcuts"><span><kbd>Double-tap</kbd> Hands-free</span><span><kbd>Esc</kbd> Cancel</span><span><kbd>${esc(pasteShortcutLabel())}</kbd> Paste last</span></div>
+    <details class="runtime-check" id="runtime-check" ${runtimeOpen ? 'open' : ''}><summary>Check dictation</summary><div id="runtime-body"></div></details>
     <div class="writing-bar"><span class="writing-label">How your words arrive</span><div class="mode-switch" role="group" aria-label="Cleanup mode">${modeButtons()}</div></div>
     <div class="home-summary"><div><strong>${num(st.today.words)}</strong><span>words today</span></div><div><strong>${fmtDuration(st.today.timeSavedSeconds)}</strong><span>estimated time saved</span></div><div><strong>${num(st.allTime.transcriptions)}</strong><span>dictations so far</span></div></div>
     <div class="home-section-head"><h2>Recent words</h2><button class="muted-link" id="home-history">View history</button></div>
@@ -123,6 +164,11 @@ function renderHome() {
   document.getElementById('home-setup')?.addEventListener('click', () => showOnboard(true));
   document.getElementById('home-history').addEventListener('click', () => switchTab('history'));
   document.getElementById('home-hide').addEventListener('click', () => api.hideApp());
+  document.getElementById('runtime-check').ontoggle = async (event) => {
+    runtimeOpen = event.target.open;
+    if (runtimeOpen) { try { S = await api.getState(); renderRuntime(); renderEnginePill(); } catch { toast('Unable to refresh connection status.'); } }
+  };
+  renderRuntime();
 }
 
 function historyRowHtml(r, compact = false) {
@@ -596,12 +642,21 @@ api.onPush(async (msg) => {
     if (setup.visible && setup.step === 3) setup.render();
     else if (!setup.visible && currentTab === 'home') renderHome();
   } else if (msg.type === 'shortcut-key') {
+    S.runtime = { ...S.runtime, lastKeyAt: msg.at || Date.now() };
+    const keyStatus = document.getElementById('runtime-key');
+    if (keyStatus) keyStatus.textContent = `Shortcut detected at ${new Date(S.runtime.lastKeyAt).toLocaleTimeString()}.`;
     setup.push(msg);
+  } else if (msg.type === 'runtime') {
+    S.runtime = { ...S.runtime, ...msg };
+    renderEnginePill(); renderRuntime();
   } else if (msg.type === 'stats') {
     S = await api.getState();
     if (currentTab === 'home') renderHome();
     else if (currentTab === 'history') renderHistory();
   } else if (msg.type === 'dictation') {
+    S.runtime = { ...S.runtime, phase: msg.phase, message: msg.message || '' };
+    renderEnginePill(); renderRuntime();
+    if (msg.phase === 'error' && !setup.visible) toast(msg.message || 'Dictation interrupted. Check dictation on Home.');
     setup.push(msg);
   }
 });

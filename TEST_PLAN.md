@@ -2,6 +2,16 @@
 
 Date: 2026-09-06
 
+## v2.4.2 checks
+
+- 64 automated checks pass. Coverage includes old fade cancellation, readiness/state replay, stale capture errors, microphone timeout/saved-audio recovery, bounded renderer restarts, idle-only repair, lost key release, native heartbeat, and worker timeout/IPC/restart races.
+- Twenty-two hidden/offscreen main-window fixtures and five indicator states pass visibility/artwork/overflow checks using synthetic state.
+- A generated 3.675625-second sentence was recognized correctly through the real local Moonshine engine before and after worker restart, in 42 ms and 37 ms. This is a smoke check, not an accuracy benchmark.
+- All 29 packaged source files and native helper match; DMG checksum passes. v2.4.2 installed after explicit approval. Installed archive/helper match; personal profile files were unchanged by installation.
+- Native title bar, Home controls, Ready to dictate, and six Ready connection checks observed. Harsh separately confirmed physical Fn activation, a visible indicator, and pasted text. He reports recognition errors; accuracy evaluation remains open.
+- Microphone/Accessibility grants, installed voice, and completed onboarding are already present. Earlier permission/setup notes below are historical.
+- Evidence: docs/verification/v2.4.2/.
+
 ## v2.4.1 checks
 
 - 47 automated checks pass. New coverage verifies window restoration on negative-coordinate monitors, disconnected/changed displays, invalid saved placement, resize limits, native window controls, debounced placement writes, close-time flush, minimized-window restoration, and hidden setup polling.
@@ -31,8 +41,8 @@ Date: 2026-09-06
 
 ## Still required
 
-- User acceptance: hold Fn, dictate a sentence, release, and see it in the practice box. Then repeat in Notes, Mail, and the user's normal browser fields.
-- Complete installed-app microphone and Accessibility grants and the practice dictation. The latest installed app was verified at its welcome screen. Development permissions do not establish packaged-app permissions.
+- Broader user acceptance: repeat dictation in Notes, Mail, and normal browser fields; compare the actual words spoken against recognition, including names and longer sentences. One physical Fn/indicator/paste test is already confirmed.
+- Native resizing, moving across screens, and visibility in full-screen Spaces. Do not reset the completed setup or existing permissions to perform these checks.
 - Clean-machine Gatekeeper test after signing and notarization.
 - Windows runtime/installer validation and Intel Mac runtime validation.
 

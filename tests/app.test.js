@@ -14,6 +14,7 @@ async function fixture(t) {
   const state = { settings: { ...DEFAULT_SETTINGS, onboarded: true, model: 'moonshine-base', cleanupMode: 'clean' },
     platform: 'darwin', version: '2.4.0', engine: { state: 'ready' }, permissions: { mic: 'granted', accessibility: true },
     shortcut: { ready: true }, models: { installed: ['moonshine-base'], downloads: {}, catalog: MODELS }, holdKeys: HOLD_KEYS,
+    runtime: { captureReady: true, overlayReady: true, dictState: 'idle', phase: 'idle' },
     stats: { today: { words: 10, timeSavedSeconds: 3 }, allTime: { transcriptions: 2 } } };
   let rows = [{ id: 'a', ts: Date.now(), text: 'Meet at three.', raw: 'Um, meet at two, actually three.', app: 'Notes', speechSeconds: 5 },
     { id: 'b', ts: Date.now() - 86400000, failed: true, app: 'Mail', text: '', speechSeconds: 10 }];
@@ -28,6 +29,8 @@ async function fixture(t) {
     snippetsList: async () => structuredClone(snippets), snippetsSave: async (value) => { snippets = value; },
     dictList: async () => structuredClone(dictionary), dictSave: async (value) => { dictionary = value; },
     onPush: (fn) => { push = fn; }, hideApp() {}, setupMode: async () => {} };
+  api.testOverlay = async () => { saves.push('preview'); return { ok: true }; };
+  api.repairDictation = async () => { saves.push('repair'); return { ok: true, state: structuredClone(state) }; };
   dom.window.speakeasy = api;
   dom.window.SpeakEasyMotion = { setEnabled() {} };
   for (const file of ['../shared/writing.js', 'onboarding.js', 'app.js']) dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
@@ -36,6 +39,26 @@ async function fixture(t) {
   const click = async (selector) => { assert.ok($(selector), selector); $(selector).click(); await settle(); };
   return { dom, $, click, state, copies, saves, push: (...args) => push(...args), snippets: () => snippets, rows: () => rows };
 }
+
+test('runtime check previews the indicator, repairs explicitly, and reports detected shortcut', async (t) => {
+  const f = await fixture(t);
+  await f.click('#runtime-test');
+  assert.ok(f.saves.includes('preview'));
+  await f.click('#runtime-repair');
+  assert.ok(f.saves.includes('repair'));
+  await f.push({ type: 'shortcut-key', key: 'Fn', down: true, at: Date.now() });
+  assert.match(f.$('#runtime-key').textContent, /Shortcut detected/);
+  await f.push({ type: 'dictation', phase: 'armed' });
+  assert.equal(f.$('#engine-label').textContent, 'Listening');
+  await f.push({ type: 'dictation', phase: 'processing' });
+  assert.equal(f.$('#engine-label').textContent, 'Transcribing');
+  await f.push({ type: 'dictation', phase: 'error', message: 'Microphone interrupted.' });
+  assert.equal(f.$('#engine-label').textContent, 'Check dictation');
+  assert.match(f.$('.runtime-error').textContent, /Microphone interrupted/);
+  await f.push({ type: 'dictation', phase: 'done' });
+  await f.push({ type: 'runtime', captureReady: false, overlayReady: true });
+  assert.equal(f.$('#engine-label').textContent, 'Reconnecting');
+});
 
 test('original transcript stays recoverable and search matches words removed by cleanup', async (t) => {
   const f = await fixture(t);

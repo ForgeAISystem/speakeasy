@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('captureBridge', {
   sendChunk: (session, pcm, rms) => ipcRenderer.send('capture:chunk', session, pcm, rms),
   sendArmed: (session) => ipcRenderer.send('capture:armed', session),
   sendStopped: (session) => ipcRenderer.send('capture:stopped', session),
-  sendError: (message) => ipcRenderer.send('capture:error', message),
+  sendError: (session, message) => ipcRenderer.send('capture:error', session, message),
   sendMics: (reqId, mics) => ipcRenderer.send('capture:mics', reqId, mics),
   sendIcons: (icons) => ipcRenderer.send('capture:icons', icons)
 });

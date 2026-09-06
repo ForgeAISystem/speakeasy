@@ -6,6 +6,7 @@ const state = {
   settings: { ...DEFAULT_SETTINGS, onboarded: true, model: 'moonshine-base', cleanupMode: 'clean' },
   platform: 'darwin', version: require('../package.json').version, installation: { needsMove: false },
   engine: { state: 'ready' }, permissions: { mic: 'granted', accessibility: true }, shortcut: { ready: true },
+  runtime: { captureReady: true, overlayReady: true, dictState: 'idle', phase: 'idle' },
   holdKeys: HOLD_KEYS, languages: { names: LANGUAGE_NAMES },
   models: { installed: ['moonshine-base'], downloads: {}, catalog: MODELS },
   stats: { today: { words: 126, timeSavedSeconds: 143 }, allTime: { transcriptions: 12 } }
@@ -17,6 +18,7 @@ const rows = [
 ];
 contextBridge.exposeInMainWorld('speakeasy', {
   getState: async () => state, historyList: async () => rows,
+  testOverlay: async () => ({ ok: true }), repairDictation: async () => ({ ok: true, state }),
   updateSettings: async (value) => { Object.assign(state.settings, value); return state; },
   onPush() {}, setupMode: async () => {}, listMics: async () => [],
   dictList: async () => [{ id: 'sample', word: 'SpeakEasy', misspelling: 'speak easy' }],

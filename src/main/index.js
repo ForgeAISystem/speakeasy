@@ -37,13 +37,23 @@ let chunkSamples = 0;
 let recordStartedAt = 0;
 let frontAppPromise = null;
 let overlayHideTimer = null;
+let overlayFadeTimer = null;
+let overlayReady = false;
+let overlayPayload = { state: 'hidden' };
+let captureReady = false;
+let captureWatchdog = null;
+let lastAudioAt = 0;
+let captureRestarts = 0, overlayRestarts = 0;
 let stopWaiter = null; // resolves when capture:stopped arrives
 let engineState = 'off'; // off | loading | ready | error
 let engineCrashCount = 0;
+let engineLoadGeneration = 0;
 let maxDurationTimer = null;
 let captureSession = 0; // increments per recording; stale capture events are dropped
 let setupMode = 'off';
 let setupHasDictated = false;
+let lastKeyAt = 0;
+let dictFeedback = { phase: 'idle', message: '' };
 
 // An isolated profile is useful for first-run QA without touching personal history.
 if (process.env.SPEAKEASY_USER_DATA) app.setPath('userData', path.resolve(process.env.SPEAKEASY_USER_DATA));
@@ -59,7 +69,8 @@ process.on('uncaughtException', (e) => {
 // ---------------------------------------------------------------- windows
 
 function createCaptureWindow() {
-  captureWindow = new BrowserWindow({
+  captureReady = false;
+  const win = captureWindow = new BrowserWindow({
     show: false,
     width: 60,
     height: 60,
@@ -68,19 +79,32 @@ function createCaptureWindow() {
       backgroundThrottling: false
     }
   });
-  captureWindow.loadFile(path.join(__dirname, '..', 'capture', 'capture.html'));
-  captureWindow.webContents.on('did-finish-load', () => {
-    captureWindow.webContents.send('capture:gen-icons');
+  win.webContents.on('did-finish-load', () => {
+    if (captureWindow !== win) return;
+    captureReady = true;
+    setTimeout(() => { if (captureWindow === win && !win.isDestroyed()) captureRestarts = 0; }, 30000);
+    win.webContents.send('capture:gen-icons');
+    push('runtime', { captureReady, overlayReady });
   });
-  captureWindow.webContents.on('render-process-gone', (_e, details) => {
+  win.webContents.on('render-process-gone', (_e, details) => {
+    if (captureWindow !== win || app.isQuittingForReal) return;
+    captureReady = false;
     console.error('[capture] renderer gone:', details.reason);
-    if (dictState === 'recording') onDictateCancel();
-    setTimeout(() => { try { captureWindow.destroy(); } catch { /* gone */ } createCaptureWindow(); }, 500);
+    failCapture('Microphone disconnected');
+    push('runtime', { captureReady, overlayReady });
+    if (++captureRestarts > 3) return;
+    setTimeout(() => {
+      if (app.isQuittingForReal || captureWindow !== win) return;
+      try { win.destroy(); } catch { /* gone */ }
+      createCaptureWindow();
+    }, 500 * captureRestarts);
   });
+  win.loadFile(path.join(__dirname, '..', 'capture', 'capture.html'));
 }
 
 function createOverlayWindow() {
-  overlayWindow = new BrowserWindow({
+  overlayReady = false;
+  const win = overlayWindow = new BrowserWindow({
     show: false,
     width: 340,
     height: 110,
@@ -100,11 +124,26 @@ function createOverlayWindow() {
   overlayWindow.setIgnoreMouseEvents(true);
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlayWindow.loadFile(path.join(__dirname, '..', 'overlay', 'overlay.html'));
-  overlayWindow.webContents.on('render-process-gone', (_e, details) => {
-    console.error('[overlay] renderer gone:', details.reason);
-    setTimeout(() => { try { overlayWindow.destroy(); } catch { /* gone */ } createOverlayWindow(); }, 500);
+  win.webContents.on('did-finish-load', () => {
+    if (overlayWindow !== win) return;
+    overlayReady = true;
+    setTimeout(() => { if (overlayWindow === win && !win.isDestroyed()) overlayRestarts = 0; }, 30000);
+    renderOverlay(true);
+    push('runtime', { captureReady, overlayReady });
   });
+  win.webContents.on('render-process-gone', (_e, details) => {
+    if (overlayWindow !== win || app.isQuittingForReal) return;
+    overlayReady = false;
+    console.error('[overlay] renderer gone:', details.reason);
+    push('runtime', { captureReady, overlayReady });
+    if (++overlayRestarts > 3) return;
+    setTimeout(() => {
+      if (app.isQuittingForReal || overlayWindow !== win) return;
+      try { win.destroy(); } catch { /* gone */ }
+      createOverlayWindow();
+    }, 500 * overlayRestarts);
+  });
+  win.loadFile(path.join(__dirname, '..', 'overlay', 'overlay.html'));
 }
 
 function positionOverlay() {
@@ -172,39 +211,47 @@ function showMainWindow() {
 }
 
 function push(type, payload) {
+  if (type === 'dictation') dictFeedback = { phase: payload.phase, message: payload.message || '' };
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('push', { type, ...payload });
   }
 }
 
-function overlayState(state, extra = {}) {
-  if (!overlayWindow || overlayWindow.isDestroyed()) return;
-  clearTimeout(overlayHideTimer);
-  if (state !== 'hidden') {
+function renderOverlay(replay = false) {
+  if (!overlayReady || !overlayWindow || overlayWindow.isDestroyed()) return;
+  if (overlayPayload.state !== 'hidden') {
     positionOverlay();
     if (!overlayWindow.isVisible()) overlayWindow.showInactive();
   }
-  overlayWindow.webContents.send('overlay:state', {
+  overlayWindow.webContents.send('overlay:state', { ...overlayPayload, sounds: replay ? false : overlayPayload.sounds });
+  if (overlayPayload.state === 'hidden') overlayWindow.hide();
+}
+
+function overlayState(state, extra = {}) {
+  clearTimeout(overlayHideTimer);
+  clearTimeout(overlayFadeTimer);
+  overlayPayload = {
     state,
     sounds: store.settings().sounds,
     subtleMotion: store.settings().subtleMotion !== false,
     ...extra
-  });
-  if (['done', 'cancelled', 'error'].includes(state)) {
+  };
+  renderOverlay();
+  if (['done', 'cancelled', 'error', 'preview'].includes(state)) {
     overlayHideTimer = setTimeout(() => {
-      if (!overlayWindow || overlayWindow.isDestroyed()) return;
-      overlayWindow.webContents.send('overlay:state', { state: 'hidden' });
-      setTimeout(() => {
+      overlayPayload = { state: 'hidden' };
+      if (overlayReady && overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('overlay:state', overlayPayload);
+      overlayFadeTimer = setTimeout(() => {
         if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide();
       }, 250);
-    }, 1300);
+    }, state === 'preview' ? 3000 : 1300);
   }
-  if (state === 'hidden') overlayWindow.hide();
 }
 
 // ---------------------------------------------------------------- engine
 
 async function ensureEngine() {
+  const generation = ++engineLoadGeneration;
   const cfg = store.settings();
   if (!cfg.model || !models.isInstalled(cfg.model)) {
     engineState = 'off';
@@ -217,11 +264,13 @@ async function ensureEngine() {
   tray && tray.setState('processing', 'Loading model...');
   try {
     await transcriber.load(cfg.model, cfg.language);
+    if (generation !== engineLoadGeneration || app.isQuittingForReal) return;
     engineState = 'ready';
     console.log(`[engine] ready: ${cfg.model}`);
     push('engine', { state: 'ready', model: cfg.model });
     tray && tray.setState('idle', 'Ready');
   } catch (e) {
+    if (generation !== engineLoadGeneration || app.isQuittingForReal) return;
     engineState = 'error';
     console.error(`[engine] load failed: ${e.message}`);
     push('engine', { state: 'error', message: e.message });
@@ -251,7 +300,7 @@ function onDictateStart() {
   if (setupMode === 'shortcut') return;
   if (dictState === 'processing') {
     hotkeys.reset();
-    overlayState('error', { message: 'Still finishing the last one' });
+    renderOverlay(); // retain the active progress indicator on repeated presses
     return;
   }
   if (dictState !== 'idle') return;
@@ -260,19 +309,40 @@ function onDictateStart() {
     overlayState('error', { message: engineState === 'loading' ? 'Model still loading' : 'Open SpeakEasy to finish setup' });
     return;
   }
+  if (!captureReady || !captureWindow || captureWindow.isDestroyed()) {
+    hotkeys.reset();
+    overlayState('error', { message: 'Microphone reconnecting. Try again.' });
+    return;
+  }
+  if (permStatus().mic !== 'granted') {
+    hotkeys.reset();
+    overlayState('error', { message: 'Allow microphone access in SpeakEasy' });
+    return;
+  }
   dictState = 'recording';
   captureSession += 1;
   chunks = [];
   chunkSamples = 0;
   recordStartedAt = Date.now();
+  lastAudioAt = recordStartedAt;
   frontAppPromise = getFrontAppName();
   overlayState('listening');
   tray.setState('recording', 'Listening...');
-  captureWindow.webContents.send('capture:start', {
-    deviceId: store.settings().micDeviceId,
-    session: captureSession
-  });
+  try {
+    captureWindow.webContents.send('capture:start', { deviceId: store.settings().micDeviceId, session: captureSession });
+  } catch {
+    failCapture('Microphone disconnected. Try Repair connection.');
+    return;
+  }
   push('dictation', { phase: 'recording' });
+  const checkAudio = () => {
+    if (dictState !== 'recording') return;
+    const remaining = 10000 - (Date.now() - lastAudioAt);
+    if (remaining <= 0) failCapture('Microphone stopped responding');
+    else captureWatchdog = setTimeout(checkAudio, remaining);
+  };
+  clearTimeout(captureWatchdog);
+  captureWatchdog = setTimeout(checkAudio, 10000);
   clearTimeout(maxDurationTimer);
   maxDurationTimer = setTimeout(() => {
     if (dictState === 'recording') {
@@ -288,16 +358,24 @@ async function collectAudio() {
     stopWaiter = resolve;
     setTimeout(resolve, 500); // safety net
   });
-  captureWindow.webContents.send('capture:stop');
+  try {
+    if (captureReady && captureWindow && !captureWindow.isDestroyed()) captureWindow.webContents.send('capture:stop');
+    else stopWaiter();
+  } catch { stopWaiter(); }
   await stopped;
   stopWaiter = null;
 
+  const pcm = takeAudio();
+  captureSession += 1; // anything still in flight from this session is now stale
+  return pcm;
+}
+
+function takeAudio() {
   const pcm = new Float32Array(chunkSamples);
   let o = 0;
   for (const c of chunks) { pcm.set(c, o); o += c.length; }
   chunks = [];
   chunkSamples = 0;
-  captureSession += 1; // anything still in flight from this session is now stale
   return pcm;
 }
 
@@ -305,6 +383,7 @@ async function onDictateStop() {
   if (dictState !== 'recording') return;
   dictState = 'processing';
   clearTimeout(maxDurationTimer);
+  clearTimeout(captureWatchdog);
   overlayState('processing');
   tray.setState('processing', 'Computing...');
   push('dictation', { phase: 'processing' });
@@ -316,6 +395,7 @@ async function onDictateStop() {
     speechSeconds = pcm.length / SAMPLE_RATE;
     if (speechSeconds < MIN_RECORDING_SECONDS) {
       overlayState('cancelled');
+      push('dictation', { phase: 'cancelled' });
       return;
     }
 
@@ -334,6 +414,7 @@ async function onDictateStop() {
     if (!text) {
       audioStore.removeRecording(wavName);
       overlayState('error', { message: 'Nothing heard' });
+      push('dictation', { phase: 'error', message: 'No speech detected. Check the microphone, then try again.' });
       return;
     }
 
@@ -399,13 +480,35 @@ function onDictateCancel() {
   if (dictState !== 'recording') return;
   dictState = 'idle';
   clearTimeout(maxDurationTimer);
+  clearTimeout(captureWatchdog);
   captureSession += 1; // drop any in-flight chunks from the cancelled session
-  captureWindow.webContents.send('capture:stop');
+  try { if (captureReady && captureWindow && !captureWindow.isDestroyed()) captureWindow.webContents.send('capture:stop'); }
+  catch { /* a crashed renderer has already released the microphone */ }
   chunks = [];
   chunkSamples = 0;
   overlayState('cancelled');
   tray.setState('idle', 'Ready');
   push('dictation', { phase: 'cancelled' });
+}
+
+function failCapture(message) {
+  if (dictState !== 'recording') return;
+  const pcm = takeAudio();
+  let saved = false;
+  if (pcm.length / SAMPLE_RATE >= MIN_RECORDING_SECONDS) {
+    try {
+      const audioFile = audioStore.saveRecording(pcm);
+      store.addHistory({ id: `${Date.now()}-${captureSession}`, ts: Date.now(), text: '', failed: true,
+        audioFile, speechSeconds: pcm.length / SAMPLE_RATE, model: store.settings().model });
+      saved = true;
+    } catch (e) { console.error('[capture] recovery save failed:', e.message); }
+  }
+  onDictateCancel();
+  hotkeys.reset();
+  overlayState('error', { message: saved ? 'Mic stopped. Audio saved in History.' : message });
+  tray.setState('idle', 'Check microphone');
+  push('dictation', { phase: 'error', message: saved ? 'Microphone interrupted. Retry the saved audio in History.' : message });
+  push('stats', {});
 }
 
 // ---------------------------------------------------------------- capture IPC
@@ -416,6 +519,7 @@ ipcMain.on('capture:chunk', (_e, session, pcm, rms) => {
   const arr = pcm instanceof Float32Array ? pcm : new Float32Array(pcm);
   chunks.push(arr);
   chunkSamples += arr.length;
+  if (arr.length) lastAudioAt = Date.now();
   if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send('overlay:level', rms);
   }
@@ -431,21 +535,16 @@ ipcMain.on('capture:stopped', (_e, session) => {
 ipcMain.on('capture:armed', (_e, session) => {
   if (session !== captureSession) return;
   if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayPayload = { ...overlayPayload, armed: true, startedAt: Date.now() };
     push('dictation', { phase: 'armed' });
-    overlayWindow.webContents.send('overlay:armed', { sounds: store.settings().sounds });
+    if (overlayReady) overlayWindow.webContents.send('overlay:armed', { sounds: store.settings().sounds, startedAt: overlayPayload.startedAt });
   }
 });
 
-ipcMain.on('capture:error', (_e, message) => {
+ipcMain.on('capture:error', (_e, session, message) => {
+  if (session !== captureSession) return;
   console.error('[capture]', message);
-  if (dictState === 'recording') {
-    clearTimeout(maxDurationTimer);
-    dictState = 'idle';
-    hotkeys.reset();
-    overlayState('error', { message: 'Microphone error' });
-    tray.setState('idle', 'Mic error');
-    push('dictation', { phase: 'error', message: 'Microphone unavailable. Check the selected microphone and permission in Settings.' });
-  }
+  failCapture('Microphone unavailable. Check Settings.');
 });
 
 ipcMain.on('capture:icons', (_e, icons) => {
@@ -494,6 +593,7 @@ function fullState() {
     holdKeys: HOLD_KEYS,
     languages: { featured: FEATURED_LANGUAGES, names: LANGUAGE_NAMES },
     engine: { state: engineState },
+    runtime: { captureReady, overlayReady, dictState, lastKeyAt, ...dictFeedback },
     shortcut: { ready: !!hotkeys?.running, error: hotkeys?.error || '', key: cfg.holdKey },
     installation: { needsMove: isMac && app.isPackaged && !app.isInApplicationsFolder() },
     permissions: permStatus(),
@@ -503,6 +603,30 @@ function fullState() {
 }
 
 ipcMain.handle('state:get', () => fullState());
+ipcMain.handle('runtime:test-overlay', () => {
+  if (dictState !== 'idle') return { ok: false, error: 'Finish the current dictation first.' };
+  if (!overlayReady) return { ok: false, error: 'The indicator is reconnecting. Use Repair connection, then try again.' };
+  overlayState('preview');
+  return { ok: true };
+});
+ipcMain.handle('runtime:repair', async () => {
+  if (dictState !== 'idle') return { ok: false, error: 'Finish the current dictation first.' };
+  hotkeys.stop();
+  if (hotkeyStarting) await hotkeyStarting;
+  await startHotkeysWithRetry();
+  if (!captureReady) {
+    captureRestarts = 0;
+    if (captureWindow && !captureWindow.isDestroyed()) captureWindow.destroy();
+    createCaptureWindow();
+  }
+  if (!overlayReady) {
+    overlayRestarts = 0;
+    if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.destroy();
+    createOverlayWindow();
+  }
+  if (engineState !== 'ready' && engineState !== 'loading') await ensureEngine();
+  return { ok: true, state: fullState() };
+});
 
 ipcMain.handle('app:install', () => {
   if (!isMac || !app.isPackaged || app.isInApplicationsFolder()) return { ok: true };
@@ -531,7 +655,13 @@ ipcMain.handle('setup:complete', (_e, launchAtLogin) => {
   return { ok: true };
 });
 ipcMain.handle('engine:retry', async () => { await ensureEngine(); return fullState(); });
-ipcMain.handle('shortcut:retry', async () => { await startHotkeysWithRetry(); return fullState(); });
+ipcMain.handle('shortcut:retry', async () => {
+  if (dictState !== 'idle') return fullState();
+  hotkeys.stop();
+  if (hotkeyStarting) await hotkeyStarting;
+  await startHotkeysWithRetry();
+  return fullState();
+});
 
 ipcMain.handle('settings:update', async (_e, partial) => {
   const before = store.settings();
@@ -670,9 +800,11 @@ ipcMain.handle('perm:status', () => permStatus());
 let hotkeyRetryTimer = null;
 let hotkeyStarting = null;
 function startHotkeysWithRetry() {
+  if (app.isQuittingForReal) return Promise.resolve(false);
   if (hotkeyStarting) return hotkeyStarting;
   const attempt = async () => {
     if (isMac && !systemPreferences.isTrustedAccessibilityClient(false)) {
+      hotkeys.stop();
       hotkeys.error = 'Allow Accessibility to activate your dictation key.';
       push('shortcut', { ready: false, error: hotkeys.error });
       return false;
@@ -691,7 +823,7 @@ function startHotkeysWithRetry() {
     }
   };
   hotkeyStarting = attempt().then((ok) => {
-    if (!ok && !hotkeyRetryTimer) hotkeyRetryTimer = setInterval(startHotkeysWithRetry, 5000);
+    if (!ok && !hotkeyRetryTimer && !app.isQuittingForReal) hotkeyRetryTimer = setInterval(startHotkeysWithRetry, 5000);
     return ok;
   }).finally(() => { hotkeyStarting = null; });
   return hotkeyStarting;
@@ -727,7 +859,7 @@ if (!gotLock) {
       onStart: onDictateStart,
       onStop: onDictateStop,
       onCancel: onDictateCancel,
-      onKey: (event) => push('shortcut-key', event),
+      onKey: (event) => { lastKeyAt = Date.now(); push('shortcut-key', { ...event, at: lastKeyAt }); },
       onStatus: (status) => {
         push('shortcut', status);
         if (!status.ready && !hotkeyRetryTimer) hotkeyRetryTimer = setInterval(startHotkeysWithRetry, 5000);
@@ -745,7 +877,7 @@ if (!gotLock) {
     powerMonitor.on('suspend', () => {
       // Recording across a sleep produces a broken capture: cancel cleanly
       if (dictState === 'recording') onDictateCancel();
-      hotkeys.reset();
+      hotkeys.stop();
     });
     powerMonitor.on('resume', () => startHotkeysWithRetry());
 
@@ -798,6 +930,8 @@ if (!gotLock) {
   app.on('will-quit', () => {
     clearInterval(hotkeyRetryTimer);
     clearTimeout(overlayHideTimer);
+    clearTimeout(overlayFadeTimer);
+    clearTimeout(captureWatchdog);
     clearTimeout(maxDurationTimer);
     globalShortcut.unregisterAll();
     try { hotkeys && hotkeys.stop(); } catch { /* shutting down */ }

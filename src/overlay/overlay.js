@@ -126,6 +126,9 @@ function setState(payload) {
     smoothLevel = 0.05;
     label.textContent = 'Opening microphone';
     hint.textContent = 'Wait for the sound, then speak';
+    spinner.style.display = 'block';
+    wave.style.display = 'none';
+    if (payload.armed) arm({ ...payload, sounds: false });
     // The "go" ping plays on overlay:armed, when the mic is actually live
   } else if (state === 'processing') {
     pill.classList.add('visible');
@@ -151,6 +154,11 @@ function setState(payload) {
   } else if (state === 'error') {
     pill.classList.add('visible');
     label.textContent = payload.message || 'Error';
+  } else if (state === 'preview') {
+    pill.classList.add('visible');
+    check.style.display = 'block';
+    label.textContent = 'Your dictation indicator';
+    hint.textContent = 'Hold your shortcut to start speaking';
   } else {
     pill.classList.remove('visible');
   }
@@ -158,12 +166,15 @@ function setState(payload) {
 
 window.overlayBridge.onState(setState);
 window.overlayBridge.onLevel((rms) => { targetLevel = rms; });
-window.overlayBridge.onArmed((payload) => {
+function arm(payload) {
   if (state !== 'listening') return;
   armed = true;
-  recordStartedAt = Date.now();
+  recordStartedAt = payload.startedAt || Date.now();
+  spinner.style.display = 'none';
+  wave.style.display = 'block';
   label.textContent = 'Listening';
   hint.textContent = 'Release / tap to write · Esc cancels';
   syncAnimation();
   if (payload.sounds !== false) blip(660, 990, 90);
-});
+}
+window.overlayBridge.onArmed(arm);

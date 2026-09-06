@@ -40,22 +40,28 @@ class TranscriberManager {
       else env.LD_LIBRARY_PATH = lib + (env.LD_LIBRARY_PATH ? ':' + env.LD_LIBRARY_PATH : '');
     }
     console.log(`[transcriber] spawning worker (libs: ${lib || 'none found'})`);
-    this.proc = fork(WORKER, [], { env, serialization: 'advanced', silent: true });
+    const proc = this.proc = fork(WORKER, [], { env, serialization: 'advanced', silent: true });
     this.proc.stdout && this.proc.stdout.on('data', (d) => console.log('[worker]', String(d).trim()));
     this.proc.stderr && this.proc.stderr.on('data', (d) => console.error('[worker]', String(d).trim()));
 
-    this.proc.on('message', (msg) => this._onMessage(msg));
-    this.proc.on('exit', (code) => {
+    proc.on('message', (msg) => { if (this.proc === proc) this._onMessage(msg); });
+    proc.on('error', (error) => this._workerFailed(proc, error));
+    proc.on('exit', (code) => {
+      if (this.proc !== proc) return;
       console.error(`[transcriber] worker exited (${code})`);
-      this.ready = false;
-      this.proc = null;
-      const err = new Error('transcription engine crashed');
-      for (const { reject } of this.pending.values()) reject(err);
-      this.pending.clear();
-      for (const { reject } of this.loadWaiters.values()) reject(err);
-      this.loadWaiters.clear();
-      this._notify('error', 'engine crashed');
+      this._workerFailed(proc, new Error('transcription engine crashed'));
     });
+  }
+
+  _workerFailed(proc, error) {
+    if (this.proc !== proc) return;
+    this.dispose(error);
+    this._notify('error', error.message);
+  }
+
+  _send(proc, message) {
+    try { proc.send(message, (error) => { if (error) this._workerFailed(proc, error); }); }
+    catch (error) { this._workerFailed(proc, error); }
   }
 
   _onMessage(msg) {
@@ -102,8 +108,13 @@ class TranscriberManager {
     const loadId = ++this.loadSeq;
     this._notify('loading');
     return new Promise((resolve, reject) => {
-      this.loadWaiters.set(loadId, { resolve, reject });
-      this.proc.send({ type: 'load', loadId, dir, kind: m.kind, language: language || 'auto', numThreads: 4 });
+      const proc = this.proc;
+      const timer = setTimeout(() => this._workerFailed(proc, new Error('Voice preparation timed out. Try Repair connection.')), 60000);
+      this.loadWaiters.set(loadId, {
+        resolve: () => { clearTimeout(timer); resolve(); },
+        reject: (error) => { clearTimeout(timer); reject(error); }
+      });
+      this._send(proc, { type: 'load', loadId, dir, kind: m.kind, language: language || 'auto', numThreads: 4 });
     });
   }
 
@@ -131,13 +142,19 @@ class TranscriberManager {
         resolve: (v) => { clearTimeout(timer); resolve(v); },
         reject: (e) => { clearTimeout(timer); reject(e); }
       });
-      this.proc.send({ type: 'transcribe', id, sampleRate, pcm });
+      this._send(this.proc, { type: 'transcribe', id, sampleRate, pcm });
     });
   }
 
-  dispose() {
-    if (this.proc) { this.proc.kill(); this.proc = null; }
+  dispose(error = new Error('Transcription engine stopped')) {
+    const proc = this.proc;
+    this.proc = null;
+    if (proc) proc.kill();
     this.ready = false;
+    for (const { reject } of this.pending.values()) reject(error);
+    this.pending.clear();
+    for (const { reject } of this.loadWaiters.values()) reject(error);
+    this.loadWaiters.clear();
   }
 }
 

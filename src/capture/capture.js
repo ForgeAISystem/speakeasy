@@ -112,7 +112,7 @@ async function start(opts) {
   } catch (e) {
     if (generation !== captureGeneration) return;
     await releaseResources();
-    window.captureBridge.sendError(e.message || String(e));
+    if (generation === captureGeneration) window.captureBridge.sendError(mySession, e.message || String(e));
   }
 }
 

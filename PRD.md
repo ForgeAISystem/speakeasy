@@ -25,3 +25,7 @@ The user requested ImageGen artwork, minimal UI, subtle parallax, and functional
 ## v2.4.1 desktop usability
 
 Harsh needs to continue other work while SpeakEasy is developed and used. Scope: standard native window chrome, a 560x480 minimum with usable compact layouts, saved position/size, disconnected-display recovery, minimized-window restoration, and less hidden setup activity. Verification must run without taking focus or controlling the installed app. Stage one tested update and coordinate its single restart. Native drag/resize acceptance follows installation. Do not claim a whole-system speedup from an idle CPU snapshot.
+
+## v2.4.2 reliability
+
+Harsh reported that pressing Fn did not show the bottom indicator and asked for smoother, robust dictation. Scope: reproduce indicator timing/state failures, make microphone startup visible, prevent stale sessions from affecting newer ones, recover from stalled capture and failed renderers/listeners/workers, preserve received audio after interruptions, and provide small diagnosis/repair controls. Keep existing local models and settings. Verify failures/recovery with deterministic tests and a real engine smoke check, then install once at the user's approved moment. Physical Fn, microphone, native indicator, and paste require actual device acceptance.

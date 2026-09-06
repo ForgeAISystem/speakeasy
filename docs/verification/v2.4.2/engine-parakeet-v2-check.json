@@ -1,0 +1,24 @@
+{
+  "fixture": "Generated speech through the real TranscriberManager and native Parakeet 0.6B v2 worker. No microphone, shortcut, or OS paste. Memory is a worker RSS snapshot after decoding, not peak use.",
+  "modelId": "parakeet-v2",
+  "expected": "This is a test of local dictation. My words should appear clearly.",
+  "seconds": 3.675625,
+  "results": [
+    {
+      "afterWorkerRestart": false,
+      "text": "This is a test of local dictation. My words should appear clearly.",
+      "lang": "",
+      "ms": 81,
+      "workerRssMiB": 1843,
+      "passed": true
+    },
+    {
+      "afterWorkerRestart": true,
+      "text": "This is a test of local dictation. My words should appear clearly.",
+      "lang": "",
+      "ms": 80,
+      "workerRssMiB": 1843,
+      "passed": true
+    }
+  ]
+}

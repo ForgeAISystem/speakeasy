@@ -16,7 +16,7 @@ static void emit(const char *event) {
 static CGEventRef handle(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *info) {
   if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
     fnDown = false;
-    emit("cancel");
+    emit("reset");
     CGEventTapEnable(tap, true);
     return event;
   }
@@ -33,7 +33,18 @@ static CGEventRef handle(CGEventTapProxy proxy, CGEventType type, CGEventRef eve
 }
 
 static void checkParent(CFRunLoopTimerRef timer, void *info) {
-  if (getppid() != parent) CFRunLoopStop(CFRunLoopGetCurrent());
+  if (getppid() != parent) { CFRunLoopStop(CFRunLoopGetCurrent()); return; }
+  if (!CGEventTapIsEnabled(tap)) {
+    fnDown = false;
+    emit("reset");
+    CGEventTapEnable(tap, true);
+    if (!CGEventTapIsEnabled(tap)) {
+      emit("permission-required");
+      CFRunLoopStop(CFRunLoopGetCurrent());
+      return;
+    }
+  }
+  emit("heartbeat");
 }
 
 int main(int argc, char **argv) {

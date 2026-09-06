@@ -59,3 +59,9 @@ Run npm test (39 checks), then env -u ELECTRON_RUN_AS_NODE npx electron scripts/
 Read STATE.md before installing. Harsh reported disruption while working on the same computer. Keep tests hidden/non-focusable and avoid controlling, restarting, or replacing the running app until he chooses the restart moment. Run the offscreen visual script and installer build sequentially at lower priority using nice -n 10. Do not launch the full app for screenshots during concurrent work.
 
 The main window now uses standard native chrome. Bounds live in window.json, separate from dictation preferences; window-bounds.js restores them on connected displays. Compact layouts support a 560x480 outer window. Hidden onboarding skips readiness reads; audio capture retains its existing timing settings. Current verification: 47 automated checks and 20 offscreen fixture screens. Evidence is under docs/verification/v2.4.1/. Fixtures are synthetic and do not prove native drag handles or actual microphone/paste.
+
+## v2.4.2 stability notes
+
+v2.4.2 is installed after Harsh's explicit one-restart approval. He confirmed the physical Fn indicator and pasted text, then reported Moonshine recognition errors. Do not repeat installation or onboarding; accuracy/model choice is the active follow-up.
+
+64 automated tests, 22 hidden main-window fixtures, five indicator states, and real generated-speech recognition before/after worker restart pass. Main retains/replays overlay state and cancels stale hide timers. Capture errors carry sessions, stalled input is bounded, and received audio survives failure. Native Fn heartbeat/reset and worker identity/IPC/load-timeout guards handle disconnections. Home has Test indicator and idle-only Repair connection. Evidence: docs/verification/v2.4.2/. The agent changed no OS permissions.

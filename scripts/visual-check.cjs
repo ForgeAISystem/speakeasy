@@ -8,6 +8,7 @@ const version = require('../package.json').version;
 const out = path.join(root, 'docs/verification', `v${version}`);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 app.setPath('userData', path.join(app.getPath('temp'), `speakeasy-visual-${version}`));
+app.on('window-all-closed', () => {}); // move between fixtures without quitting
 app.whenReady().then(async () => {
   if (process.platform === 'darwin') app.setActivationPolicy('accessory');
   fs.mkdirSync(out, { recursive: true });
@@ -37,6 +38,9 @@ app.whenReady().then(async () => {
   }
   await capture('home', 'void 0');
   await capture('home-compact', 'void 0', 760, 560);
+  await capture('connection-check', "document.querySelector('#runtime-check').open = true");
+  await capture('connection-check-small', 'void 0', 560, 450);
+  await run("document.querySelector('#runtime-check').open = false; runtimeOpen = false");
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
   await capture('snippets', "switchTab('snippets')");
@@ -60,8 +64,24 @@ app.whenReady().then(async () => {
   const reduced = await run("getComputedStyle(document.querySelector('.setup-panel')).animationName");
   const overflow = checks.filter((c) => c.horizontalOverflow || c.contentOverflow || c.setupOverflow);
   fs.writeFileSync(path.join(out, 'visual-check.json'), JSON.stringify({ fixture: 'Offscreen Electron with synthetic state. No live app interaction, microphone, permission, or physical monitor test.', checks, practiceEndVisible, reducedMotionAnimation: reduced, errors }, null, 2) + '\n');
-  const failed = errors.length || overflow.length || reduced !== 'none' || !practiceEndVisible;
+  let failed = errors.length || overflow.length || reduced !== 'none' || !practiceEndVisible;
   console.log(JSON.stringify({ screenshots: checks.length, errors, overflow, practiceEndVisible, reducedMotionAnimation: reduced }));
   win.destroy();
+  const bar = new BrowserWindow({ width: 340, height: 110, show: false, frame: false, focusable: false, skipTaskbar: true,
+    webPreferences: { preload: path.join(root, 'tests/overlay-visual-preload.cjs'), offscreen: true } });
+  bar.webContents.setFrameRate(15);
+  await bar.loadFile(path.join(root, 'src/overlay/overlay.html'));
+  const overlays = [];
+  for (const phase of ['listening', 'armed', 'processing', 'preview', 'error']) {
+    await bar.webContents.executeJavaScript(`window.overlayFixture.show('${phase}')`);
+    await delay(250);
+    const check = await bar.webContents.executeJavaScript(`({ label: document.querySelector('#label').textContent, visible: getComputedStyle(document.querySelector('#pill')).opacity === '1', fits: document.querySelector('#pill').getBoundingClientRect().right <= innerWidth })`);
+    overlays.push({ phase, ...check });
+    fs.writeFileSync(path.join(out, 'indicator-' + phase + '.png'), (await bar.webContents.capturePage()).toPNG());
+  }
+  fs.writeFileSync(path.join(out, 'indicator-check.json'), JSON.stringify(overlays, null, 2) + '\n');
+  if (overlays.some((item) => !item.visible || !item.fits)) failed = true;
+  console.log(JSON.stringify({ indicatorScreens: overlays.length, passed: !failed }));
+  bar.destroy();
   app.exit(failed ? 1 : 0);
 }).catch((error) => { console.error(error); app.exit(1); });

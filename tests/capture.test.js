@@ -12,7 +12,7 @@ function fixture(getUserMedia) {
   const bridge = {
     onStart: (cb) => { handlers.start = cb; }, onStop: (cb) => { handlers.stop = cb; },
     onListMics: () => {}, onGenIcons: () => {},
-    sendError: (e) => events.push(['error', e]), sendStopped: (id) => events.push(['stopped', id]),
+    sendError: (id, e) => events.push(['error', id, e]), sendStopped: (id) => events.push(['stopped', id]),
     sendArmed: (id) => events.push(['armed', id]), sendChunk: () => {}
   };
   class FakeContext {
@@ -59,7 +59,7 @@ test('normal stop releases the mic and closes audio after flushing', async () =>
 test('permission failure surfaces a recoverable error instead of arming', async () => {
   const f = fixture(async () => { throw new Error('Permission denied'); });
   await f.handlers.start({ session: 1 });
-  assert.deepEqual(f.events, [['error', 'Permission denied']]);
+  assert.deepEqual(f.events, [['error', 1, 'Permission denied']]);
 });
 
 test('worklet flush preserves the last partial audio chunk', () => {

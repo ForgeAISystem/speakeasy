@@ -1,0 +1,206 @@
+{
+  "fixture": "Offscreen Electron with synthetic state. No live app interaction, microphone, permission, or physical monitor test.",
+  "checks": [
+    {
+      "screen": "home",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "home-compact",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 760,
+      "height": 560
+    },
+    {
+      "screen": "connection-check",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "connection-check-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "history",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "settings",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "snippets",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "welcome",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "welcome-compact",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 760,
+      "height": 560
+    },
+    {
+      "screen": "permissions",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "shortcut",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "home-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "history-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "dictionary-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "snippets-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "settings-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "settings-advanced-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "welcome-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "permissions-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "voice-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "shortcut-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
+      "screen": "practice-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    }
+  ],
+  "practiceEndVisible": true,
+  "reducedMotionAnimation": "none",
+  "errors": []
+}

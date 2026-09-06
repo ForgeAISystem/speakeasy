@@ -13,6 +13,7 @@ const {
 } = require('../shared/constants');
 const store = require('./store');
 const { cleanup } = require('./cleanup');
+const writing = require('../shared/writing');
 const { injectText, getLastTranscript, setLastTranscript, getFrontAppName } = require('./injector');
 const { HotkeyManager } = require('./hotkey');
 const models = require('./models');
@@ -167,6 +168,7 @@ function overlayState(state, extra = {}) {
   overlayWindow.webContents.send('overlay:state', {
     state,
     sounds: store.settings().sounds,
+    subtleMotion: store.settings().subtleMotion !== false,
     ...extra
   });
   if (['done', 'cancelled', 'error'].includes(state)) {
@@ -306,10 +308,10 @@ async function onDictateStop() {
     const { text: rawText, lang, ms: engineMs } = await transcriber.transcribe(pcm, SAMPLE_RATE);
     // A second AI pass (polish or "organize my thoughts") is about to run:
     // tell the overlay so the pill switches to the refine words + spinner.
-    if (rawText && store.settings().polishProvider !== 'off') {
-      overlayState('processing', { phase: 'refine' });
+    if (rawText && writing.mode(store.settings()) === 'polished' && writing.providerReady(store.settings())) {
+      overlayState('processing', { phase: 'refine', localPolish: store.settings().polishProvider === 'ollama' });
     }
-    const { text, organized } = rawText ? await cleanup(rawText) : { text: '', organized: false };
+    const { text, organized, polished, cleanupMode, fallbackReason } = rawText ? await cleanup(rawText) : { text: '', organized: false };
     if (!text) {
       audioStore.removeRecording(wavName);
       overlayState('error', { message: 'Nothing heard' });
@@ -339,11 +341,14 @@ async function onDictateStop() {
       model: store.settings().model,
       lang: lang || undefined,
       organized: organized || undefined,
+      polished: polished || undefined,
+      cleanupMode,
+      fallbackReason,
       pasted: ok
     });
     audioStore.removeRecording(wavName);
 
-    if (ok) overlayState('done', { words });
+    if (ok) overlayState('done', { words, fallbackReason });
     push('dictation', { phase: 'done', text, words, pasted: ok });
     push('stats', {});
   } catch (e) {
@@ -570,11 +575,12 @@ ipcMain.handle('history:retry', async (_e, id) => {
   try {
     const pcm = audioStore.readRecordingPcm(file);
     const { text: rawText, ms: engineMs } = await transcriber.transcribe(pcm, SAMPLE_RATE);
-    const { text } = rawText ? await cleanup(rawText) : { text: '' };
+    const { text, organized, polished, cleanupMode, fallbackReason } = rawText ? await cleanup(rawText) : { text: '' };
     if (!text) return { ok: false, error: 'Nothing heard in the recording' };
 
     entry.text = text;
     entry.raw = rawText !== text ? rawText : undefined;
+    Object.assign(entry, { organized, polished, cleanupMode, fallbackReason });
     entry.failed = false;
     entry.engineMs = engineMs;
     audioStore.removeRecording(entry.audioFile);
@@ -678,6 +684,9 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  // Cmd+Q and the native application menu must quit, while closing the window
+  // alone keeps dictation in the menu bar. before-quit precedes window close.
+  app.on('before-quit', () => { app.isQuittingForReal = true; });
   app.on('second-instance', () => showMainWindow());
 
   app.whenReady().then(async () => {

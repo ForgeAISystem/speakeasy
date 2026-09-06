@@ -1,7 +1,7 @@
 {
   "name": "speakeasy",
   "productName": "SpeakEasy",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Local, private voice dictation for Mac and Windows. Hold a key, speak, release. Your words appear in any app. No cloud, no subscription.",
   "main": "src/main/index.js",
   "author": "Harsh Patel",

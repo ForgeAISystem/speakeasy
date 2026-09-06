@@ -1,0 +1,248 @@
+
+> speakeasy@2.4.0 test
+> node --test tests/*.test.js
+
+TAP version 13
+# Subtest: original transcript stays recoverable and search matches words removed by cleanup
+ok 1 - original transcript stays recoverable and search matches words removed by cleanup
+  ---
+  duration_ms: 68.470208
+  type: 'test'
+  ...
+# Subtest: attention filter finds saved failures and clear all needs an explicit second click
+ok 2 - attention filter finds saved failures and clear all needs an explicit second click
+  ---
+  duration_ms: 18.106542
+  type: 'test'
+  ...
+# Subtest: Polished routes to provider setup without silently changing the selected mode
+ok 3 - Polished routes to provider setup without silently changing the selected mode
+  ---
+  duration_ms: 24.057666
+  type: 'test'
+  ...
+# Subtest: snippets can be edited in place with paragraph breaks and literal markup preserved
+ok 4 - snippets can be edited in place with paragraph breaks and literal markup preserved
+  ---
+  duration_ms: 11.974583
+  type: 'test'
+  ...
+# Subtest: duplicate snippet triggers are blocked without losing the draft
+ok 5 - duplicate snippet triggers are blocked without losing the draft
+  ---
+  duration_ms: 9.200417
+  type: 'test'
+  ...
+# Subtest: Cmd+F opens local history and focuses the search field
+ok 6 - Cmd+F opens local history and focuses the search field
+  ---
+  duration_ms: 9.623333
+  type: 'test'
+  ...
+# Subtest: cancel while the microphone is opening stops late-arriving tracks
+ok 7 - cancel while the microphone is opening stops late-arriving tracks
+  ---
+  duration_ms: 0.974
+  type: 'test'
+  ...
+# Subtest: normal stop releases the mic and closes audio after flushing
+ok 8 - normal stop releases the mic and closes audio after flushing
+  ---
+  duration_ms: 0.866166
+  type: 'test'
+  ...
+# Subtest: permission failure surfaces a recoverable error instead of arming
+ok 9 - permission failure surfaces a recoverable error instead of arming
+  ---
+  duration_ms: 0.436042
+  type: 'test'
+  ...
+# Subtest: worklet flush preserves the last partial audio chunk
+ok 10 - worklet flush preserves the last partial audio chunk
+  ---
+  duration_ms: 0.451666
+  type: 'test'
+  ...
+# Subtest: original mode preserves every recognized word and never invokes a configured provider
+ok 11 - original mode preserves every recognized word and never invokes a configured provider
+  ---
+  duration_ms: 0.869458
+  type: 'test'
+  ...
+# Subtest: clean mode applies local vocabulary and multiline snippets without a network request
+ok 12 - clean mode applies local vocabulary and multiline snippets without a network request
+  ---
+  duration_ms: 0.652875
+  type: 'test'
+  ...
+# Subtest: clean mode preserves paragraph boundaries
+ok 13 - clean mode preserves paragraph boundaries
+  ---
+  duration_ms: 0.989333
+  type: 'test'
+  ...
+# Subtest: missing AI provider retains spoken organize instructions and labels the fallback
+ok 14 - missing AI provider retains spoken organize instructions and labels the fallback
+  ---
+  duration_ms: 0.436583
+  type: 'test'
+  ...
+# Subtest: provider failure keeps complete local text including the original spoken request
+ok 15 - provider failure keeps complete local text including the original spoken request
+  ---
+  duration_ms: 0.913875
+  type: 'test'
+  ...
+# Subtest: successful AI cleanup expands multiline snippets after the provider returns
+ok 16 - successful AI cleanup expands multiline snippets after the provider returns
+  ---
+  duration_ms: 0.569167
+  type: 'test'
+  ...
+# Subtest: legacy preference resolution never silently enables a cloud provider
+ok 17 - legacy preference resolution never silently enables a cloud provider
+  ---
+  duration_ms: 0.1
+  type: 'test'
+  ...
+# Subtest: Fn hold release records exactly once and ignores key repeat
+ok 18 - Fn hold release records exactly once and ignores key repeat
+  ---
+  duration_ms: 1.551166
+  type: 'test'
+  ...
+# Subtest: Fn double tap enters hands-free and the next tap stops
+ok 19 - Fn double tap enters hands-free and the next tap stops
+  ---
+  duration_ms: 0.318625
+  type: 'test'
+  ...
+# Subtest: switching shortcuts cancels a held recording and ignores the old release
+ok 20 - switching shortcuts cancels a held recording and ignores the old release
+  ---
+  duration_ms: 0.316792
+  type: 'test'
+  ...
+# Subtest: reset after suspend or error accepts the next press
+ok 21 - reset after suspend or error accepts the next press
+  ---
+  duration_ms: 0.188708
+  type: 'test'
+  ...
+# Subtest: a single tap cancels after the double-tap window
+ok 22 - a single tap cancels after the double-tap window
+  ---
+  duration_ms: 951.924291
+  type: 'test'
+  ...
+# Subtest: first launch offers one install action only when outside Applications
+ok 23 - first launch offers one install action only when outside Applications
+  ---
+  duration_ms: 47.127125
+  type: 'test'
+  ...
+# Subtest: permissions cannot be skipped, and a denied mic opens the right settings
+ok 24 - permissions cannot be skipped, and a denied mic opens the right settings
+  ---
+  duration_ms: 12.907416
+  type: 'test'
+  ...
+# Subtest: failed voice downloads stay recoverable and do not advance
+ok 25 - failed voice downloads stay recoverable and do not advance
+  ---
+  duration_ms: 11.144208
+  type: 'test'
+  ...
+# Subtest: downloaded voice must load before continuing and existing voices are reused
+ok 26 - downloaded voice must load before continuing and existing voices are reused
+  ---
+  duration_ms: 10.763958
+  type: 'test'
+  ...
+# Subtest: the selected shortcut must actually report a release before proceeding
+ok 27 - the selected shortcut must actually report a release before proceeding
+  ---
+  duration_ms: 11.604667
+  type: 'test'
+  ...
+# Subtest: typing into practice cannot fake a successful dictation
+ok 28 - typing into practice cannot fake a successful dictation
+  ---
+  duration_ms: 7.412708
+  type: 'test'
+  ...
+# Subtest: successful recognition with failed paste does not complete setup
+ok 29 - successful recognition with failed paste does not complete setup
+  ---
+  duration_ms: 260.41825
+  type: 'test'
+  ...
+# Subtest: actual recognized text pasted in practice unlocks completion
+ok 30 - actual recognized text pasted in practice unlocks completion
+  ---
+  duration_ms: 264.827959
+  type: 'test'
+  ...
+# Subtest: Windows setup offers supported keys instead of Fn
+ok 31 - Windows setup offers supported keys instead of Fn
+  ---
+  duration_ms: 21.813791
+  type: 'test'
+  ...
+# Subtest: overlay has no idle animation and starts only after the microphone is armed
+ok 32 - overlay has no idle animation and starts only after the microphone is armed
+  ---
+  duration_ms: 70.699667
+  type: 'test'
+  ...
+# Subtest: reduced motion cancels waveform animation but keeps the recording clock
+ok 33 - reduced motion cancels waveform animation but keeps the recording clock
+  ---
+  duration_ms: 12.657583
+  type: 'test'
+  ...
+# Subtest: the in-app motion preference suppresses waveform animation too
+ok 34 - the in-app motion preference suppresses waveform animation too
+  ---
+  duration_ms: 7.349584
+  type: 'test'
+  ...
+# Subtest: main process refuses setup completion without a successful practice dictation
+ok 35 - main process refuses setup completion without a successful practice dictation
+  ---
+  duration_ms: 2.173416
+  type: 'test'
+  ...
+# Subtest: revoked permissions block completion even after a successful test
+ok 36 - revoked permissions block completion even after a successful test
+  ---
+  duration_ms: 0.948417
+  type: 'test'
+  ...
+# Subtest: completed setup saves only the explicit launch preference
+ok 37 - completed setup saves only the explicit launch preference
+  ---
+  duration_ms: 0.61675
+  type: 'test'
+  ...
+# Subtest: install button delegates the move only for a packaged Mac app outside Applications
+ok 38 - install button delegates the move only for a packaged Mac app outside Applications
+  ---
+  duration_ms: 0.46775
+  type: 'test'
+  ...
+# Subtest: closing the window hides it, but a native Quit closes it without interception
+ok 39 - closing the window hides it, but a native Quit closes it without interception
+  ---
+  duration_ms: 0.927291
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 991.376416

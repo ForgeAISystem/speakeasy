@@ -8,26 +8,29 @@ const vm = require('node:vm');
 function fixture() {
   const handlers = new Map();
   const writes = [];
+  const lifecycle = new Map(), windowEvents = new Map();
   const permissions = { mic: 'granted', accessibility: true };
   const app = {
-    requestSingleInstanceLock: () => true, on() {}, whenReady: () => new Promise(() => {}),
+    requestSingleInstanceLock: () => true, on: (event, fn) => lifecycle.set(event, fn), whenReady: () => new Promise(() => {}),
     setLoginItemSettings: (value) => writes.push(['login', value]),
     isPackaged: true, isInApplicationsFolder: () => false,
     moveToApplicationsFolder: () => { writes.push(['install']); return true; }
   };
   const modules = {
-    electron: { app, ipcMain: { handle: (name, cb) => handlers.set(name, cb), on() {} },
+    electron: { app, BrowserWindow: class { loadFile() {} once() {} on(event, fn) { windowEvents.set(event, fn); } hide() { writes.push(['hide']); } },
+      ipcMain: { handle: (name, cb) => handlers.set(name, cb), on() {} },
       systemPreferences: { getMediaAccessStatus: () => permissions.mic, isTrustedAccessibilityClient: () => permissions.accessibility } },
     './store': { updateSettings: (value) => writes.push(['settings', value]), settings: () => ({}) },
     './cleanup': {}, './injector': {}, './hotkey': {}, './models': {}, './tray': {}, './audio-store': {},
     './transcriber': { TranscriberManager: class {} },
-    '../shared/constants': require('../src/shared/constants')
+    '../shared/constants': require('../src/shared/constants'),
+    '../shared/writing': require('../src/shared/writing')
   };
   const context = vm.createContext({ require: (id) => modules[id] || require(id),
     __dirname: path.join(__dirname, '../src/main'),
     process: { platform: 'darwin', env: {}, on() {} }, console, setTimeout, clearTimeout, setInterval, clearInterval });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/main/index.js'), 'utf8'), context);
-  return { handlers, writes, permissions, set: (code) => vm.runInContext(code, context) };
+  return { handlers, writes, permissions, lifecycle, windowEvents, set: (code) => vm.runInContext(code, context) };
 }
 
 test('main process refuses setup completion without a successful practice dictation', () => {
@@ -61,4 +64,17 @@ test('install button delegates the move only for a packaged Mac app outside Appl
   const f = fixture();
   assert.equal(f.handlers.get('app:install')().ok, true);
   assert.equal(f.writes[0][0], 'install');
+});
+
+test('closing the window hides it, but a native Quit closes it without interception', () => {
+  const f = fixture();
+  f.set('createMainWindow()');
+  let prevented = 0;
+  const close = () => f.windowEvents.get('close')({ preventDefault: () => prevented++ });
+  close();
+  assert.equal(prevented, 1);
+  assert.equal(f.writes.at(-1)[0], 'hide');
+  f.lifecycle.get('before-quit')();
+  close();
+  assert.equal(prevented, 1);
 });

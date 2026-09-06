@@ -1,0 +1,106 @@
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { JSDOM } = require('jsdom');
+const { DEFAULT_SETTINGS, MODELS, HOLD_KEYS } = require('../src/shared/constants');
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+async function fixture(t) {
+  const root = path.join(__dirname, '../src/app');
+  const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), { runScripts: 'outside-only', pretendToBeVisual: true });
+  t.after(() => dom.window.close());
+  const state = { settings: { ...DEFAULT_SETTINGS, onboarded: true, model: 'moonshine-base', cleanupMode: 'clean' },
+    platform: 'darwin', version: '2.4.0', engine: { state: 'ready' }, permissions: { mic: 'granted', accessibility: true },
+    shortcut: { ready: true }, models: { installed: ['moonshine-base'], downloads: {}, catalog: MODELS }, holdKeys: HOLD_KEYS,
+    stats: { today: { words: 10, timeSavedSeconds: 3 }, allTime: { transcriptions: 2 } } };
+  let rows = [{ id: 'a', ts: Date.now(), text: 'Meet at three.', raw: 'Um, meet at two, actually three.', app: 'Notes', speechSeconds: 5 },
+    { id: 'b', ts: Date.now() - 86400000, failed: true, app: 'Mail', text: '', speechSeconds: 10 }];
+  let snippets = [{ id: 's', trigger: 'signature', expansion: 'Harsh\nSpeakEasy' }];
+  let dictionary = [{ id: 'd', word: 'SpeakEasy', misspelling: 'speak easy' }];
+  const copies = [], saves = [];
+  let push;
+  const api = { getState: async () => structuredClone(state), historyList: async () => structuredClone(rows),
+    updateSettings: async (value) => { saves.push(value); Object.assign(state.settings, value); return structuredClone(state); },
+    copy: async (text) => copies.push(text), historyRemove: async (id) => { rows = rows.filter((r) => r.id !== id); },
+    historyClear: async () => { rows = []; }, listMics: async () => [],
+    snippetsList: async () => structuredClone(snippets), snippetsSave: async (value) => { snippets = value; },
+    dictList: async () => structuredClone(dictionary), dictSave: async (value) => { dictionary = value; },
+    onPush: (fn) => { push = fn; }, hideApp() {}, setupMode: async () => {} };
+  dom.window.speakeasy = api;
+  dom.window.SpeakEasyMotion = { setEnabled() {} };
+  for (const file of ['../shared/writing.js', 'onboarding.js', 'app.js']) dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
+  await settle();
+  const $ = (selector) => dom.window.document.querySelector(selector);
+  const click = async (selector) => { assert.ok($(selector), selector); $(selector).click(); await settle(); };
+  return { dom, $, click, state, copies, saves, push: (...args) => push(...args), snippets: () => snippets, rows: () => rows };
+}
+
+test('original transcript stays recoverable and search matches words removed by cleanup', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-tab=history]');
+  f.$('#hist-search').value = 'actually';
+  f.$('#hist-search').dispatchEvent(new f.dom.window.Event('input'));
+  assert.equal(f.$('#hist-count').textContent, '1 dictation');
+  await f.click('[data-action=copy-original]');
+  assert.equal(f.copies[0], 'Um, meet at two, actually three.');
+  assert.equal(f.rows()[0].text, 'Meet at three.');
+  assert.equal(f.$('#hist-search').value, 'actually');
+});
+
+test('attention filter finds saved failures and clear all needs an explicit second click', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-tab=history]');
+  await f.click('[data-filter=attention]');
+  assert.equal(f.$('#hist-count').textContent, '1 dictation');
+  assert.ok(f.$('.h-row.failed'));
+  await f.click('#hist-clear');
+  assert.equal(f.rows().length, 2);
+  assert.equal(f.$('#hist-confirm').hidden, false);
+  await f.click('#hist-cancel');
+  assert.equal(f.rows().length, 2);
+  await f.click('#hist-clear');
+  await f.click('#hist-confirm-delete');
+  assert.equal(f.rows().length, 0);
+});
+
+test('Polished routes to provider setup without silently changing the selected mode', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-writing=polished]');
+  assert.equal(f.state.settings.cleanupMode, 'clean');
+  assert.equal(f.$('.advanced-settings').open, true);
+  assert.equal(f.dom.window.document.activeElement.id, 'set-polish');
+  await f.click('[data-writing=original]');
+  assert.equal(f.state.settings.cleanupMode, 'original');
+});
+
+test('snippets can be edited in place with paragraph breaks and literal markup preserved', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-tab=snippets]');
+  await f.click('[data-edit-snip=s]');
+  f.$('#snip-expansion').value = 'Harsh\n\n<script>literal text</script>\n$100';
+  await f.click('#snip-add');
+  assert.equal(f.snippets().length, 1);
+  assert.equal(f.snippets()[0].id, 's');
+  assert.equal(f.snippets()[0].expansion, 'Harsh\n\n<script>literal text</script>\n$100');
+  assert.equal(f.$('#tab-snippets script'), null);
+});
+
+test('duplicate snippet triggers are blocked without losing the draft', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-tab=snippets]');
+  f.$('#snip-trigger').value = 'SIGNATURE';
+  f.$('#snip-expansion').value = 'Different';
+  await f.click('#snip-add');
+  assert.equal(f.snippets().length, 1);
+  assert.equal(f.$('#snip-expansion').value, 'Different');
+  assert.match(f.$('#toast').textContent, /already exists/);
+});
+
+test('Cmd+F opens local history and focuses the search field', async (t) => {
+  const f = await fixture(t);
+  f.dom.window.document.dispatchEvent(new f.dom.window.KeyboardEvent('keydown', { key: 'f', metaKey: true }));
+  await settle();
+  assert.equal(f.dom.window.document.activeElement.id, 'hist-search');
+});

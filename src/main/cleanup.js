@@ -1,6 +1,7 @@
 'use strict';
 
 const { dictionary, snippets, settings } = require('./store');
+const writing = require('../shared/writing');
 
 const FILLERS = /\b(?:um+|uh+|uhm+|erm+|er|mmm+|hmm+)\b[,.]?\s*/gi;
 
@@ -18,8 +19,8 @@ function wordPattern(term) {
 
 function removeFillers(text) {
   let out = text.replace(FILLERS, '');
-  out = out.replace(/\s{2,}/g, ' ');
-  out = out.replace(/\s+([,.!?;:])/g, '$1');
+  out = out.replace(/[ \t]{2,}/g, ' ');
+  out = out.replace(/[ \t]+([,.!?;:])/g, '$1');
   out = out.replace(/([,.!?])\1+/g, '$1');
   out = out.trim();
   if (out) out = out[0].toUpperCase() + out.slice(1);
@@ -169,20 +170,25 @@ async function cleanup(rawText) {
   let text = rawText.trim();
   if (!text) return { text: '', polished: false, organized: false };
 
+  const cleanupMode = writing.mode(cfg);
+  if (cleanupMode === 'original') return { text: rawText, cleanupMode, polished: false, organized: false };
+  const canUseAI = cleanupMode === 'polished' && writing.providerReady(cfg);
+
   // Detect the spoken organize command before other cleanup mangles it.
   let wantsOrganize = false;
-  if (cfg.organizeOnCommand !== false) {
+  if (canUseAI && cfg.organizeOnCommand !== false) {
     const det = detectOrganize(text);
     if (det.triggered) { wantsOrganize = true; text = det.text; }
   }
 
-  if (cfg.fillerRemoval) text = removeFillers(text);
+  const localFallback = applySnippets(applyDictionary(removeFillers(rawText.trim())));
+  text = removeFillers(text);
   text = applyDictionary(text);
-  text = applySnippets(text);
 
   let polished = false;
   let organized = false;
   let providerMissing = false;
+  let fallbackReason = cleanupMode === 'polished' && !canUseAI ? 'missing-provider' : undefined;
 
   if (wantsOrganize) {
     try {
@@ -190,16 +196,19 @@ async function cleanup(rawText) {
       text = r.text;
       organized = r.used;
       providerMissing = !r.used; // asked to organize but no AI provider configured
-    } catch (e) { console.error('[organize]', e.message); }
-  } else if (cfg.polishProvider !== 'off') {
+    } catch (e) { console.error('[organize]', e.message); fallbackReason = 'provider-unavailable'; }
+  } else if (canUseAI) {
     try {
       const r = await runLLM(text, cfg, POLISH_SYSTEM_PROMPT);
       text = r.text;
       polished = r.used;
-    } catch (e) { console.error('[polish]', e.message); }
+    } catch (e) { console.error('[polish]', e.message); fallbackReason = 'provider-unavailable'; }
   }
 
-  return { text, polished, organized, providerMissing, wantsOrganize };
+  // Keep the full spoken request on failures. Expand saved text only after AI
+  // editing, so signatures, URLs, and multiline snippets keep their exact bytes.
+  text = fallbackReason ? localFallback : applySnippets(applyDictionary(text));
+  return { text, polished, organized, providerMissing, wantsOrganize, cleanupMode, fallbackReason };
 }
 
 module.exports = { cleanup, removeFillers, applyDictionary, applySnippets, detectOrganize };

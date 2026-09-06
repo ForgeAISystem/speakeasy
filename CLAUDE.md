@@ -28,7 +28,7 @@ Unsigned builds: macOS users right-click the app > Open on first launch (Gatekee
 
 ## Architecture in one breath
 
-`src/main/index.js` owns the dictation state machine (idle > recording > processing). Global hotkey via the bundled native Fn helper on Mac, or uiohook-napi for other keys (`hotkey.js`, hold / double-tap hands-free / Esc). Hidden renderer (`src/capture/`) streams 16 kHz PCM chunks with per-recording session ids. Transcription runs in a forked worker (`src/worker/transcribe-worker.js`) so the UI never blocks; `transcriber.js` sets the native-lib path env and correlates load/transcribe replies. Text lands via clipboard write + simulated paste + clipboard restore (`injector.js`). Cleanup pipeline (`cleanup.js`): fillers > dictionary > snippets > optional Ollama/Claude polish. Audio safety net (`audio-store.js`): every recording hits disk before transcription, deleted on success, surfaced as a retryable History row on failure, recovered on startup after a crash, pruned after 14 days. UI: `src/app/` (dashboard + onboarding), `src/overlay/` (the flow-bar pill).
+`src/main/index.js` owns the dictation state machine (idle > recording > processing). Global hotkey via the bundled native Fn helper on Mac, or uiohook-napi for other keys (`hotkey.js`, hold / double-tap hands-free / Esc). Hidden renderer (`src/capture/`) streams 16 kHz PCM chunks with per-recording session ids. Transcription runs in a forked worker (`src/worker/transcribe-worker.js`) so the UI never blocks; `transcriber.js` sets the native-lib path env and correlates load/transcribe replies. Text lands via clipboard write + simulated paste + clipboard restore (`injector.js`). Cleanup pipeline (`cleanup.js`): Original bypasses transformations; Clean applies fillers/dictionary/snippets; Polished runs a configured provider before final snippet expansion. AI failures retain the complete local text and are labeled in History. Shared mode resolution is in src/shared/writing.js. Audio safety net (`audio-store.js`): every recording hits disk before transcription, deleted on success, surfaced as a retryable History row on failure, recovered on startup after a crash, pruned after 14 days. UI: `src/app/` (dashboard + onboarding), `src/overlay/` (the flow-bar pill).
 
 ## Gotchas that will bite you
 
@@ -47,3 +47,9 @@ Unsigned builds: macOS users right-click the app > Open on first launch (Gatekee
 - `SPEAKEASY_SHOT=/absolute/image.png` captures the actual main window at startup.
 - Screens can be fully tested through the actual Electron app. A physical Fn press is required because the current computer-control tool cannot synthesize it.
 - Source preferences are not proof of signing. Confirm a valid Developer ID, notarization, installer contents, and clean-machine launch before claiming consumer-ready distribution.
+
+## v2.4 development notes
+
+Original ImageGen artwork lives in src/app/assets/voice-glass.png; prompt and provenance in docs/IMAGEGEN.md. refinement.css and motion.js implement event-driven depth with reduced-motion support. Overlay animation runs only while an armed recording is visible. Native Quit is handled in before-quit; window close still hides.
+
+Run npm test (39 checks), then env -u ELECTRON_RUN_AS_NODE npx electron scripts/visual-check.cjs for nine real-renderer screens with synthetic data. After the Mac build, node scripts/package-check.cjs verifies source, artwork, native helper, version, and installer hash. Visual fixtures do not prove OS permissions or live microphone/paste.

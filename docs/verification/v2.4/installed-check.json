@@ -1,0 +1,10 @@
+{
+  "version": "2.4.0",
+  "path": "/Applications/SpeakEasy.app",
+  "installedAndBuiltArchiveSha256": "268a4ce51382036a00e6289b1b19b3a74dcea366f29baf548d4eaa03a4d9d3e5",
+  "welcomeRendered": true,
+  "nativeCommandQExited": true,
+  "nativeQuitExitCode": 0,
+  "physicalMicrophonePasteTest": "pending",
+  "signedAndNotarized": false
+}

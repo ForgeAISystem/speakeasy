@@ -17,3 +17,7 @@ Design references inspected through Mobbin:
 - [Circle getting started](https://mobbin.com/screens/12a4e9b2-b275-41ea-8d95-522094a2ccab): visible setup progress.
 
 SpeakEasy retains its independent warm, minimal desktop identity. It is not a Forge marketing page.
+
+## v2.4 refinement pass
+
+The user requested ImageGen artwork, minimal UI, subtle parallax, and functional improvements informed by Wispr Flow and Glaido. Delivered scope: original glass-wave artwork, event-driven shallow depth, reduced-motion controls, explicit cleanup modes, original transcript recovery, better search, editable multiline snippets/dictionary, truthful overlay stages, and native Quit. No new service, screen-reading feature, or account requirement was added.

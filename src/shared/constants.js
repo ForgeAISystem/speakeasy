@@ -104,6 +104,8 @@ const DEFAULT_SETTINGS = {
   language: 'auto', // whisper models only
   micDeviceId: 'default',
   fillerRemoval: true,
+  cleanupMode: null, // null preserves existing filler/provider preferences
+  subtleMotion: true,
   sounds: true,
   restoreClipboard: true,
   launchAtLogin: false,

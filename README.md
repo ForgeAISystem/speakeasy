@@ -8,14 +8,16 @@ Speech recognition runs on your machine. No account or subscription is required.
 
 - **Hold-to-talk dictation** into any app: hold your dictation key (Fn / Globe on Mac, Right Ctrl on Windows by default), speak, release. Text is pasted at your cursor.
 - **Hands-free mode**: double-tap the dictation key to keep recording without holding. Tap again to stop. Esc cancels.
-- **Flow bar**: a floating pill at the bottom of your screen shows a live waveform while listening, a "Computing" state while transcribing, and a word count when done. With start/stop sounds (toggleable).
+- **Flow bar**: a floating pill at the bottom of your screen shows a live waveform while listening, real transcription and optional polish states, and a word count when done. With start/stop sounds (toggleable).
 - **Local AI models**: NVIDIA Parakeet (best accuracy), Moonshine (fastest), or Whisper (99 languages), all running offline via sherpa-onnx. Downloaded once, inside the app.
-- **Cleanup**: filler words (um, uh) removed automatically.
-- **Dictionary**: teach it your names, clients, and jargon, with optional "it hears X, write Y" corrections.
-- **Snippets**: say "my calendar link", get the full URL. Voice-triggered text expansion.
-- **History and stats**: every dictation stored locally; words today/week/all-time, speaking pace, time saved vs typing, daily streak.
+- **Cleanup choices**: Original keeps recognized text unchanged. Clean removes common English fillers and applies dictionary/snippets locally. Polished adds a configured AI provider.
+- **Dictionary**: add or edit names, clients, and jargon, with optional "it hears X, write Y" corrections and duplicate checks.
+- **Snippets**: say "my calendar link", get the full URL. Create and edit multiline signatures or reusable text.
+- **History**: local search across final and original text, date groups, attention filters, original comparison, and copy. Cmd/Ctrl+F finds your words. Home shows today’s words, estimated time saved, and total dictations.
 - **Optional AI polish**: a second cleanup pass through a local LLM (Ollama) or the Claude API. Off by default. Rule-based cleanup needs no LLM at all.
 - **Paste last transcript**: Cmd+Ctrl+V (Mac) / Shift+Alt+Z (Windows) re-pastes your most recent dictation.
+
+The interface uses original ImageGen glass artwork with subtle pointer depth. System reduced motion and the Subtle motion setting disable these effects. [Research and design decisions](docs/COMPETITOR-RESEARCH-2026-09-06.md) · [Artwork and prompt](docs/IMAGEGEN.md)
 
 ## Install
 
@@ -33,7 +35,7 @@ The first-run guide walks through four steps:
 
 Close the window to keep SpeakEasy running in the menu bar or tray. Quit from its menu when you want to stop it entirely.
 
-**Build status:** this branch is v2.3.0. Its Apple Silicon installer is generated at `dist/SpeakEasy-2.3.0-arm64.dmg`. This version has not been published as a GitHub release. The repository is private. Published installers, when available, live under [Releases](https://github.com/ForgeAISystem/speakeasy/releases).
+**Build status:** this branch is v2.4.0. Its Apple Silicon installer is generated at `dist/SpeakEasy-2.4.0-arm64.dmg`. This version has not been published as a GitHub release. The repository is private. Published installers, when available, live under [Releases](https://github.com/ForgeAISystem/speakeasy/releases).
 
 **Signing:** the current local installer is unsigned and not notarized. macOS may block a downloaded copy. A normal warning-free distribution requires a Developer ID Application certificate and Apple notarization. See [HANDOFF.md](HANDOFF.md). Do not disable Gatekeeper to install it.
 

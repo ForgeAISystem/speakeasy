@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'">
@@ -17,11 +17,11 @@
   }
   #pill {
     display: flex; align-items: center; gap: 10px;
-    background: linear-gradient(180deg, rgba(44, 44, 46, 0.96), rgba(24, 24, 26, 0.96));
+    background: linear-gradient(180deg, rgba(53, 66, 49, 0.97), rgba(29, 40, 29, 0.97));
     border: 1px solid rgba(255, 255, 235, 0.18);
-    border-radius: 999px;
-    padding: 9px 18px;
-    min-width: 150px;
+    border-radius: 18px;
+    padding: 12px 16px;
+    min-width: 210px; max-width: 300px;
     justify-content: center;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16),
                 0 2px 6px rgba(0, 0, 0, 0.25),
@@ -51,7 +51,7 @@
     font-weight: 500;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
-    white-space: nowrap;
+    line-height: 1.35;
   }
   #label .accent { color: #ffd5a4; }
   /* Word swap: gentle fade+rise as the processing verb changes. */
@@ -61,15 +61,20 @@
     100% { opacity: 1; transform: translateY(0); }
   }
   #check { color: #46c07a; font-size: 14px; font-weight: 700; display: none; }
+  #hint { color: #bac7ae; font-size: 9px; line-height: 1.5; margin-top: 3px; }
+  #elapsed { color: #f5c88c; font-size: 11px; font-variant-numeric: tabular-nums; margin-left: 2px; }
+  .status-stack { min-width: 0; }
+  [data-motion=off] * { animation: none !important; transition: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 <div id="wrap">
-  <div id="pill">
-    <canvas id="wave" width="76" height="26"></canvas>
+  <div id="pill" role="status" aria-live="polite">
+    <canvas id="wave" width="55" height="25" aria-hidden="true"></canvas>
     <div id="spinner"></div>
     <div id="check">&#10003;</div>
-    <div id="label">Listening</div>
+    <div class="status-stack"><div id="label">Listening</div><div id="hint">Release to write · Esc to cancel</div></div><span id="elapsed" aria-hidden="true"></span>
   </div>
 </div>
 <script src="./overlay.js"></script>

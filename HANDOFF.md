@@ -1,8 +1,8 @@
-# SpeakEasy v2.3
+# SpeakEasy v2.4
 
-The app is now installed at `/Applications/SpeakEasy.app`. It is open on the permission step. Grant microphone and Accessibility there, then continue.
+The app is now installed at `/Applications/SpeakEasy.app`. Its new welcome screen has been verified. Complete the setup guide and physical dictation test; those remain user acceptance steps.
 
-Open `dist/SpeakEasy-2.3.0-arm64.dmg`, then open SpeakEasy. Choose **Install in Applications**, or drag the app onto the Applications shortcut. No developer tools are needed by the recipient.
+Open `dist/SpeakEasy-2.4.0-arm64.dmg`, then open SpeakEasy. Choose **Install in Applications**, or drag the app onto the Applications shortcut. No developer tools are needed by the recipient.
 
 Follow the welcome flow:
 
@@ -12,6 +12,14 @@ Follow the welcome flow:
 4. Click the practice box, hold the shortcut, wait for the start sound, say a sentence, and release. Finish becomes available when the words land in the box.
 
 Close the window to leave it in the menu bar. Double-tap the key for hands-free dictation; tap once to finish or press Escape to cancel. History, dictionary, snippets, and Settings stay available from the main window.
+
+## New in v2.4
+
+- Original glass-wave artwork and subtle depth. Turn off Subtle motion in Settings, or use the system’s reduced-motion preference.
+- Choose Original, Clean, or Polished on Home. Polished needs an existing local Ollama model or an explicitly configured Anthropic key. API usage can incur charges.
+- Cmd/Ctrl+F opens History. Search includes original text; Compare original reveals what cleanup changed. Copy original recovers it without replacing the saved final transcript.
+- Dictionary and snippets support editing. Snippets accept paragraph breaks.
+- Cmd+Q now exits correctly; closing the window keeps SpeakEasy available.
 
 ## Distribution status
 

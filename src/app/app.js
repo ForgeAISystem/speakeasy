@@ -3,6 +3,34 @@
 const api = window.speakeasy;
 let S = null; // full state cache
 let currentTab = 'home';
+const writing = window.SpeakEasyWriting;
+let historyQuery = '', historyFilter = 'all', historyRows = [], historyRequest = 0;
+let toastTimer;
+function toast(message) {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('visible'), 3200);
+}
+
+function modeButtons(detailed = false) {
+  return Object.entries(writing.modes).map(([id, value]) => `<button class="${detailed ? 'writing-option' : ''}" data-writing="${id}" aria-pressed="${writing.mode(S.settings) === id}" title="${esc(value.description)}">${detailed ? `<strong>${value.label}</strong><span>${value.description}</span>` : value.label}</button>`).join('');
+}
+
+async function chooseWritingMode(id) {
+  if (id === 'polished' && !writing.providerReady(S.settings)) {
+    await switchTab('settings');
+    const advanced = document.querySelector('.advanced-settings');
+    advanced.open = true;
+    document.getElementById('set-polish').focus();
+    toast('Choose a cleanup provider, then select Polished.');
+    return;
+  }
+  S = await api.updateSettings({ cleanupMode: id });
+  renderers[currentTab]();
+  toast(`${writing.modes[id].label} cleanup selected.`);
+}
 const setup = new window.SpeakEasySetup({
   api, state: () => S, update: (next) => { S = next; },
   finish: () => { renderAll(); document.querySelector('[data-tab=home]')?.focus(); }
@@ -74,14 +102,15 @@ function renderEnginePill() {
 function renderHome() {
   const el = document.getElementById('tab-home');
   const st = S.stats;
-  const local = S.settings.polishProvider !== 'anthropic';
+  const local = writing.mode(S.settings) !== 'polished' || S.settings.polishProvider !== 'anthropic';
   const ready = S.engine.state === 'ready' && S.shortcut?.ready && S.permissions.mic === 'granted' && S.permissions.accessibility;
   const key = S.settings.holdKey === 'Fn' ? 'fn' : holdKeyLabel();
   el.innerHTML = `
     <div class="home-heading"><h1>${S.settings.userName ? 'Hello, ' + esc(S.settings.userName) + '.' : 'A little less typing.'}</h1><span class="local-badge"><span class="local-dot"></span>${local ? 'Local dictation' : 'Cloud polish enabled'}</span></div>
     ${!ready ? `<div class="readiness-message">${S.engine.state === 'loading' ? 'Your voice is getting ready.' : S.engine.state === 'error' ? 'Your voice needs a restart.' : 'Let’s check your voice and permissions.'} <button class="muted-link" id="home-setup">Open setup</button></div>` : ''}
-    <div class="daily-hero"><div><div class="eyebrow">${ready ? 'READY WHEN YOU ARE' : 'YOUR DICTATION SHORTCUT'}</div><h2>Your thoughts.<br>Already written.</h2><p>Click where you want to write. Hold ${esc(holdKeyLabel())}, speak, then release.</p></div><kbd class="daily-key ${key.length > 3 ? 'long' : ''}">${esc(key)}</kbd></div>
+    <div class="daily-hero"><div><div class="eyebrow">${ready ? 'READY WHEN YOU ARE' : 'YOUR DICTATION SHORTCUT'}</div><h2>Your thoughts.<br><em>Already written.</em></h2><p>Click where you want to write. Hold ${esc(holdKeyLabel())}, speak, then release.</p></div><div class="daily-art" data-parallax><img class="glass-art depth-layer" src="./assets/voice-glass.png" alt="" aria-hidden="true"><kbd class="daily-key depth-layer ${key.length > 3 ? 'long' : ''}" style="--depth:10px">${esc(key)}</kbd></div></div>
     <div class="home-shortcuts"><span><kbd>Double-tap</kbd> Hands-free</span><span><kbd>Esc</kbd> Cancel</span><span><kbd>${esc(pasteShortcutLabel())}</kbd> Paste last</span></div>
+    <div class="writing-bar"><span class="writing-label">How your words arrive</span><div class="mode-switch" role="group" aria-label="Cleanup mode">${modeButtons()}</div></div>
     <div class="home-summary"><div><strong>${num(st.today.words)}</strong><span>words today</span></div><div><strong>${fmtDuration(st.today.timeSavedSeconds)}</strong><span>estimated time saved</span></div><div><strong>${num(st.allTime.transcriptions)}</strong><span>dictations so far</span></div></div>
     <div class="home-section-head"><h2>Recent words</h2><button class="muted-link" id="home-history">View history</button></div>
     <div class="row-list" id="home-recent"><div class="home-empty">Your next thought goes here.<br>Try a sentence in Notes, Mail, or your favorite app.</div></div>
@@ -89,38 +118,41 @@ function renderHome() {
   `;
   api.historyList().then((rows) => {
     const target = document.getElementById('home-recent');
-    if (target && rows.length) target.innerHTML = rows.slice(0, 3).map(historyRowHtml).join('');
+    if (target && rows.length) target.innerHTML = rows.slice(0, 1).map((r) => historyRowHtml(r, true)).join('');
   });
   document.getElementById('home-setup')?.addEventListener('click', () => showOnboard(true));
   document.getElementById('home-history').addEventListener('click', () => switchTab('history'));
   document.getElementById('home-hide').addEventListener('click', () => api.hideApp());
 }
 
-function historyRowHtml(r) {
+function historyRowHtml(r, compact = false) {
   if (r.failed) {
     return `
-      <div class="h-row failed" data-id="${r.id}">
+      <div class="h-row failed" data-id="${esc(r.id)}">
         <div class="txt"><span class="failed-label">${r.recovered ? 'Recovered recording' : 'Transcription failed'}</span>
           <div class="meta">Audio saved &middot; ${timeAgo(r.ts)} &middot; ${r.speechSeconds}s</div>
         </div>
         <div class="actions">
           <button class="btn ghost btn-sm" data-action="retry">Retry</button>
-          <button class="icon-btn danger" data-action="delete" title="Delete">&#x2715;</button>
+          <button class="icon-btn danger" data-action="delete" aria-label="Delete recording" title="Delete">&#x2715;</button>
         </div>
       </div>`;
   }
   const tags = [
     r.lang ? langName(r.lang) : '',
-    r.organized ? 'Organized' : ''
+    r.organized ? 'Organized' : r.polished ? 'Polished' : '',
+    r.pasted === false ? 'On clipboard' : ''
   ].filter(Boolean).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
   return `
-    <div class="h-row" data-id="${r.id}">
-      <div class="txt">${esc(r.text)}
-        <div class="meta">${tags}${r.app ? esc(r.app) + ' &middot; ' : ''}${timeAgo(r.ts)} &middot; ${r.speechSeconds}s &middot; ${r.engineMs}ms engine</div>
+    <div class="h-row" data-id="${esc(r.id)}">
+      <div class="txt"><div class="transcript-text">${esc(r.text)}</div>
+        <div class="meta">${tags}${r.app ? esc(r.app) + ' &middot; ' : ''}${timeAgo(r.ts)} &middot; ${Number(r.speechSeconds) || 0}s</div>
+        ${r.fallbackReason ? '<p class="fallback-note">AI cleanup was unavailable. Local cleanup kept your words.</p>' : ''}
+        ${!compact && r.raw && r.raw !== r.text ? `<details class="history-original"><summary>Compare original</summary><div class="original-box"><p>${esc(r.raw)}</p><button class="btn ghost btn-sm" data-action="copy-original">Copy original</button></div></details>` : ''}
       </div>
       <div class="actions">
-        <button class="icon-btn" data-action="copy" title="Copy">&#x2398;</button>
-        <button class="icon-btn danger" data-action="delete" title="Delete">&#x2715;</button>
+        <button class="icon-btn" data-action="copy" aria-label="Copy transcript" title="Copy transcript">&#x2398;</button>
+        <button class="icon-btn danger" data-action="delete" aria-label="Delete transcript" title="Delete transcript">&#x2715;</button>
       </div>
     </div>`;
 }
@@ -129,28 +161,58 @@ function historyRowHtml(r) {
 
 async function renderHistory() {
   const el = document.getElementById('tab-history');
+  const request = ++historyRequest;
   const rows = await api.historyList();
+  if (request !== historyRequest || currentTab !== 'history') return;
+  historyRows = rows;
   el.innerHTML = `
     <h1>History</h1>
-    <p class="sub">Everything you dictated, stored locally on this machine only.</p>
+    <p class="sub">Find a thought. Recover the original. All saved on this computer.</p>
     <div class="toolbar">
-      <input type="text" id="hist-search" placeholder="Search transcripts">
+      <input type="text" id="hist-search" aria-label="Search transcripts, originals, and apps" placeholder="Search your words…" value="${esc(historyQuery)}">
       <button class="btn ghost" id="hist-clear">Clear all</button>
     </div>
-    <div class="row-list" id="hist-list">
-      ${rows.length ? rows.map(historyRowHtml).join('') : '<div class="empty">No dictations yet.</div>'}
-    </div>
+    <div class="clear-confirm" id="hist-confirm" hidden><span>Delete all saved transcripts and recovery audio?</span><button class="btn btn-sm" id="hist-confirm-delete">Delete all</button><button class="btn ghost btn-sm" id="hist-cancel">Keep them</button></div>
+    <div class="history-tools"><div class="history-filters" role="group" aria-label="Filter history">${[['all','All words'],['changed','Cleaned up'],['attention','Needs attention']].map(([id,label]) => `<button data-filter="${id}" aria-pressed="${historyFilter === id}">${label}</button>`).join('')}</div><span class="history-count" id="hist-count" role="status"></span></div>
+    <div class="row-list" id="hist-list"></div>
   `;
   document.getElementById('hist-search').addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase();
-    const filtered = rows.filter((r) => r.text.toLowerCase().includes(q) || (r.app || '').toLowerCase().includes(q));
-    document.getElementById('hist-list').innerHTML =
-      filtered.length ? filtered.map(historyRowHtml).join('') : '<div class="empty">No matches.</div>';
+    historyQuery = e.target.value;
+    renderHistoryResults();
   });
-  document.getElementById('hist-clear').addEventListener('click', async () => {
+  el.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => {
+    historyFilter = button.dataset.filter;
+    el.querySelectorAll('[data-filter]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.filter === historyFilter));
+    renderHistoryResults();
+  }));
+  document.getElementById('hist-clear').addEventListener('click', () => {
+    document.getElementById('hist-confirm').hidden = false;
+    document.getElementById('hist-cancel').focus();
+  });
+  document.getElementById('hist-cancel').addEventListener('click', () => {
+    document.getElementById('hist-confirm').hidden = true;
+    document.getElementById('hist-clear').focus();
+  });
+  document.getElementById('hist-confirm-delete').addEventListener('click', async () => {
     await api.historyClear();
     renderHistory();
+    toast('History cleared.');
   });
+  renderHistoryResults();
+}
+
+function renderHistoryResults() {
+  const q = historyQuery.trim().toLocaleLowerCase();
+  const rows = historyRows.filter((r) => [r.text, r.raw, r.app].some((v) => (v || '').toLocaleLowerCase().includes(q)) &&
+    (historyFilter === 'all' || (historyFilter === 'changed' ? r.raw && r.raw !== r.text : r.failed || r.pasted === false || r.fallbackReason)));
+  let day = '';
+  document.getElementById('hist-list').innerHTML = rows.map((r) => {
+    const date = new Date(r.ts).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
+    const heading = date !== day ? `<h2 class="history-day">${esc(date)}</h2>` : '';
+    day = date;
+    return heading + historyRowHtml(r);
+  }).join('') || '<div class="home-empty">No matching words yet. Your next dictation will appear here.</div>';
+  document.getElementById('hist-count').textContent = `${rows.length} ${rows.length === 1 ? 'dictation' : 'dictations'}`;
 }
 
 // ---------------------------------------------------------------- dictionary
@@ -162,23 +224,38 @@ async function renderDictionary() {
     <h1>Dictionary</h1>
     <p class="sub">Teach SpeakEasy your names, clients, products, and jargon. Add a correction to auto-fix a word the model keeps mishearing.</p>
     <div class="form-row">
-      <input type="text" id="dict-word" placeholder="Correct word or phrase (e.g. Esmeralda)">
-      <input type="text" id="dict-miss" placeholder="What it mishears (optional, e.g. Esmerelda)">
-      <button class="btn" id="dict-add">Add</button>
+      <label class="field-label">Correct word<input type="text" id="dict-word" placeholder="e.g. SpeakEasy"></label>
+      <label class="field-label">What it hears (optional)<input type="text" id="dict-miss" placeholder="e.g. speak easy"></label>
+      <button class="btn" id="dict-add">Add</button><button class="btn ghost" id="dict-cancel" hidden>Cancel</button>
     </div>
     <div class="row-list">
       ${entries.length ? entries.map((d) => `
         <div class="h-row" data-id="${d.id}">
           <div class="txt"><strong>${esc(d.word)}</strong>${d.misspelling ? ` <span style="color:var(--text-faint)">&larr; replaces &ldquo;${esc(d.misspelling)}&rdquo;</span>` : ''}</div>
-          <div class="actions"><button class="icon-btn danger" data-action="dict-delete">&#x2715;</button></div>
+          <div class="actions"><button class="btn ghost btn-sm" data-edit-dict="${esc(d.id)}">Edit</button><button class="icon-btn danger" data-action="dict-delete" aria-label="Delete dictionary word">&#x2715;</button></div>
         </div>`).join('') : '<div class="empty">No entries yet.</div>'}
     </div>
   `;
+  let editing = null;
+  el.querySelectorAll('[data-edit-dict]').forEach((button) => button.addEventListener('click', () => {
+    const entry = entries.find((d) => d.id === button.dataset.editDict);
+    if (!entry) return;
+    editing = entry.id;
+    document.getElementById('dict-word').value = entry.word;
+    document.getElementById('dict-miss').value = entry.misspelling || '';
+    document.getElementById('dict-add').textContent = 'Save';
+    document.getElementById('dict-cancel').hidden = false;
+    document.getElementById('dict-word').focus();
+  }));
+  document.getElementById('dict-cancel').addEventListener('click', renderDictionary);
   document.getElementById('dict-add').addEventListener('click', async () => {
     const word = document.getElementById('dict-word').value.trim();
     const miss = document.getElementById('dict-miss').value.trim();
     if (!word) return;
-    entries.unshift({ id: String(Date.now()), word, misspelling: miss || undefined });
+    if (entries.some((d) => d.id !== editing && d.word.toLocaleLowerCase() === word.toLocaleLowerCase())) { toast('That word is already in your dictionary.'); return; }
+    const value = { id: editing || String(Date.now()), word, misspelling: miss || undefined };
+    if (editing) entries.splice(entries.findIndex((d) => d.id === editing), 1, value);
+    else entries.unshift(value);
     await api.dictSave(entries);
     renderDictionary();
   });
@@ -193,23 +270,38 @@ async function renderSnippets() {
     <h1>Snippets</h1>
     <p class="sub">Say a trigger phrase, get the full text. Signatures, addresses, links, canned replies.</p>
     <div class="form-row">
-      <input type="text" id="snip-trigger" placeholder="Trigger phrase (e.g. my calendar link)" style="max-width:260px">
-      <input type="text" id="snip-expansion" placeholder="Expands to (e.g. https://cal.com/...)">
-      <button class="btn" id="snip-add">Add</button>
+      <label class="field-label">When I say<input type="text" id="snip-trigger" placeholder="e.g. my calendar link"></label>
+      <label class="field-label">Write this<textarea id="snip-expansion" placeholder="A link, signature, or a few paragraphs…"></textarea></label>
+      <button class="btn" id="snip-add">Add</button><button class="btn ghost" id="snip-cancel" hidden>Cancel</button>
     </div>
     <div class="row-list">
       ${entries.length ? entries.map((s) => `
         <div class="h-row" data-id="${s.id}">
-          <div class="txt"><strong>${esc(s.trigger)}</strong><div class="meta" style="font-family:'Figtree'">${esc(s.expansion)}</div></div>
-          <div class="actions"><button class="icon-btn danger" data-action="snip-delete">&#x2715;</button></div>
+          <div class="txt"><strong>${esc(s.trigger)}</strong><div class="meta transcript-text">${esc(s.expansion)}</div></div>
+          <div class="actions"><button class="btn ghost btn-sm" data-edit-snip="${esc(s.id)}">Edit</button><button class="icon-btn danger" data-action="snip-delete" aria-label="Delete snippet">&#x2715;</button></div>
         </div>`).join('') : '<div class="empty">No snippets yet.</div>'}
     </div>
   `;
+  let editing = null;
+  el.querySelectorAll('[data-edit-snip]').forEach((button) => button.addEventListener('click', () => {
+    const entry = entries.find((s) => s.id === button.dataset.editSnip);
+    if (!entry) return;
+    editing = entry.id;
+    document.getElementById('snip-trigger').value = entry.trigger;
+    document.getElementById('snip-expansion').value = entry.expansion;
+    document.getElementById('snip-add').textContent = 'Save';
+    document.getElementById('snip-cancel').hidden = false;
+    document.getElementById('snip-expansion').focus();
+  }));
+  document.getElementById('snip-cancel').addEventListener('click', renderSnippets);
   document.getElementById('snip-add').addEventListener('click', async () => {
     const trigger = document.getElementById('snip-trigger').value.trim();
     const expansion = document.getElementById('snip-expansion').value.trim();
     if (!trigger || !expansion) return;
-    entries.unshift({ id: String(Date.now()), trigger, expansion });
+    if (entries.some((s) => s.id !== editing && s.trigger.toLocaleLowerCase() === trigger.toLocaleLowerCase())) { toast('That trigger already exists. Edit its snippet instead.'); return; }
+    const value = { id: editing || String(Date.now()), trigger, expansion };
+    if (editing) entries.splice(entries.findIndex((s) => s.id === editing), 1, value);
+    else entries.unshift(value);
     await api.snippetsSave(entries);
     renderSnippets();
   });
@@ -260,6 +352,10 @@ async function renderSettings() {
     <h1>Settings</h1>
     <p class="sub">Your voice, your shortcut, your preferences.</p>
 
+    <div class="section-title">How your words arrive</div>
+    <div class="writing-options" role="group" aria-label="Cleanup mode">${modeButtons(true)}</div>
+    <p class="writing-note ${writing.mode(cfg) === 'polished' && !writing.providerReady(cfg) ? 'warning' : ''}">${writing.mode(cfg) === 'polished' && !writing.providerReady(cfg) ? 'Choose a provider under optional AI cleanup. Until then, Clean runs locally.' : 'Original transcripts stay available in History whenever cleanup changes your words.'}</p>
+
     <div class="section-title">Dictation</div>
     <div class="set-group">
       <div class="set-row">
@@ -271,8 +367,8 @@ async function renderSettings() {
         <select id="set-mic">${micOptions}</select>
       </div>
       <div class="set-row">
-        <div class="info"><div class="name">Language</div><div class="desc">Auto-detect covers all 99 languages (Hindi, Gujarati, Spanish included) and writes back in the language you spoke. Needs a multilingual Whisper model, Moonshine and Parakeet are English-only.</div></div>
-        <select id="set-lang">${langOptions}</select>
+        <div class="info"><div class="name">Language</div><div class="desc">${activeModelIsEnglishOnly() ? 'Your current voice supports English. Choose a multilingual voice below for other languages.' : 'Write in the language you speak. Choose one, or let SpeakEasy detect it.'}</div></div>
+        <select id="set-lang" ${activeModelIsEnglishOnly() ? 'disabled' : ''}>${activeModelIsEnglishOnly() ? '<option>English</option>' : langOptions}</select>
       </div>
     </div>
 
@@ -282,13 +378,9 @@ async function renderSettings() {
     <div class="section-title">Cleanup</div>
     <div class="set-group">
       <div class="set-row">
-        <div class="info"><div class="name">Remove filler words</div><div class="desc">Strips um, uh, er before pasting.</div></div>
-        <label class="switch"><input type="checkbox" id="set-filler" ${cfg.fillerRemoval ? 'checked' : ''}><span class="track"></span></label>
-      </div>
-      <div class="set-row">
-        <div class="info"><div class="name">AI polish</div><div class="desc">Optional second pass: fixes self-corrections ("2pm, actually 3pm"), formats lists. Ollama runs 100% local. Claude API sends text (not audio) to Anthropic.</div></div>
+        <div class="info"><div class="name">Cleanup provider</div><div class="desc">Used only in Polished mode. Ollama runs locally and needs its own installed model. Claude API sends text to Anthropic and may incur usage charges.</div></div>
         <select id="set-polish">
-          <option value="off" ${cfg.polishProvider === 'off' ? 'selected' : ''}>Off (rule-based only)</option>
+          <option value="off" ${cfg.polishProvider === 'off' ? 'selected' : ''}>None (use Clean)</option>
           <option value="ollama" ${cfg.polishProvider === 'ollama' ? 'selected' : ''}>Ollama (local LLM)</option>
           <option value="anthropic" ${cfg.polishProvider === 'anthropic' ? 'selected' : ''}>Claude API</option>
         </select>
@@ -309,6 +401,10 @@ async function renderSettings() {
 
     </details><div class="section-title">System</div>
     <div class="set-group">
+      <div class="set-row">
+        <div class="info"><div class="name">Subtle motion</div><div class="desc">Gentle depth and transitions. Your system’s reduced-motion preference always takes priority.</div></div>
+        <label class="switch"><input type="checkbox" id="set-motion" ${cfg.subtleMotion !== false ? 'checked' : ''}><span class="track"></span></label>
+      </div>
       <div class="set-row">
         <div class="info"><div class="name">Sounds</div><div class="desc">Start, stop, and done blips.</div></div>
         <label class="switch"><input type="checkbox" id="set-sounds" ${cfg.sounds ? 'checked' : ''}><span class="track"></span></label>
@@ -337,11 +433,11 @@ async function renderSettings() {
     row.querySelectorAll('input, select').forEach((input) => input.setAttribute('aria-label', label || 'Setting'));
   });
 
-  const save = (partial) => api.updateSettings(partial).then((s) => { S = s; renderEnginePill(); });
+  const save = (partial) => api.updateSettings(partial).then((s) => { S = s; window.SpeakEasyMotion.setEnabled(S.settings.subtleMotion); renderEnginePill(); });
   document.getElementById('set-holdkey').addEventListener('change', (e) => save({ holdKey: e.target.value }).then(renderHomeIfActive));
   document.getElementById('set-mic').addEventListener('change', (e) => save({ micDeviceId: e.target.value }));
   document.getElementById('set-lang').addEventListener('change', (e) => save({ language: e.target.value }));
-  document.getElementById('set-filler').addEventListener('change', (e) => save({ fillerRemoval: e.target.checked }));
+  document.getElementById('set-motion').addEventListener('change', (e) => save({ subtleMotion: e.target.checked }));
   document.getElementById('set-sounds').addEventListener('change', (e) => save({ sounds: e.target.checked }));
   document.getElementById('set-clip').addEventListener('change', (e) => save({ restoreClipboard: e.target.checked }));
   document.getElementById('set-login').addEventListener('change', (e) => save({ launchAtLogin: e.target.checked }));
@@ -382,12 +478,12 @@ function renderAll() {
   renderers[currentTab]();
 }
 
-function switchTab(tab) {
+async function switchTab(tab) {
   if (!renderers[tab]) return;
   currentTab = tab;
   document.querySelectorAll('.nav-item').forEach((n) => { const active = n.getAttribute('data-tab') === tab; n.classList.toggle('active', active); n.setAttribute('aria-current', active ? 'page' : 'false'); });
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${tab}`));
-  renderers[tab]();
+  await renderers[tab]();
 }
 
 document.querySelectorAll('.nav-item').forEach((item) => {
@@ -397,6 +493,12 @@ document.querySelectorAll('.nav-item').forEach((item) => {
 // Cmd/Ctrl+1-5 jumps straight to a tab
 const TAB_ORDER = ['home', 'history', 'dictionary', 'snippets', 'settings'];
 document.addEventListener('keydown', (e) => {
+  if (setup.visible) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    switchTab('history').then(() => document.getElementById('hist-search')?.focus());
+    return;
+  }
   if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '5') {
     e.preventDefault();
     switchTab(TAB_ORDER[Number(e.key) - 1]);
@@ -404,18 +506,18 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.getElementById('content').addEventListener('click', async (e) => {
+  const mode = e.target.closest('[data-writing]');
+  if (mode) { await chooseWritingMode(mode.dataset.writing); return; }
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const action = btn.getAttribute('data-action');
   const row = btn.closest('[data-id]');
   const modelCard = btn.closest('[data-model]');
 
-  if (action === 'copy' && row) {
+  if (['copy', 'copy-original'].includes(action) && row) {
     const rows = await api.historyList();
     const r = rows.find((x) => x.id === row.getAttribute('data-id'));
-    if (r) await api.copy(r.text);
-    btn.textContent = '✓';
-    setTimeout(() => { btn.innerHTML = '&#x2398;'; }, 900);
+    if (r) { await api.copy(action === 'copy-original' ? r.raw || r.text : r.text); toast(action === 'copy-original' ? 'Original transcript copied.' : 'Copied to clipboard.'); }
   } else if (action === 'retry' && row) {
     btn.disabled = true;
     btn.textContent = 'Retrying';
@@ -498,6 +600,7 @@ api.onPush(async (msg) => {
   } else if (msg.type === 'stats') {
     S = await api.getState();
     if (currentTab === 'home') renderHome();
+    else if (currentTab === 'history') renderHistory();
   } else if (msg.type === 'dictation') {
     setup.push(msg);
   }
@@ -507,6 +610,7 @@ api.onPush(async (msg) => {
 
 (async function boot() {
   S = await api.getState();
+  window.SpeakEasyMotion.setEnabled(S.settings.subtleMotion);
   renderAll();
   if (!S.settings.onboarded || !S.settings.model) showOnboard(true);
 })();

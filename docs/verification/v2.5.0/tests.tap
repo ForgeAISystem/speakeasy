@@ -1,0 +1,483 @@
+
+> speakeasy@2.5.0 test
+> node --test tests/*.test.js
+
+TAP version 13
+# Subtest: runtime check previews the indicator, repairs explicitly, and reports detected shortcut
+ok 1 - runtime check previews the indicator, repairs explicitly, and reports detected shortcut
+  ---
+  duration_ms: 70.343834
+  type: 'test'
+  ...
+# Subtest: original transcript stays recoverable and search matches words removed by cleanup
+ok 2 - original transcript stays recoverable and search matches words removed by cleanup
+  ---
+  duration_ms: 18.828833
+  type: 'test'
+  ...
+# Subtest: attention filter finds saved failures and clear all needs an explicit second click
+ok 3 - attention filter finds saved failures and clear all needs an explicit second click
+  ---
+  duration_ms: 16.023458
+  type: 'test'
+  ...
+# Subtest: Polished routes to provider setup without silently changing the selected mode
+ok 4 - Polished routes to provider setup without silently changing the selected mode
+  ---
+  duration_ms: 23.908292
+  type: 'test'
+  ...
+# Subtest: snippets can be edited in place with paragraph breaks and literal markup preserved
+ok 5 - snippets can be edited in place with paragraph breaks and literal markup preserved
+  ---
+  duration_ms: 11.765541
+  type: 'test'
+  ...
+# Subtest: duplicate snippet triggers are blocked without losing the draft
+ok 6 - duplicate snippet triggers are blocked without losing the draft
+  ---
+  duration_ms: 10.461708
+  type: 'test'
+  ...
+# Subtest: Cmd+F opens local history and focuses the search field
+ok 7 - Cmd+F opens local history and focuses the search field
+  ---
+  duration_ms: 9.459792
+  type: 'test'
+  ...
+# Subtest: cancel while the microphone is opening stops late-arriving tracks
+ok 8 - cancel while the microphone is opening stops late-arriving tracks
+  ---
+  duration_ms: 1.18675
+  type: 'test'
+  ...
+# Subtest: normal stop releases the mic and closes audio after flushing
+ok 9 - normal stop releases the mic and closes audio after flushing
+  ---
+  duration_ms: 1.064042
+  type: 'test'
+  ...
+# Subtest: permission failure surfaces a recoverable error instead of arming
+ok 10 - permission failure surfaces a recoverable error instead of arming
+  ---
+  duration_ms: 0.632667
+  type: 'test'
+  ...
+# Subtest: worklet flush preserves the last partial audio chunk
+ok 11 - worklet flush preserves the last partial audio chunk
+  ---
+  duration_ms: 0.536625
+  type: 'test'
+  ...
+# Subtest: original mode preserves every recognized word and never invokes a configured provider
+ok 12 - original mode preserves every recognized word and never invokes a configured provider
+  ---
+  duration_ms: 1.442917
+  type: 'test'
+  ...
+# Subtest: clean mode applies local vocabulary and multiline snippets without a network request
+ok 13 - clean mode applies local vocabulary and multiline snippets without a network request
+  ---
+  duration_ms: 3.151417
+  type: 'test'
+  ...
+# Subtest: clean mode preserves paragraph boundaries
+ok 14 - clean mode preserves paragraph boundaries
+  ---
+  duration_ms: 0.589875
+  type: 'test'
+  ...
+# Subtest: missing AI provider retains spoken organize instructions and labels the fallback
+ok 15 - missing AI provider retains spoken organize instructions and labels the fallback
+  ---
+  duration_ms: 0.678625
+  type: 'test'
+  ...
+# Subtest: provider failure keeps complete local text including the original spoken request
+ok 16 - provider failure keeps complete local text including the original spoken request
+  ---
+  duration_ms: 1.109958
+  type: 'test'
+  ...
+# Subtest: successful AI cleanup expands multiline snippets after the provider returns
+ok 17 - successful AI cleanup expands multiline snippets after the provider returns
+  ---
+  duration_ms: 1.204708
+  type: 'test'
+  ...
+# Subtest: legacy preference resolution never silently enables a cloud provider
+ok 18 - legacy preference resolution never silently enables a cloud provider
+  ---
+  duration_ms: 0.135125
+  type: 'test'
+  ...
+# Subtest: clean mode removes measured verbal tics but keeps meaningful phrasing
+ok 19 - clean mode removes measured verbal tics but keeps meaningful phrasing
+  ---
+  duration_ms: 0.824291
+  type: 'test'
+  ...
+# Subtest: spoken punctuation, line breaks, and scratch that are applied locally
+ok 20 - spoken punctuation, line breaks, and scratch that are applied locally
+  ---
+  duration_ms: 0.912042
+  type: 'test'
+  ...
+# Subtest: vocabulary matches split and joined forms but leaves domains and lowercase capitals alone
+ok 21 - vocabulary matches split and joined forms but leaves domains and lowercase capitals alone
+  ---
+  duration_ms: 1.621375
+  type: 'test'
+  ...
+# Subtest: chat apps drop the final period of a single sentence only
+ok 22 - chat apps drop the final period of a single sentence only
+  ---
+  duration_ms: 0.979916
+  type: 'test'
+  ...
+# Subtest: AI cleanup sends the app style and saved spellings, never the window title
+ok 23 - AI cleanup sends the app style and saved spellings, never the window title
+  ---
+  duration_ms: 1.02275
+  type: 'test'
+  ...
+# Subtest: an AI reply that answers the dictation instead of cleaning it is discarded
+ok 24 - an AI reply that answers the dictation instead of cleaning it is discarded
+  ---
+  duration_ms: 0.437209
+  type: 'test'
+  ...
+# Subtest: long dictations are polished in sentence-aligned parts in parallel
+ok 25 - long dictations are polished in sentence-aligned parts in parallel
+  ---
+  duration_ms: 1.069875
+  type: 'test'
+  ...
+# Subtest: Claude cleanup uses current Haiku with thinking off and no sampling overrides
+ok 26 - Claude cleanup uses current Haiku with thinking off and no sampling overrides
+  ---
+  duration_ms: 0.839167
+  type: 'test'
+  ...
+# Subtest: a Claude refusal keeps the local text and labels the fallback
+ok 27 - a Claude refusal keeps the local text and labels the fallback
+  ---
+  duration_ms: 0.45175
+  type: 'test'
+  ...
+# Subtest: Fn hold release records exactly once and ignores key repeat
+ok 28 - Fn hold release records exactly once and ignores key repeat
+  ---
+  duration_ms: 1.734708
+  type: 'test'
+  ...
+# Subtest: Fn double tap enters hands-free and the next tap stops
+ok 29 - Fn double tap enters hands-free and the next tap stops
+  ---
+  duration_ms: 0.426334
+  type: 'test'
+  ...
+# Subtest: switching shortcuts cancels a held recording and ignores the old release
+ok 30 - switching shortcuts cancels a held recording and ignores the old release
+  ---
+  duration_ms: 0.23675
+  type: 'test'
+  ...
+# Subtest: reset after suspend or error accepts the next press
+ok 31 - reset after suspend or error accepts the next press
+  ---
+  duration_ms: 0.167167
+  type: 'test'
+  ...
+# Subtest: a single tap cancels after the double-tap window
+ok 32 - a single tap cancels after the double-tap window
+  ---
+  duration_ms: 951.645625
+  type: 'test'
+  ...
+# Subtest: a disabled native tap clears a held key even when its release was lost
+ok 33 - a disabled native tap clears a held key even when its release was lost
+  ---
+  duration_ms: 0.326292
+  type: 'test'
+  ...
+# Subtest: an alive but wedged Fn listener becomes unavailable and stops instead of reporting ready forever
+ok 34 - an alive but wedged Fn listener becomes unavailable and stops instead of reporting ready forever
+  ---
+  duration_ms: 2.083959
+  type: 'test'
+  ...
+# Subtest: regular native heartbeats preserve readiness and stale child exits cannot stop a replacement
+ok 35 - regular native heartbeats preserve readiness and stale child exits cannot stop a replacement
+  ---
+  duration_ms: 0.789583
+  type: 'test'
+  ...
+# Subtest: first launch offers one install action only when outside Applications
+ok 36 - first launch offers one install action only when outside Applications
+  ---
+  duration_ms: 48.706625
+  type: 'test'
+  ...
+# Subtest: permissions cannot be skipped, and a denied mic opens the right settings
+ok 37 - permissions cannot be skipped, and a denied mic opens the right settings
+  ---
+  duration_ms: 12.712584
+  type: 'test'
+  ...
+# Subtest: failed voice downloads stay recoverable and do not advance
+ok 38 - failed voice downloads stay recoverable and do not advance
+  ---
+  duration_ms: 11.745917
+  type: 'test'
+  ...
+# Subtest: downloaded voice must load before continuing and existing voices are reused
+ok 39 - downloaded voice must load before continuing and existing voices are reused
+  ---
+  duration_ms: 12.404958
+  type: 'test'
+  ...
+# Subtest: the selected shortcut must actually report a release before proceeding
+ok 40 - the selected shortcut must actually report a release before proceeding
+  ---
+  duration_ms: 11.281417
+  type: 'test'
+  ...
+# Subtest: typing into practice cannot fake a successful dictation
+ok 41 - typing into practice cannot fake a successful dictation
+  ---
+  duration_ms: 6.6675
+  type: 'test'
+  ...
+# Subtest: successful recognition with failed paste does not complete setup
+ok 42 - successful recognition with failed paste does not complete setup
+  ---
+  duration_ms: 258.773666
+  type: 'test'
+  ...
+# Subtest: actual recognized text pasted in practice unlocks completion
+ok 43 - actual recognized text pasted in practice unlocks completion
+  ---
+  duration_ms: 264.348209
+  type: 'test'
+  ...
+# Subtest: Windows setup offers supported keys instead of Fn
+ok 44 - Windows setup offers supported keys instead of Fn
+  ---
+  duration_ms: 22.59425
+  type: 'test'
+  ...
+# Subtest: hidden onboarding stops polling state and refreshes on return
+ok 45 - hidden onboarding stops polling state and refreshes on return
+  ---
+  duration_ms: 12.130875
+  type: 'test'
+  ...
+# Subtest: overlay has no idle animation and starts only after the microphone is armed
+ok 46 - overlay has no idle animation and starts only after the microphone is armed
+  ---
+  duration_ms: 70.427625
+  type: 'test'
+  ...
+# Subtest: reduced motion cancels waveform animation but keeps the recording clock
+ok 47 - reduced motion cancels waveform animation but keeps the recording clock
+  ---
+  duration_ms: 13.368709
+  type: 'test'
+  ...
+# Subtest: the in-app motion preference suppresses waveform animation too
+ok 48 - the in-app motion preference suppresses waveform animation too
+  ---
+  duration_ms: 7.124541
+  type: 'test'
+  ...
+# [overlay] renderer gone: crashed
+# [capture] renderer gone: crashed
+# [overlay] renderer gone: crashed
+# [overlay] renderer gone: crashed
+# [overlay] renderer gone: crashed
+# [overlay] renderer gone: crashed
+# [overlay] renderer gone: crashed
+# Subtest: a previous completion fade cannot hide the next recording indicator
+ok 49 - a previous completion fade cannot hide the next recording indicator
+  ---
+  duration_ms: 3.485792
+  type: 'test'
+  ...
+# Subtest: a recording started before overlay load is replayed when the renderer is ready
+ok 50 - a recording started before overlay load is replayed when the renderer is ready
+  ---
+  duration_ms: 0.838375
+  type: 'test'
+  ...
+# Subtest: an overlay renderer crash restores the current listening state without restarting the mic
+ok 51 - an overlay renderer crash restores the current listening state without restarting the mic
+  ---
+  duration_ms: 0.864292
+  type: 'test'
+  ...
+# Subtest: an old microphone failure cannot cancel a newer recording
+ok 52 - an old microphone failure cannot cancel a newer recording
+  ---
+  duration_ms: 1.165625
+  type: 'test'
+  ...
+# Subtest: microphone startup has a deadline and a subsequent press can record
+ok 53 - microphone startup has a deadline and a subsequent press can record
+  ---
+  duration_ms: 1.026042
+  type: 'test'
+  ...
+# Subtest: a microphone renderer crash retains received audio in retryable history
+ok 54 - a microphone renderer crash retains received audio in retryable history
+  ---
+  duration_ms: 1.103958
+  type: 'test'
+  ...
+# Subtest: cancellation and stop disarm the microphone watchdog
+ok 55 - cancellation and stop disarm the microphone watchdog
+  ---
+  duration_ms: 0.722583
+  type: 'test'
+  ...
+# Subtest: recovered overlay keeps the real microphone start time and does not replay the sound
+ok 56 - recovered overlay keeps the real microphone start time and does not replay the sound
+  ---
+  duration_ms: 0.96225
+  type: 'test'
+  ...
+# Subtest: repeated renderer crashes stop after three recovery attempts instead of looping forever
+ok 57 - repeated renderer crashes stop after three recovery attempts instead of looping forever
+  ---
+  duration_ms: 0.781958
+  type: 'test'
+  ...
+# Subtest: preview and repair never interrupt an active dictation
+ok 58 - preview and repair never interrupt an active dictation
+  ---
+  duration_ms: 0.552958
+  type: 'test'
+  ...
+# Subtest: long dictations are transcribed in quiet-point segments while recording
+ok 59 - long dictations are transcribed in quiet-point segments while recording
+  ---
+  duration_ms: 2.9715
+  type: 'test'
+  ...
+# Subtest: cancelling a dictation drops segments decoded during recording
+ok 60 - cancelling a dictation drops segments decoded during recording
+  ---
+  duration_ms: 1.484958
+  type: 'test'
+  ...
+# Subtest: main process refuses setup completion without a successful practice dictation
+ok 61 - main process refuses setup completion without a successful practice dictation
+  ---
+  duration_ms: 3.352042
+  type: 'test'
+  ...
+# Subtest: revoked permissions block completion even after a successful test
+ok 62 - revoked permissions block completion even after a successful test
+  ---
+  duration_ms: 0.721333
+  type: 'test'
+  ...
+# Subtest: completed setup saves only the explicit launch preference
+ok 63 - completed setup saves only the explicit launch preference
+  ---
+  duration_ms: 0.599458
+  type: 'test'
+  ...
+# Subtest: install button delegates the move only for a packaged Mac app outside Applications
+ok 64 - install button delegates the move only for a packaged Mac app outside Applications
+  ---
+  duration_ms: 0.933417
+  type: 'test'
+  ...
+# Subtest: closing the window hides it, but a native Quit closes it without interception
+ok 65 - closing the window hides it, but a native Quit closes it without interception
+  ---
+  duration_ms: 0.729125
+  type: 'test'
+  ...
+# Subtest: main window retains native movement and resize controls during onboarding
+ok 66 - main window retains native movement and resize controls during onboarding
+  ---
+  duration_ms: 0.442792
+  type: 'test'
+  ...
+# Subtest: explicitly reopening a minimized main window restores it
+ok 67 - explicitly reopening a minimized main window restores it
+  ---
+  duration_ms: 0.454833
+  type: 'test'
+  ...
+# Subtest: window movement is saved once after settling and flushed before close
+ok 68 - window movement is saved once after settling and flushed before close
+  ---
+  duration_ms: 902.805375
+  type: 'test'
+  ...
+# Subtest: a stalled model load times out, cleans its worker, and can be retried
+ok 69 - a stalled model load times out, cleans its worker, and can be retried
+  ---
+  duration_ms: 2.874875
+  type: 'test'
+  ...
+# Subtest: an old worker exit cannot mark its replacement as crashed
+ok 70 - an old worker exit cannot mark its replacement as crashed
+  ---
+  duration_ms: 0.871958
+  type: 'test'
+  ...
+# Subtest: worker channel failure rejects pending transcription immediately and clears its timer
+ok 71 - worker channel failure rejects pending transcription immediately and clears its timer
+  ---
+  duration_ms: 0.730167
+  type: 'test'
+  ...
+# Subtest: retains a compact window on a display left of the primary screen
+ok 72 - retains a compact window on a display left of the primary screen
+  ---
+  duration_ms: 0.811583
+  type: 'test'
+  ...
+# Subtest: a disconnected monitor returns the window to the available work area
+ok 73 - a disconnected monitor returns the window to the available work area
+  ---
+  duration_ms: 0.076125
+  type: 'test'
+  ...
+# Subtest: a moved or resized display keeps the title bar and edges reachable
+ok 74 - a moved or resized display keeps the title bar and edges reachable
+  ---
+  duration_ms: 0.100583
+  type: 'test'
+  ...
+# Subtest: invalid saved placement uses a centered default, while tiny sizes respect minimums
+ok 75 - invalid saved placement uses a centered default, while tiny sizes respect minimums
+  ---
+  duration_ms: 0.128333
+  type: 'test'
+  ...
+# Subtest: Wispr rows become words, replacements, and snippets
+ok 76 - Wispr rows become words, replacements, and snippets
+  ---
+  duration_ms: 0.780583
+  type: 'test'
+  ...
+# Subtest: import skips words and triggers already saved, ignoring case and duplicates
+ok 77 - import skips words and triggers already saved, ignoring case and duplicates
+  ---
+  duration_ms: 0.20975
+  type: 'test'
+  ...
+1..77
+# tests 77
+# suites 0
+# pass 77
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 997.63

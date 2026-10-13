@@ -1,5 +1,16 @@
 # Build log
 
+## 2026-10-12: v2.5.0 Wispr Flow teardown build
+
+- Studied Wispr Flow 1.6.957 on Harsh's Mac: bundle structure, entitlements, helper apps, migration names, and Harsh's own local data read-only. No Wispr code, prompts, or assets were extracted or copied. Write-up: docs/WISPR-TEARDOWN-2026-10-12.md.
+- Built an answer key from six real recordings Wispr had kept (241.6 s): Parakeet v2 5.2% WER, Moonshine 6.7%, Apple SpeechAnalyzer 10.3%. Ruled out Chrome audio processing (fake-mic replay, no change) and Parakeet hotwords (no gain).
+- Made Parakeet the English default (onboarding and a one-time switch when installed). Added measured disfluency rules, spoken punctuation, "scratch that", vocabulary variants, chat-app period rule, and app-aware AI style. Clean moved from 23.1% to 21.7% distance to Wispr's final text over 722 dictations; harmful candidate rules were dropped.
+- Added live decoding: quiet-point segments transcribed during recording (Parakeet 30-40 s, others 20-28 s), joined with the tail on release. Shared the quiet-point search between main and worker.
+- Moved Claude cleanup to the official Anthropic SDK on Haiku 5.5 (thinking off, low effort, no sampling overrides), parallel sentence-aligned parts for long text, refusal handling, and a word-count guard against answers. Added Wispr dictionary/snippet import, optional mute while dictating, and front window context (title used locally only).
+- 77 tests pass. 24 offscreen screens and 5 indicator states pass. Package check: 32 source files and helper match. Packaged worker transcribed a real recording. DMG built at low priority.
+- Not installed: Applications still runs v2.4.2. Install waits for Harsh. No OS setting, permission, or the user's Anthropic key was touched.
+- Token/cost totals were not available from this runtime.
+
 ## 2026-09-06: v2.4.2 dictation stability
 
 - Reproduced and fixed four regressions: an old fade hiding a newer recording, indicator updates sent before renderer readiness, state lost after indicator recreation, and stale capture errors cancelling a newer recording.

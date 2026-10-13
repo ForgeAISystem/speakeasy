@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { quietestPoint } = require('../shared/quiet-point');
 
 let sherpa = null;
 let recognizer = null;
@@ -27,16 +28,7 @@ function splitAtQuietPoints(samples, rate, maxSeconds) {
   const segments = [];
   let start = 0;
   while (samples.length - start > max) {
-    const searchStart = start + Math.floor((maxSeconds - 8) * rate);
-    const searchEnd = start + max;
-    const win = Math.floor(0.2 * rate); // 200 ms energy windows
-    let best = searchEnd;
-    let bestEnergy = Infinity;
-    for (let i = searchStart; i + win < searchEnd; i += win) {
-      let e = 0;
-      for (let j = i; j < i + win; j++) e += samples[j] * samples[j];
-      if (e < bestEnergy) { bestEnergy = e; best = i + Math.floor(win / 2); }
-    }
+    const best = quietestPoint(samples, start + Math.floor((maxSeconds - 8) * rate), start + max, rate);
     segments.push(samples.subarray(start, best));
     start = best;
   }

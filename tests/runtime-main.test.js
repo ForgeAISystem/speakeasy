@@ -33,9 +33,11 @@ function fixture() {
       systemPreferences: { getMediaAccessStatus: () => 'granted', isTrustedAccessibilityClient: () => true } },
     './store': { settings: () => cfg, addHistory: (row) => history.push(row) },
     './window-bounds': require('../src/main/window-bounds'), './cleanup': {},
-    './injector': { getFrontAppName: async () => '' }, './hotkey': {}, './models': {}, './tray': {},
+    './injector': { getFrontContext: async () => ({ app: '', title: '' }) }, './hotkey': {}, './models': {}, './tray': {},
     './audio-store': { saveRecording: () => 'fixture.wav' },
     './transcriber': { TranscriberManager: class {} },
+    './system-audio': { setDictationMute() {}, restoreNow() {} }, './wispr-import': { readWispr: async () => ({ available: false, words: [], snippets: [] }) },
+    '../shared/quiet-point': require('../src/shared/quiet-point'),
     '../shared/constants': require('../src/shared/constants'), '../shared/writing': require('../src/shared/writing')
   };
   const context = vm.createContext({
@@ -169,4 +171,38 @@ test('preview and repair never interrupt an active dictation', async () => {
   assert.equal(f.handlers.get('runtime:test-overlay')().ok, false);
   assert.equal((await f.handlers.get('runtime:repair')()).ok, false);
   assert.equal(f.run('dictState'), 'recording');
+});
+
+test('long dictations are transcribed in quiet-point segments while recording', async () => {
+  const f = fixture();
+  const sent = [];
+  f.run('transcriber.transcribe = (pcm) => { globalThis.__sent.push(pcm.length); return Promise.resolve({ text: "part" + globalThis.__sent.length, lang: "", ms: 5 }); }');
+  f.run('globalThis.__sent = []');
+  f.run("dictState = 'recording'; captureSession = 7; resetLive();");
+  const chunk = f.ipc.get('capture:chunk');
+  const second = 16000;
+  for (let i = 0; i < 290; i++) {
+    const pcm = new Float32Array(1600).fill(i >= 240 && i < 242 ? 0 : 0.2); // quiet at 24.0-24.2 s
+    chunk(null, 7, pcm, 0.1);
+  }
+  const lengths = f.run('globalThis.__sent');
+  assert.equal(lengths.length, 1);
+  assert.ok(lengths[0] >= 20 * second && lengths[0] <= 28 * second);
+  assert.ok(Math.abs(lengths[0] - 24.1 * second) < 0.2 * second, `cut at ${lengths[0] / second}s`);
+  const result = await f.run('transcribeDictation(takeAudio())');
+  assert.equal(result.text, 'part1 part2');
+  assert.equal(result.liveParts, 1);
+  assert.equal(f.run('globalThis.__sent')[1], 29 * second - lengths[0]);
+});
+
+test('cancelling a dictation drops segments decoded during recording', () => {
+  const f = fixture();
+  f.run('transcriber.transcribe = () => Promise.resolve({ text: "stale", ms: 1 }); captureWindow = null;');
+  f.run("dictState = 'recording'; captureSession = 3; resetLive();");
+  const chunk = f.ipc.get('capture:chunk');
+  for (let i = 0; i < 290; i++) chunk(null, 3, new Float32Array(1600).fill(0.2), 0.1);
+  assert.equal(f.run('liveParts.length'), 1);
+  f.run('onDictateCancel()');
+  assert.equal(f.run('liveParts.length'), 0);
+  assert.equal(f.run('liveOffset'), 0);
 });

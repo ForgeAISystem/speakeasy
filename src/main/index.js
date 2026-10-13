@@ -15,12 +15,15 @@ const store = require('./store');
 const { MIN_WIDTH, MIN_HEIGHT, restoreBounds } = require('./window-bounds');
 const { cleanup } = require('./cleanup');
 const writing = require('../shared/writing');
-const { injectText, getLastTranscript, setLastTranscript, getFrontAppName } = require('./injector');
+const { injectText, getLastTranscript, setLastTranscript, getFrontContext } = require('./injector');
 const { HotkeyManager } = require('./hotkey');
 const models = require('./models');
 const { TranscriberManager } = require('./transcriber');
 const { TrayController } = require('./tray');
 const audioStore = require('./audio-store');
+const systemAudio = require('./system-audio');
+const { readWispr } = require('./wispr-import');
+const { quietestPoint } = require('../shared/quiet-point');
 
 let mainWindow = null;
 let overlayWindow = null;
@@ -35,7 +38,7 @@ let dictState = 'idle';
 let chunks = [];
 let chunkSamples = 0;
 let recordStartedAt = 0;
-let frontAppPromise = null;
+let frontContextPromise = null;
 let overlayHideTimer = null;
 let overlayFadeTimer = null;
 let overlayReady = false;
@@ -54,6 +57,11 @@ let setupMode = 'off';
 let setupHasDictated = false;
 let lastKeyAt = 0;
 let dictFeedback = { phase: 'idle', message: '' };
+// Live decoding: finished stretches of a long dictation are transcribed while
+// the speaker keeps talking, so releasing the key only waits for the tail.
+let liveParts = [];
+let liveOffset = 0;
+let liveBusy = false;
 
 // An isolated profile is useful for first-run QA without touching personal history.
 if (process.env.SPEAKEASY_USER_DATA) app.setPath('userData', path.resolve(process.env.SPEAKEASY_USER_DATA));
@@ -250,6 +258,18 @@ function overlayState(state, extra = {}) {
 
 // ---------------------------------------------------------------- engine
 
+// One-time upgrades for existing installs. Version 1 (v2.5): Parakeet becomes
+// the English voice when it is already downloaded (it made 22% fewer errors
+// than Moonshine on real dictation), and Claude cleanup moves to current Haiku.
+function migrateSettings() {
+  const cfg = store.settings();
+  if ((cfg.settingsVersion || 0) >= 1) return;
+  const changes = { settingsVersion: 1 };
+  if (cfg.model === 'moonshine-base' && models.isInstalled('parakeet-v2')) changes.model = 'parakeet-v2';
+  if (cfg.polishAnthropicModel === 'claude-haiku-4-5') changes.polishAnthropicModel = 'claude-haiku-5-5';
+  store.updateSettings(changes);
+}
+
 async function ensureEngine() {
   const generation = ++engineLoadGeneration;
   const cfg = store.settings();
@@ -325,7 +345,9 @@ function onDictateStart() {
   chunkSamples = 0;
   recordStartedAt = Date.now();
   lastAudioAt = recordStartedAt;
-  frontAppPromise = getFrontAppName();
+  resetLive();
+  frontContextPromise = getFrontContext();
+  if (store.settings().muteWhileDictating) systemAudio.setDictationMute(true);
   overlayState('listening');
   tray.setState('recording', 'Listening...');
   try {
@@ -379,11 +401,63 @@ function takeAudio() {
   return pcm;
 }
 
+function resetLive() {
+  liveParts = [];
+  liveOffset = 0;
+  liveBusy = false;
+}
+
+// Copy recorded samples [from, chunkSamples) without consuming them.
+function recordedSince(from) {
+  const out = new Float32Array(chunkSamples - from);
+  let position = 0;
+  for (const c of chunks) {
+    const start = Math.max(0, from - position);
+    if (start < c.length) out.set(c.subarray(start), position + start - from);
+    position += c.length;
+  }
+  return out;
+}
+
+// Seconds per live segment, inside each model's single-pass window. Parakeet
+// keeps longer context: 30-40 s segments matched whole-recording accuracy.
+const LIVE_WINDOW = { whisper: [20, 28], moonshine: [20, 28], nemo_transducer: [30, 40] };
+
+function maybeDecodeAhead() {
+  if (dictState !== 'recording' || liveBusy || engineState !== 'ready') return;
+  const [minSeconds, maxSeconds] = LIVE_WINDOW[MODELS[store.settings().model]?.kind] || [20, 28];
+  if (chunkSamples - liveOffset < maxSeconds * SAMPLE_RATE) return;
+  const pending = recordedSince(liveOffset);
+  const cut = quietestPoint(pending, minSeconds * SAMPLE_RATE, maxSeconds * SAMPLE_RATE, SAMPLE_RATE);
+  const parts = liveParts;
+  liveOffset += cut;
+  liveBusy = true;
+  const part = transcriber.transcribe(pending.slice(0, cut), SAMPLE_RATE);
+  part.then(() => { if (liveParts === parts) liveBusy = false; }, () => {});
+  parts.push(part);
+}
+
+// Join the parts decoded during recording with the remaining tail.
+async function transcribeDictation(pcm) {
+  const parts = liveParts;
+  const tail = pcm.subarray(liveOffset);
+  resetLive();
+  if (!parts.length || tail.length / SAMPLE_RATE >= MIN_RECORDING_SECONDS) parts.push(transcriber.transcribe(tail, SAMPLE_RATE));
+  const results = await Promise.all(parts);
+  return {
+    text: results.map((r) => r.text).filter(Boolean).join(' ').trim(),
+    lang: (results.find((r) => r.lang) || {}).lang || '',
+    ms: results.reduce((sum, r) => sum + (r.ms || 0), 0),
+    liveParts: parts.length - 1
+  };
+}
+
 async function onDictateStop() {
   if (dictState !== 'recording') return;
   dictState = 'processing';
   clearTimeout(maxDurationTimer);
   clearTimeout(captureWatchdog);
+  systemAudio.setDictationMute(false);
   overlayState('processing');
   tray.setState('processing', 'Computing...');
   push('dictation', { phase: 'processing' });
@@ -404,13 +478,14 @@ async function onDictateStop() {
     try { wavName = audioStore.saveRecording(pcm); } catch (e) { console.error('[audio-store]', e.message); }
 
     const t0 = Date.now();
-    const { text: rawText, lang, ms: engineMs } = await transcriber.transcribe(pcm, SAMPLE_RATE);
+    const { text: rawText, lang, ms: engineMs } = await transcribeDictation(pcm);
+    const context = await Promise.race([frontContextPromise, new Promise((r) => setTimeout(() => r({ app: '', title: '' }), 400))]) || { app: '', title: '' };
     // A second AI pass (polish or "organize my thoughts") is about to run:
     // tell the overlay so the pill switches to the refine words + spinner.
     if (rawText && writing.mode(store.settings()) === 'polished' && writing.providerReady(store.settings())) {
       overlayState('processing', { phase: 'refine', localPolish: store.settings().polishProvider === 'ollama' });
     }
-    const { text, organized, polished, cleanupMode, fallbackReason } = rawText ? await cleanup(rawText) : { text: '', organized: false };
+    const { text, organized, polished, cleanupMode, fallbackReason } = rawText ? await cleanup(rawText, context) : { text: '', organized: false };
     if (!text) {
       audioStore.removeRecording(wavName);
       overlayState('error', { message: 'Nothing heard' });
@@ -426,15 +501,13 @@ async function onDictateStop() {
       // clipboard, tell the user how to recover instead of pretending success.
       overlayState('error', { message: isMac ? 'On clipboard, press ⌘V' : 'On clipboard, press Ctrl+V' });
     }
-    const frontApp = await Promise.race([frontAppPromise, Promise.resolve('')]) || '';
-
     store.recordTranscription(words, speechSeconds);
     store.addHistory({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       ts: Date.now(),
       text,
       raw: rawText !== text ? rawText : undefined,
-      app: frontApp,
+      app: context.app,
       speechSeconds: Math.round(speechSeconds * 10) / 10,
       engineMs,
       totalMs: Date.now() - t0,
@@ -481,6 +554,8 @@ function onDictateCancel() {
   dictState = 'idle';
   clearTimeout(maxDurationTimer);
   clearTimeout(captureWatchdog);
+  resetLive();
+  systemAudio.setDictationMute(false);
   captureSession += 1; // drop any in-flight chunks from the cancelled session
   try { if (captureReady && captureWindow && !captureWindow.isDestroyed()) captureWindow.webContents.send('capture:stop'); }
   catch { /* a crashed renderer has already released the microphone */ }
@@ -523,6 +598,7 @@ ipcMain.on('capture:chunk', (_e, session, pcm, rms) => {
   if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send('overlay:level', rms);
   }
+  maybeDecodeAhead();
 });
 
 ipcMain.on('capture:stopped', (_e, session) => {
@@ -763,6 +839,26 @@ ipcMain.handle('snippets:save', (_e, entries) => {
   return s.data;
 });
 
+ipcMain.handle('import:wispr-preview', async () => {
+  try {
+    const found = await readWispr({ dictionary: store.dictionary().data, snippets: store.snippets().data });
+    return { available: found.available, words: found.words.length, snippets: found.snippets.length };
+  } catch (e) { return { available: false, error: e.message }; }
+});
+ipcMain.handle('import:wispr', async () => {
+  try {
+    const d = store.dictionary();
+    const s = store.snippets();
+    const found = await readWispr({ dictionary: d.data, snippets: s.data });
+    const stamp = Date.now();
+    d.data = [...found.words.map((w, i) => ({ id: `wispr-${stamp}-${i}`, ...w })), ...d.data];
+    d.save();
+    s.data = [...found.snippets.map((x, i) => ({ id: `wispr-${stamp}-s${i}`, ...x })), ...s.data];
+    s.save();
+    return { ok: true, words: found.words.length, snippets: found.snippets.length };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
 ipcMain.handle('mics:list', () => listMics());
 ipcMain.handle('clipboard:copy', (_e, text) => { clipboard.writeText(text); return true; });
 
@@ -908,6 +1004,7 @@ if (!gotLock) {
       console.error('[recovery]', e.message);
     }
 
+    migrateSettings();
     await ensureEngine();
 
     app.on('activate', () => showMainWindow());
@@ -935,6 +1032,7 @@ if (!gotLock) {
     clearTimeout(maxDurationTimer);
     globalShortcut.unregisterAll();
     try { hotkeys && hotkeys.stop(); } catch { /* shutting down */ }
+    systemAudio.restoreNow();
     transcriber.dispose();
   });
 

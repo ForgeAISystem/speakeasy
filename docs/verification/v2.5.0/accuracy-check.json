@@ -1,0 +1,14 @@
+{
+  "fixture": "Six real dictations (241.6 s, 581 reference words) recorded by Harsh's own microphone and stored locally by Wispr Flow, scored against Wispr Flow's own raw recognizer text. Read-only, on this Mac; no audio or transcript text is committed. Word error rate after lowercasing and removing punctuation. Six recordings is a small sample: differences of a few words are noise.",
+  "models": {
+    "moonshine-base": { "wer": 0.067, "errors": 39, "decodeMs": 2928 },
+    "parakeet-v2": { "wer": 0.052, "errors": 30, "decodeMs": 5497 },
+    "apple-speechanalyzer-en-US": { "wer": 0.103, "errors": 60, "decodeMs": 2780, "note": "macOS 26 SpeechTranscriber; contextual strings did not change the result. Not adopted." }
+  },
+  "experiments": {
+    "chrome-audio-processing": { "result": "No effect. Same recordings fed through SpeakEasy's capture settings via Chromium's file-backed fake microphone: Parakeet 5.5% with echo cancellation, noise suppression, and auto gain on; 5.7% off. Capture settings unchanged." },
+    "parakeet-hotwords": { "result": "No effect on proper nouns in this sample (modified beam search with hotwords); punctuation got worse. Not adopted." },
+    "live-segments-parakeet": { "whole": 0.052, "segments20to28s": 0.057, "segments30to40s": 0.052, "segments45to58s": 0.060, "adopted": "30-40 s for Parakeet, 20-28 s for Moonshine and Whisper" },
+    "live-segments-moonshine": { "whole": 0.067, "segments20to28s": 0.067 }
+  }
+}

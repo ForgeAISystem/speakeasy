@@ -1,0 +1,32 @@
+[
+  {
+    "phase": "listening",
+    "label": "Opening microphone",
+    "visible": true,
+    "fits": true
+  },
+  {
+    "phase": "armed",
+    "label": "Listening",
+    "visible": true,
+    "fits": true
+  },
+  {
+    "phase": "processing",
+    "label": "Transcribing",
+    "visible": true,
+    "fits": true
+  },
+  {
+    "phase": "preview",
+    "label": "Your dictation indicator",
+    "visible": true,
+    "fits": true
+  },
+  {
+    "phase": "error",
+    "label": "Microphone unavailable. Check Settings.",
+    "visible": true,
+    "fits": true
+  }
+]

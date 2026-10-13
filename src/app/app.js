@@ -265,10 +265,12 @@ function renderHistoryResults() {
 
 async function renderDictionary() {
   const el = document.getElementById('tab-dictionary');
-  const entries = await api.dictList();
+  const [entries, wispr] = await Promise.all([api.dictList(), api.wisprImportPreview().catch(() => ({}))]);
+  const wisprCount = (wispr.words || 0) + (wispr.snippets || 0);
   el.innerHTML = `
     <h1>Dictionary</h1>
     <p class="sub">Teach SpeakEasy your names, clients, products, and jargon. Add a correction to auto-fix a word the model keeps mishearing.</p>
+    ${wispr.available && wisprCount ? `<div class="readiness-message import-card">Wispr Flow is on this Mac. Bring over the ${wispr.words ? `${num(wispr.words)} ${wispr.words === 1 ? 'word' : 'words'}` : ''}${wispr.words && wispr.snippets ? ' and ' : ''}${wispr.snippets ? `${num(wispr.snippets)} ${wispr.snippets === 1 ? 'snippet' : 'snippets'}` : ''} you taught it. <button class="btn btn-sm" id="dict-import-wispr">Import</button></div>` : ''}
     <div class="form-row">
       <label class="field-label">Correct word<input type="text" id="dict-word" placeholder="e.g. SpeakEasy"></label>
       <label class="field-label">What it hears (optional)<input type="text" id="dict-miss" placeholder="e.g. speak easy"></label>
@@ -294,6 +296,12 @@ async function renderDictionary() {
     document.getElementById('dict-word').focus();
   }));
   document.getElementById('dict-cancel').addEventListener('click', renderDictionary);
+  document.getElementById('dict-import-wispr')?.addEventListener('click', async (event) => {
+    event.target.disabled = true;
+    const res = await api.wisprImport();
+    toast(res.ok ? `Imported ${num(res.words)} ${res.words === 1 ? 'word' : 'words'} and ${num(res.snippets)} ${res.snippets === 1 ? 'snippet' : 'snippets'}.` : res.error);
+    renderDictionary();
+  });
   document.getElementById('dict-add').addEventListener('click', async () => {
     const word = document.getElementById('dict-word').value.trim();
     const miss = document.getElementById('dict-miss').value.trim();
@@ -416,6 +424,14 @@ async function renderSettings() {
         <div class="info"><div class="name">Language</div><div class="desc">${activeModelIsEnglishOnly() ? 'Your current voice supports English. Choose a multilingual voice below for other languages.' : 'Write in the language you speak. Choose one, or let SpeakEasy detect it.'}</div></div>
         <select id="set-lang" ${activeModelIsEnglishOnly() ? 'disabled' : ''}>${activeModelIsEnglishOnly() ? '<option>English</option>' : langOptions}</select>
       </div>
+      <div class="set-row">
+        <div class="info"><div class="name">Match each app</div><div class="desc">Chat apps get a single sentence without a final period. Polished mode writes emails, chats, and AI prompts in the style each one needs.</div></div>
+        <label class="switch"><input type="checkbox" id="set-appstyle" ${cfg.matchAppStyle !== false ? 'checked' : ''}><span class="track"></span></label>
+      </div>
+      ${isMac ? `<div class="set-row">
+        <div class="info"><div class="name">Mute audio while dictating</div><div class="desc">Silences music and videos while you speak, then turns them back on.</div></div>
+        <label class="switch"><input type="checkbox" id="set-mute" ${cfg.muteWhileDictating ? 'checked' : ''}><span class="track"></span></label>
+      </div>` : ''}
     </div>
 
     <details class="advanced-settings"><summary>Voice models &amp; optional AI cleanup</summary><div class="section-title">Voice models</div>
@@ -424,7 +440,7 @@ async function renderSettings() {
     <div class="section-title">Cleanup</div>
     <div class="set-group">
       <div class="set-row">
-        <div class="info"><div class="name">Cleanup provider</div><div class="desc">Used only in Polished mode. Ollama runs locally and needs its own installed model. Claude API sends text to Anthropic and may incur usage charges.</div></div>
+        <div class="info"><div class="name">Cleanup provider</div><div class="desc">Used only in Polished mode. Ollama runs locally and needs its own installed model. Claude API sends text (never audio) to Anthropic with the app name and your dictionary words, and may incur usage charges.</div></div>
         <select id="set-polish">
           <option value="off" ${cfg.polishProvider === 'off' ? 'selected' : ''}>None (use Clean)</option>
           <option value="ollama" ${cfg.polishProvider === 'ollama' ? 'selected' : ''}>Ollama (local LLM)</option>
@@ -483,6 +499,8 @@ async function renderSettings() {
   document.getElementById('set-holdkey').addEventListener('change', (e) => save({ holdKey: e.target.value }).then(renderHomeIfActive));
   document.getElementById('set-mic').addEventListener('change', (e) => save({ micDeviceId: e.target.value }));
   document.getElementById('set-lang').addEventListener('change', (e) => save({ language: e.target.value }));
+  document.getElementById('set-appstyle').addEventListener('change', (e) => save({ matchAppStyle: e.target.checked }));
+  document.getElementById('set-mute')?.addEventListener('change', (e) => save({ muteWhileDictating: e.target.checked }));
   document.getElementById('set-motion').addEventListener('change', (e) => save({ subtleMotion: e.target.checked }));
   document.getElementById('set-sounds').addEventListener('change', (e) => save({ sounds: e.target.checked }));
   document.getElementById('set-clip').addEventListener('change', (e) => save({ restoreClipboard: e.target.checked }));

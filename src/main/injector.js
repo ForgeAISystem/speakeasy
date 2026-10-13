@@ -89,21 +89,32 @@ function setLastTranscript(t) {
   lastTranscript = t;
 }
 
-/** Frontmost app name (mac best-effort, used for history + context). */
-async function getFrontAppName() {
+/**
+ * Frontmost app and window title (best effort). The app name lands in History;
+ * both pick the writing style. The title never leaves this computer.
+ */
+async function getFrontContext() {
   try {
     if (process.platform === 'darwin') {
-      const out = await run('osascript', ['-e',
-        'tell application "System Events" to get name of first application process whose frontmost is true']);
-      return out.trim();
+      const out = await run('osascript', ['-e', `tell application "System Events"
+  set p to first application process whose frontmost is true
+  set t to ""
+  try
+    set t to name of front window of p
+  end try
+  return (name of p) & linefeed & t
+end tell`]);
+      const [app = '', title = ''] = out.replace(/\n$/, '').split('\n');
+      return { app: app.trim(), title: title.trim() };
     }
     if (process.platform === 'win32') {
       const out = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-        'Add-Type @"\nusing System;using System.Runtime.InteropServices;public class FG{[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);}\n"@; $h=[FG]::GetForegroundWindow(); $p=0; [FG]::GetWindowThreadProcessId($h,[ref]$p)|Out-Null; (Get-Process -Id $p).ProcessName']);
-      return out.trim();
+        'Add-Type @"\nusing System;using System.Runtime.InteropServices;public class FG{[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);}\n"@; $h=[FG]::GetForegroundWindow(); $p=0; [FG]::GetWindowThreadProcessId($h,[ref]$p)|Out-Null; $q=Get-Process -Id $p; $q.ProcessName; $q.MainWindowTitle']);
+      const [app = '', title = ''] = out.split(/\r?\n/);
+      return { app: app.trim(), title: title.trim() };
     }
   } catch { /* best effort */ }
-  return '';
+  return { app: '', title: '' };
 }
 
-module.exports = { injectText, getLastTranscript, setLastTranscript, getFrontAppName };
+module.exports = { injectText, getLastTranscript, setLastTranscript, getFrontContext };

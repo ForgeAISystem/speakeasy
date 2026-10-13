@@ -65,3 +65,9 @@ The main window now uses standard native chrome. Bounds live in window.json, sep
 v2.4.2 is installed after Harsh's explicit one-restart approval. He confirmed the physical Fn indicator and pasted text, then reported Moonshine recognition errors. Do not repeat installation or onboarding; accuracy/model choice is the active follow-up.
 
 64 automated tests, 22 hidden main-window fixtures, five indicator states, and real generated-speech recognition before/after worker restart pass. Main retains/replays overlay state and cancels stale hide timers. Capture errors carry sessions, stalled input is bounded, and received audio survives failure. Native Fn heartbeat/reset and worker identity/IPC/load-timeout guards handle disconnections. Home has Test indicator and idle-only Repair connection. Evidence: docs/verification/v2.4.2/. The agent changed no OS permissions.
+
+## v2.5 notes (2026-10-12)
+
+Read docs/WISPR-TEARDOWN-2026-10-12.md before changing recognition or cleanup. Cleanup rules are evidence-gated: a new rule must move Clean output closer to Wispr's final text on Harsh's local history without changing meaning. The scoring scripts live outside the repo because they read personal data; commit aggregate numbers only, never audio or transcript text.
+
+Live decoding lives in src/main/index.js (maybeDecodeAhead, transcribeDictation) and shares src/shared/quiet-point.js with the worker. Claude cleanup uses @anthropic-ai/sdk, required lazily inside cleanup.js so tests can inject a fake. Settings upgrades run once through migrateSettings() keyed by settingsVersion. Run npm test (77 checks), then the offscreen visual script, then dist:mac and node scripts/package-check.cjs.

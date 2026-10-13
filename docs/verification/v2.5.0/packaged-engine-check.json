@@ -1,0 +1,4 @@
+{
+  "fixture": "Packaged dist/mac-arm64/SpeakEasy.app run in Electron node mode against its own app.asar: TranscriberManager forks the packaged worker (including the new shared quiet-point module) and loads the installed Parakeet v2 model. No microphone, shortcut, or paste. Input: one real 114.7 s dictation from the accuracy fixture.",
+  "result": { "ok": true, "model": "parakeet-v2", "seconds": 114.72, "words": 341, "decodeMs": 2770 }
+}

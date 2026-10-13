@@ -22,5 +22,6 @@ contextBridge.exposeInMainWorld('speakeasy', {
   updateSettings: async (value) => { Object.assign(state.settings, value); return state; },
   onPush() {}, setupMode: async () => {}, listMics: async () => [],
   dictList: async () => [{ id: 'sample', word: 'SpeakEasy', misspelling: 'speak easy' }],
+  wisprImportPreview: async () => ({ available: true, words: 33, snippets: 1 }), wisprImport: async () => ({ ok: true, words: 33, snippets: 1 }),
   snippetsList: async () => [{ id: 'sample', trigger: 'my signature', expansion: 'Harsh Patel\nSpeakEasy\nA little app. A lot less typing.' }]
 });

@@ -1,6 +1,14 @@
 # Verification
 
-Date: 2026-09-06
+Date: 2026-10-12
+
+## v2.5.0 checks (2026-10-12)
+
+- 77 automated checks pass. New coverage: measured tic rules plus meaning-preserving cases (do you know, like a charm, what it is is, a.m.), spoken commands, vocabulary split/joined forms with domains untouched, lowercase terms never lowering capitals, chat-app period rule and its switch, AI context with app style and no window title, answer guard, parallel long-text parts, Haiku 5.5 request shape, refusal fallback, Wispr row mapping and dedupe, live segmentation at a quiet point, joined text order, and cancel dropping live parts.
+- Real engines on six real recordings: model comparison and live-segment accuracy (docs/verification/v2.5.0/accuracy-check.json). Cleanup scored on 722 text pairs (cleanup-eval.json). Aggregates only.
+- Packaged app: package-check passes (32 files, helper, version, DMG hash). The packaged worker transcribed a real 114.7 s recording with Parakeet (packaged-engine-check.json).
+- 24 offscreen screens and 5 indicator states pass with synthetic data.
+- Open: installed-app physical Fn dictation, live Claude call, mute on real audio, Import button on the real profile.
 
 ## v2.4.2 checks
 

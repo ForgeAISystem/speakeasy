@@ -1,8 +1,19 @@
-# SpeakEasy v2.4.2
+# SpeakEasy v2.5.0
 
-v2.4.2 is installed and running at `/Applications/SpeakEasy.app` after Harsh approved one restart. Existing permissions, local voice, and personal data were preserved. Harsh confirmed the indicator appeared and words pasted. Recognition accuracy is the next issue; Moonshine Base is currently selected. No further installation or setup reset is needed on this Mac.
+v2.5.0 is built and ready to install. It uses the more accurate Parakeet voice for English, cleans up verbal tics, understands "question mark", "new line", "new paragraph", and "scratch that", and finishes long dictations faster because it transcribes while you talk.
 
-For another installation, quit SpeakEasy before replacing it. Open `dist/SpeakEasy-2.4.2-arm64.dmg`, then drag the app onto the Applications shortcut. A new installation also offers **Install in Applications** when opened outside Applications. No developer tools are needed by the recipient.
+## New in v2.5
+
+- **Better words.** English uses Parakeet. On first launch SpeakEasy switches to it if it is already downloaded.
+- **Cleaner text.** Clean removes "you know", "like," and stutters, keeps your meaning, and spells your dictionary words the way you saved them, even when the voice joins or splits them.
+- **Say your punctuation.** "Question mark", "exclamation point", "new line", "new paragraph", "scratch that".
+- **Fast on long thoughts.** A five-minute dictation lands seconds after you let go.
+- **Fits the app.** Chat apps get a single sentence without a final period. Polished mode writes emails, chats, and AI prompts in the right style. Turn it off with Settings > Match each app.
+- **Coming from Wispr Flow?** Dictionary > Import brings over your words and snippets.
+- **Mute audio while dictating.** Optional, in Settings.
+- **Polished with Claude** uses Claude Haiku 5.5: faster and cheaper. Paste your Anthropic key under Settings > Voice models & optional AI cleanup.
+
+For another installation, quit SpeakEasy before replacing it. Open `dist/SpeakEasy-2.5.0-arm64.dmg`, then drag the app onto the Applications shortcut. A new installation also offers **Install in Applications** when opened outside Applications. No developer tools are needed by the recipient.
 
 ## If dictation needs attention
 

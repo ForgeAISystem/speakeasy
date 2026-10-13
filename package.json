@@ -1,7 +1,7 @@
 {
   "name": "speakeasy",
   "productName": "SpeakEasy",
-  "version": "2.4.2",
+  "version": "2.5.0",
   "description": "Local, private voice dictation for Mac and Windows. Hold a key, speak, release. Your words appear in any app. No cloud, no subscription.",
   "main": "src/main/index.js",
   "author": "Harsh Patel",
@@ -19,6 +19,7 @@
     "dist:win": "electron-builder --win"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@fontsource/bricolage-grotesque": "^5.2.10",
     "@fontsource/eb-garamond": "^5.2.7",
     "@fontsource/figtree": "^5.2.10",

@@ -6,7 +6,7 @@ const MODELS = {
   'moonshine-base': {
     id: 'moonshine-base',
     label: 'Moonshine Base',
-    tagline: 'Fast start. English only. 240 MB download.',
+    tagline: 'Lightest English voice. Fast, less accurate. 240 MB download.',
     sizeMB: 240,
     languages: 'en',
     kind: 'moonshine',
@@ -16,7 +16,7 @@ const MODELS = {
   'parakeet-v2': {
     id: 'parakeet-v2',
     label: 'Parakeet 0.6B v2',
-    tagline: 'Best accuracy. English only. 460 MB download.',
+    tagline: 'Recommended. Best English accuracy, punctuation, and numbers. 460 MB download.',
     sizeMB: 460,
     languages: 'en',
     kind: 'nemo_transducer',
@@ -112,8 +112,11 @@ const DEFAULT_SETTINGS = {
   polishProvider: 'off', // 'off' | 'ollama' | 'anthropic'
   polishOllamaModel: 'llama3.2',
   polishAnthropicKey: '',
-  polishAnthropicModel: 'claude-haiku-4-5',
-  organizeOnCommand: true // say "organize my thoughts" to restructure a rambling dictation (needs an AI cleanup provider)
+  polishAnthropicModel: 'claude-haiku-5-5',
+  organizeOnCommand: true, // say "organize my thoughts" to restructure a rambling dictation (needs an AI cleanup provider)
+  matchAppStyle: true, // chat apps drop a lone final period; AI cleanup gets the app's writing style
+  muteWhileDictating: false, // mute system audio while recording, restored afterwards
+  settingsVersion: 0 // one-time upgrades in main/index.js migrateSettings()
 };
 
 const MIN_RECORDING_SECONDS = 0.35;

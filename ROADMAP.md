@@ -2,6 +2,16 @@
 
 Product reference: Wispr Flow and Glaido, researched September 6, 2026. Keep local speech, no account, and an offline default. See docs/COMPETITOR-RESEARCH-2026-09-06.md.
 
+## Added in v2.5 (2026-10-12, from the Wispr Flow teardown)
+
+- Parakeet v2 as the English default (22% fewer errors than Moonshine on real dictation).
+- Measured verbal-tic removal, spoken punctuation, "scratch that", vocabulary split/joined forms.
+- Live decoding of long dictations while recording.
+- App-aware style: chat-app period rule; app style passed to Polished.
+- Wispr Flow dictionary and snippet import. Optional mute while dictating.
+- Claude cleanup on Haiku 5.5 via the official SDK, parallel parts, answer guard.
+- See docs/WISPR-TEARDOWN-2026-10-12.md.
+
 ## Added in v2.4 (local review build)
 
 - Original ImageGen glass artwork, shared warm palette, subtle pointer depth, and an explicit motion preference.
@@ -40,10 +50,11 @@ Product reference: Wispr Flow and Glaido, researched September 6, 2026. Keep loc
 
 ## Next (parity gaps worth closing)
 
-- **Per-app tone matching** (Wispr "Styles"): detect frontmost app (already captured in history) and pass an app-category tone hint to the polish prompt. Casual in Slack/iMessage, formal in Mail/Gmail. Trailing-period removal in messaging apps.
+- **Text near the cursor as context** (Accessibility): spell names already on screen; skip secure fields.
 - **Auto-learn dictionary**: when the user edits pasted text right after dictation, diff and propose a dictionary entry (Wispr's sparkle entries)
 - **In-place correction undo**: original comparison/copy now exists; replacing text in an external app needs safe target tracking.
 - **Streaming preview**: show words appearing in the flow bar while still speaking (sherpa-onnx streaming models or chunked decode)
+- **Apple Intelligence cleanup** (FoundationModels) for short dictations when enabled on the Mac
 - **VAD auto-stop** in hands-free mode (Silero VAD via sherpa-onnx, stop after N seconds of silence)
 - **Custom hotkey capture UI** (record any key/combo including mouse buttons 4/5) (Fn-key support is now implemented on Mac)
 - **Whisper mode tuning**: gain boost + model prompt for whispered speech

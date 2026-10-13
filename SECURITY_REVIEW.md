@@ -27,3 +27,12 @@ Remaining distribution gate: no Developer ID identity was present, so the local 
 - On capture failure, received audio long enough for a recovery attempt is saved under the existing local WAV/history policy. Audio never received by the app cannot be recovered. Success cleanup and age-based pruning remain.
 - Bounded renderer restarts and native-helper heartbeats do not expand the set of input events exported from the helper.
 - The authorized bundle replacement preserved personal settings/history/stats/dictionary/snippets. No permission, Gatekeeper, or signing setting was changed.
+
+## v2.5 additions (2026-10-12)
+
+- Wispr import reads `~/Library/Application Support/Wispr Flow/flow.sqlite` with the system sqlite3 in immutable read-only mode, only when the user opens the Dictionary tab or presses Import. It reads the Dictionary table only and never writes to Wispr's files.
+- Front window context: the app name and window title are read through System Events under the existing Accessibility permission. The title only picks a style category on the computer; it is never stored or sent. The app name is stored in History as before.
+- Polished with Claude now sends, per request: the transcript, the app name with a style hint, and up to 100 dictionary words. Audio never leaves the computer. Calls use the official Anthropic SDK with a 20 s timeout and one retry. Polished stays opt-in and off by default.
+- An AI reply that drops or adds many words is discarded for the local text, so a prompt-like dictation is not replaced by an answer.
+- Mute while dictating is off by default, uses osascript volume commands, and only restores a mute it set itself, including on quit.
+- New dependency: `@anthropic-ai/sdk` 0.133.0 (loaded only when Claude cleanup runs).

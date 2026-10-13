@@ -1,49 +1,42 @@
 # SpeakEasy current state
 
-Updated: 2026-09-06
+Updated: 2026-10-12
 
-Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. Active branch: `codex/speakeasy-easy-start`. Private repository; no new public release.
+Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. Active branch: `codex/speakeasy-easy-start`. Private repository; no public release.
 
 ## Where things stand
 
-v2.4.2 is installed and running at `/Applications/SpeakEasy.app`. Harsh explicitly approved “Install and check it now.” The previous v2.4.0 app was quit normally, preserved, and replaced once. Installed archive and native helper match the build. Settings, history, stats, dictionary, and snippets were unchanged by installation.
+v2.5.0 is built and verified but NOT installed. `/Applications/SpeakEasy.app` still runs v2.4.2 (Moonshine Base). Installing replaces the running app, so it waits for Harsh to pick the moment. On first launch v2.5 switches this Mac to Parakeet v2 (already downloaded) and the Claude model setting to Haiku 5.5, once.
 
-Harsh then confirmed: “Indicator appeared and words pasted.” This establishes the physical Fn, microphone, native indicator, and paste path on his test. He subsequently reported inaccurate recognition. The current model is Moonshine Base. Parakeet v2 is now downloaded and passed a real engine smoke check, but has not been selected. See docs/MODEL-ACCURACY-2026-09-06.md for research, measurements, and the pending language/selection decision.
+v2.5 came from a Wispr Flow teardown on Harsh's own Mac (docs/WISPR-TEARDOWN-2026-10-12.md). Findings that drove the build:
 
-The installed Home reports Ready to dictate. Live readiness reports microphone and Accessibility permission, shortcut, local voice, capture connection, and indicator connection ready. Onboarding is complete and a local Moonshine English voice is prepared. Do not repeat first-run setup unless a live check fails.
+- On six real recordings of Harsh, Parakeet v2 makes 5.2% word errors vs Moonshine 6.7% (22% fewer). Apple's macOS 26 recognizer: 10.3%. Chrome capture processing and Parakeet hotwords made no difference.
+- Most of Wispr's felt accuracy is formatting: its final text differs from its own raw recognizer by 23.3% of words, mainly verbal tics.
 
-This update fixes indicator hide/load/recreation races, guards late microphone errors by recording session, adds microphone startup/stall recovery with recoverable received audio, and supervises the native Fn helper and speech worker. Home now has Check dictation, Test indicator, Repair connection, and a last-detected shortcut time. Opening the microphone has a visible spinner; the sidebar distinguishes recording, processing, and failures.
+Shipped in v2.5: Parakeet default, measured tic removal (Clean 23.3% to 21.7% distance from Wispr's final text over 722 dictations), spoken punctuation and "scratch that", live decoding of long dictations while recording, app-aware style (chat apps drop a lone final period; Polished gets the app's style), dictionary variants ("bellavita" to "Bella Vita", domains untouched), Wispr dictionary/snippet import (33 words and 1 snippet waiting on this Mac), optional mute while dictating, and Claude cleanup on Haiku 5.5 through the official SDK with parallel parts and an answer-instead-of-clean guard.
 
-v2.4.1 window improvements are included: standard native title bar, movement and resizing down to 560x480, compact layouts, saved normal placement, disconnected-display recovery, and restoring a minimized window. v2.4 artwork, subtle motion, cleanup modes, original transcript comparison, history search, dictionary, and multiline snippets remain.
-
-Harsh is using the computer for other work. Avoid repeated app launches, foreground automation, or heavy concurrent builds. The one authorized restart is complete. No OS permission or security setting was changed by the agent.
+Polished mode is still off on this Mac (`polishProvider: off`). Turning it on needs Harsh to paste an Anthropic key in Settings; agents must not handle the key.
 
 ## Verified
 
-- 64 automated tests pass. Regression tests reproduced four failures before fixes: a previous completion fade hiding a new recording, overlay state sent before its renderer loaded, missing state replay after overlay recreation, and a stale microphone error cancelling a newer recording.
-- Twenty-two hidden, non-focusable Electron main-window fixtures and five indicator states pass artwork, bounds, and visibility checks. These use synthetic state and an isolated profile.
-- The real local Moonshine engine transcribed a generated 3.675625-second sentence correctly before and after a worker restart, in 42 ms and 37 ms. This is a smoke check, not a general accuracy benchmark.
-- The same generated sentence passed with Parakeet v2 in 81 ms and 80 ms before/after worker restart. Worker RSS was 1843 MiB after each decode, on a 48 GiB Mac. This is not peak memory or a personal accuracy measurement.
-- All 29 packaged source files and native helper match. DMG checksum passes. Installed version/archive/helper and preserved profile were checked.
-- Installed native title bar, new Home controls, Ready to dictate, and all six readiness checks were observed. Harsh separately confirmed the real Fn indicator and pasted text; recognition accuracy remains an issue.
-- One idle process snapshot after relaunch showed 0.0% CPU for each SpeakEasy process. This does not diagnose the reported computer slowdown or prove an improvement.
+- 77 automated tests pass (13 new: tic rules and precision cases, spoken commands, vocabulary variants, chat style, AI context without window title, answer guard, parallel parts, Haiku 5.5 request shape, refusal fallback, Wispr import mapping/dedupe, live segmentation and cancel).
+- Real engines on Harsh's recordings: whole-recording and live-segment accuracy measured (Parakeet 30-40 s segments 5.2%, equal to one pass).
+- Packaged app: all 32 source files and the native helper match; the packaged worker transcribed a real 114.7 s recording with Parakeet (341 words, 2.8 s).
+- 24 offscreen screens and 5 indicator states pass with synthetic data, including the new Dictionary import card and Settings switches.
 
-Evidence: `docs/verification/v2.4.2/`. Earlier version directories retain historical checks.
+Not verified: a live Claude API call (no key used), the installed app with a physical Fn press, mute on real audio, and the import button against the real profile (the reader was run read-only against Harsh's Wispr database; the write path is covered by tests and code review only).
 
-Installer: `dist/SpeakEasy-2.4.2-arm64.dmg` (149737282 bytes).
+Evidence: `docs/verification/v2.5.0/`.
 
-SHA-256: `580ccd030f546cc0fc8ababb8933cd658ebacdde02b2010b135259e3d951be9b`.
+Installer: `dist/SpeakEasy-2.5.0-arm64.dmg` (151674564 bytes).
 
-Installed app.asar SHA-256: `94cc3fbb524f2f0596b8625d7a5f89cc7340ca796c1b0da54d5412caf4560f4c`.
+SHA-256: `3a526623aeb6ba12db24bbd9535b24c316d6a256bfb68a83e771d4b99ae3f407`.
 
-Previous v2.4.0 bundle: `dist/rollback-v240-_68t_mt7/SpeakEasy.app`.
+Unsigned and not notarized, like earlier builds. Previous installed version: v2.4.2 (`dist/SpeakEasy-2.4.2-arm64.dmg`).
 
 ## Next
 
-1. Improve transcription accuracy. Research current supported models and choose for Harsh's languages. Compare his actual speech; generated samples cannot prove his accent, vocabulary, or microphone accuracy.
-2. Confirm movement/resizing and cross-screen behavior during normal use. Automated fixtures do not prove these OS interactions.
-3. Developer ID signing/notarization and clean-machine installation before broad distribution. No signing identity was available; the current DMG is unsigned and not notarized.
-4. Windows and Intel runtime validation before distribution.
-5. Future feature decisions: `docs/COMPETITOR-RESEARCH-2026-09-06.md`. Original artwork and prompt: `docs/IMAGEGEN.md`.
-
-No new cloud service or account is required. Optional Polished mode depends on the user's configured local Ollama or Anthropic provider. The user's earlier v2.2 work is preserved separately in `d1ab868`; the last observed main release was v2.1.1 at `aa45aae`.
+1. Install v2.5.0 when Harsh says go: quit SpeakEasy, copy `dist/mac-arm64/SpeakEasy.app` over `/Applications/SpeakEasy.app`, relaunch, confirm Ready and Parakeet active, dictate one long passage, then Dictionary > Import.
+2. Optional: Harsh pastes an Anthropic key and picks Polished to get Wispr-grade formatting.
+3. Text near the cursor as context, learn-from-edits, command mode (ranked in the teardown doc).
+4. Developer ID signing/notarization and Windows/Intel validation before any distribution.

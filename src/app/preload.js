@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('speakeasy', {
   dictSave: (entries) => ipcRenderer.invoke('dict:save', entries),
   snippetsList: () => ipcRenderer.invoke('snippets:list'),
   snippetsSave: (entries) => ipcRenderer.invoke('snippets:save', entries),
+  wisprImportPreview: () => ipcRenderer.invoke('import:wispr-preview'),
+  wisprImport: () => ipcRenderer.invoke('import:wispr'),
   listMics: () => ipcRenderer.invoke('mics:list'),
   copy: (text) => ipcRenderer.invoke('clipboard:copy', text),
   permStatus: () => ipcRenderer.invoke('perm:status'),

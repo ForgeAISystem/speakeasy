@@ -78,7 +78,7 @@ test('failed voice downloads stay recoverable and do not advance', async (t) => 
 
 test('downloaded voice must load before continuing and existing voices are reused', async (t) => {
   const f = fixture(t);
-  f.state().models.installed.push('moonshine-base');
+  f.state().models.installed.push('parakeet-v2');
   await f.setup.open();
   await f.setup.go(2);
   await f.setup.act('download');

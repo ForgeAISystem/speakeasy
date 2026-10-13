@@ -44,6 +44,8 @@ app.whenReady().then(async () => {
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
   await capture('snippets', "switchTab('snippets')");
+  await capture('dictionary', "switchTab('dictionary')");
+  await capture('settings-advanced', "switchTab('settings').then(() => { document.querySelector('.advanced-settings').open = true; })");
   await capture('welcome', 'setup.open()');
   await capture('welcome-compact', 'void 0', 760, 560);
   await capture('permissions', 'setup.go(1)');

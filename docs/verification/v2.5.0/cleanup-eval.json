@@ -1,0 +1,6 @@
+{
+  "fixture": "722 of Harsh's Wispr Flow dictations (92,291 words) on this Mac: Wispr's raw recognizer text paired with Wispr's final formatted text. Score = word-level distance from SpeakEasy Clean output to Wispr's final text, lower is closer. Rules were kept only if they moved closer without changing meaning; rules that hurt (\"go ahead and\", \"gonna\", \"wanna\", bare \"basically\", \"like\" before articles, sentence-initial \"so\") were removed. No transcript text is committed.",
+  "rawRecognizerVsFinal": 0.2330,
+  "v2_4_clean": 0.2308,
+  "v2_5_clean": 0.2172
+}

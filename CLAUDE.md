@@ -1,8 +1,10 @@
-# SpeakEasy — agent runbook
+# SpeakEasy: agent runbook
 
-Read [STATE.md](STATE.md) first for the latest build and verification limits. This runbook contains everything an AI agent needs to set up, run, build, and ship this app without exploration.
+**Installing or updating SpeakEasy for someone? Follow [INSTALL.md](INSTALL.md) and stop there.** It works on any Mac. STATE.md, SESSION-HANDOFF.md, BUILD_LOG.md, and docs/verification/ track the maintainer's own build Mac; their "installed" and "do not reinstall" notes do not apply to the computer you are on.
 
-**What this is:** local voice dictation for Mac and Windows (a Wispr Flow replacement). Hold a key, speak, release; text pastes at the cursor. 100% offline: Electron + sherpa-onnx (Moonshine / Parakeet / Whisper models). Built by The Forge.
+**Developing SpeakEasy?** Read [STATE.md](STATE.md) first for the latest build and verification limits, then this file.
+
+**What this is:** local voice dictation for Mac and Windows (a Wispr Flow replacement). Hold a key, speak, release; text pastes at the cursor. Speech recognition runs offline: Electron + sherpa-onnx (Parakeet / Moonshine / Whisper models). Built by The Forge.
 
 ## Set up and run from source
 

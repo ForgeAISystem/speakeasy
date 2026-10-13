@@ -1,5 +1,7 @@
 # SpeakEasy pickup
 
+> Maintainer's machine log (Harsh's build Mac). Installing SpeakEasy anywhere else? Follow [INSTALL.md](INSTALL.md); nothing below describes your computer.
+
 Read STATE.md for current artifacts and verification limits.
 
 2026-10-12: v2.5.0 is built, tested, and packaged from a Wispr Flow teardown (docs/WISPR-TEARDOWN-2026-10-12.md). Installed 2026-10-12 22:10 on Harsh's go; engine ready on Parakeet v2 and Fn listener active. Rollback bundle and profile copy: dist/rollback-v242-20261012-221027/. Do not reinstall or rerun setup. A physical dictation check by Harsh is the remaining step.

@@ -1,5 +1,7 @@
 # SpeakEasy current state
 
+> Maintainer's machine log (Harsh's build Mac). Installing SpeakEasy anywhere else? Follow [INSTALL.md](INSTALL.md); nothing below describes your computer.
+
 Updated: 2026-10-12
 
 Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. Active branch: `codex/speakeasy-easy-start`. Private repository; no public release.

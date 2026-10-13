@@ -30,10 +30,10 @@ git --version
 
 ```bash
 if [ -d ~/speakeasy/.git ]; then git -C ~/speakeasy checkout main && git -C ~/speakeasy pull --ff-only; \
-else git clone https://github.com/ForgeAISystem/speakeasy.git ~/speakeasy; fi
+else git clone https://github.com/ForgeAISystem/speakeasy.git ~/speakeasy || git clone git@github.com:ForgeAISystem/speakeasy.git ~/speakeasy; fi
 ```
 
-The repository is private. If cloning fails, the person needs access from the maintainer and a GitHub login on this computer (`gh auth login` or an SSH key).
+The repository is private. The HTTPS address works with a GitHub CLI login (`gh auth login`); the SSH address works with an SSH key. If both fail, the person needs access from the maintainer or a GitHub login on this computer.
 
 ## 3. Build
 

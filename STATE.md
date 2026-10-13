@@ -6,7 +6,7 @@ Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. Active branch: `
 
 ## Where things stand
 
-v2.5.0 is built and verified but NOT installed. `/Applications/SpeakEasy.app` still runs v2.4.2 (Moonshine Base). Installing replaces the running app, so it waits for Harsh to pick the moment. On first launch v2.5 switches this Mac to Parakeet v2 (already downloaded) and the Claude model setting to Haiku 5.5, once.
+v2.5.0 is installed and running at `/Applications/SpeakEasy.app` (Harsh said "yes install it now", 2026-10-12 22:10). v2.4.2 was quit normally and moved, with a copy of the profile JSON, to `dist/rollback-v242-20261012-221027/`. The installed app.asar matches the build. Launched through LaunchServices: startup log shows `[hotkey] listener active` and `[engine] ready: parakeet-v2`, and the Fn helper runs. The one-time upgrade switched model to parakeet-v2, the Claude model to claude-haiku-5-5, and added the two new switches; history, stats, and window placement are byte-identical.
 
 v2.5 came from a Wispr Flow teardown on Harsh's own Mac (docs/WISPR-TEARDOWN-2026-10-12.md). Findings that drove the build:
 
@@ -24,7 +24,7 @@ Polished mode is still off on this Mac (`polishProvider: off`). Turning it on ne
 - Packaged app: all 32 source files and the native helper match; the packaged worker transcribed a real 114.7 s recording with Parakeet (341 words, 2.8 s).
 - 24 offscreen screens and 5 indicator states pass with synthetic data, including the new Dictionary import card and Settings switches.
 
-Not verified: a live Claude API call (no key used), the installed app with a physical Fn press, mute on real audio, and the import button against the real profile (the reader was run read-only against Harsh's Wispr database; the write path is covered by tests and code review only).
+Not verified: a physical Fn dictation in the installed v2.5 (awaiting Harsh), a live Claude API call (no key used), mute on real audio, and the import button against the real profile (the reader was run read-only against Harsh's Wispr database; the write path is covered by tests and code review only).
 
 Evidence: `docs/verification/v2.5.0/`.
 
@@ -36,7 +36,7 @@ Unsigned and not notarized, like earlier builds. Previous installed version: v2.
 
 ## Next
 
-1. Install v2.5.0 when Harsh says go: quit SpeakEasy, copy `dist/mac-arm64/SpeakEasy.app` over `/Applications/SpeakEasy.app`, relaunch, confirm Ready and Parakeet active, dictate one long passage, then Dictionary > Import.
+1. Harsh dictates one long passage to confirm Fn, microphone, paste, and live decoding in the installed app, then presses Dictionary > Import. Rollback if needed: quit SpeakEasy, move `dist/rollback-v242-20261012-221027/SpeakEasy.app` back to Applications, and restore its `profile/settings.json`.
 2. Optional: Harsh pastes an Anthropic key and picks Polished to get Wispr-grade formatting.
 3. Text near the cursor as context, learn-from-edits, command mode (ranked in the teardown doc).
 4. Developer ID signing/notarization and Windows/Intel validation before any distribution.

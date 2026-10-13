@@ -8,7 +8,7 @@
 - Added live decoding: quiet-point segments transcribed during recording (Parakeet 30-40 s, others 20-28 s), joined with the tail on release. Shared the quiet-point search between main and worker.
 - Moved Claude cleanup to the official Anthropic SDK on Haiku 5.5 (thinking off, low effort, no sampling overrides), parallel sentence-aligned parts for long text, refusal handling, and a word-count guard against answers. Added Wispr dictionary/snippet import, optional mute while dictating, and front window context (title used locally only).
 - 77 tests pass. 24 offscreen screens and 5 indicator states pass. Package check: 32 source files and helper match. Packaged worker transcribed a real recording. DMG built at low priority.
-- Not installed: Applications still runs v2.4.2. Install waits for Harsh. No OS setting, permission, or the user's Anthropic key was touched.
+- Installed on Harsh's go: quit v2.4.2 normally, moved it plus a profile JSON copy to dist/rollback-v242-20261012-221027/, copied v2.5.0 into Applications (archive hash matches), launched through LaunchServices. Log: hotkey listener active, engine ready on parakeet-v2. History, stats, and window files unchanged; settings changed only by the planned one-time upgrade. No OS setting, permission, or the user's Anthropic key was touched.
 - Token/cost totals were not available from this runtime.
 
 ## 2026-09-06: v2.4.2 dictation stability

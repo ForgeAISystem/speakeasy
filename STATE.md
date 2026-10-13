@@ -4,7 +4,7 @@
 
 Updated: 2026-10-12
 
-Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. Active branch: `codex/speakeasy-easy-start`. Private repository; no public release.
+Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. Active branch: `main` (v2.5.0, tag `v2.5.0`; `codex/speakeasy-easy-start` is merged and identical). Private repository: collaborators get the code and the Releases page. Anyone's agent installs or updates from `main` through INSTALL.md. Release v2.5.0 (Latest) carries SpeakEasy-2.5.0-arm64.dmg, SpeakEasy-2.5.0.dmg (Intel), and SpeakEasy.Setup.2.5.0.exe; CI run 38338393553 passed tests and builds on macOS arm64, macOS Intel, and Windows.
 
 ## Where things stand
 

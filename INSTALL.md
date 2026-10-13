@@ -97,7 +97,7 @@ After that: hold Fn to talk, double-tap Fn for hands-free, Esc cancels. Closing 
 
 ## Other ways in
 
-- **Installer download:** `gh release download --repo ForgeAISystem/speakeasy --pattern '*arm64.dmg'` (Intel: `*x64.dmg` when present). Open the DMG and drag SpeakEasy to Applications. Downloaded builds are unsigned, so the first open is right-click > Open, done by the person. Do not disable Gatekeeper.
+- **Installer download:** `gh release download --repo ForgeAISystem/speakeasy --pattern '*.dmg' --dir /tmp/speakeasy-dl`. Use the `-arm64.dmg` on Apple Silicon and the DMG without `arm64` in its name on Intel. Open the DMG and drag SpeakEasy to Applications. Downloaded builds are unsigned, so the first open is right-click > Open, done by the person. Do not disable Gatekeeper.
 - **Windows:** `npm run dist:win` builds a one-click installer, or download the `.exe` from Releases. Windows has not been validated on real hardware.
 
 ## If something is off

@@ -197,6 +197,7 @@ class HotkeyManager {
       // Any tap while hands-free stops and transcribes
       this.handsFree = false;
       this.active = false;
+      this.lastHandsFree = true;
       this._safe(this.onStop);
       return;
     }
@@ -223,6 +224,7 @@ class HotkeyManager {
 
     // A real hold-and-release: stop and transcribe
     this.active = false;
+    this.lastHandsFree = false;
     this._safe(this.onStop);
   }
 

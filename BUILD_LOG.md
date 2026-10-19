@@ -1,5 +1,14 @@
 # Build log
 
+## 2026-10-18: v2.8.0 walkthroughs
+
+- Harsh: "whenever we add a feature there's a complete walkthrough... then test my competency." Built the guide system and made it a release rule (docs/GUIDES.md, CLAUDE.md).
+- Guides are data (src/shared/guides.js): what's new lines, lessons whose steps finish only on a matching app event, a timed challenge. GuideRunner (src/main/guide.js) gets every push() event; auto-completes steps that are already true (the fn fix); keeps progress and best times in guide.json.
+- Coach panel (src/coach/): non-activating, always on top, top right. Waiting pulse, green check, Back/Skip, action buttons that open the right tab; challenge mode with live timer and checklist; result card with level and best time.
+- Main window: Learn tab (progress, NEW chips, Keep going, best level), What's new dialog once per update, sidebar dot while a new guide is untouched.
+- Hotkey now records whether the last dictation was hands-free; pad open, saves, voice steps, pad remaps and the fn fix emit events for checks.
+- 107 tests pass (10 new). Offscreen: 29 screens, What's new, Learn, 4 coach states, pad, plan. Package check: 54 files. DMG dist/SpeakEasy-2.8.0-arm64.dmg. Not installed yet.
+
 ## 2026-10-18: v2.7.0 voice commands
 
 - Harsh: "just say, hey, do this on my computer" and teach the pad by voice. Built on v2.6 (branch feat/voice-commands from feat/window-pad-globe-fix).

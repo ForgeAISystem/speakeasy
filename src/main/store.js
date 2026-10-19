@@ -77,6 +77,19 @@ function savePad(pads) {
   return padStore.data;
 }
 
+// Walkthrough progress: steps finished, best challenge times, last What's new seen.
+let guideStore;
+function guide() {
+  if (!guideStore) guideStore = new JsonStore('guide', {});
+  return guideStore.data;
+}
+function saveGuide(data) {
+  guide();
+  guideStore.data = data;
+  guideStore.save();
+  return guideStore.data;
+}
+
 // ---- History (most recent first, capped) ----
 const HISTORY_CAP = 500;
 let historyStore;
@@ -196,6 +209,7 @@ module.exports = {
   settings, updateSettings,
   windowState, saveWindowState,
   pad, savePad,
+  guide, saveGuide,
   history, addHistory, removeHistory, clearHistory,
   dictionary, snippets,
   recordTranscription, statsSummary

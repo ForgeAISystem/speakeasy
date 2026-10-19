@@ -1,0 +1,25 @@
+/* Learn tab and What's new. */
+.nav-item.has-new::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: auto; }
+.learn-list { display: grid; gap: 14px; margin-top: 18px; }
+.learn-card { display: grid; grid-template-columns: 1fr auto; gap: 18px; padding: 18px 20px; border-radius: 18px; background: var(--sheet); border: 1px solid var(--hairline); box-shadow: var(--shadow-2); }
+@media (max-width: 760px) { .learn-card { grid-template-columns: 1fr; } }
+.learn-meta { display: flex; gap: 10px; align-items: center; }
+.learn-chip { font: 600 9.5px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.1em; padding: 4px 8px; border-radius: 999px; background: var(--fill); color: var(--muted); }
+.learn-chip.new { background: var(--ink); color: var(--accent); }
+.learn-steps { font-size: 12px; color: var(--muted); }
+.learn-card h2 { font-size: 20px; margin-top: 8px; }
+.learn-tagline { color: var(--muted); margin-top: 2px; }
+.learn-new { margin: 10px 0 12px 18px; display: grid; gap: 4px; font-size: 13px; }
+.learn-bar { height: 5px; border-radius: 5px; background: var(--fill); overflow: hidden; }
+.learn-bar span { display: block; height: 100%; background: var(--accent); }
+.learn-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; justify-content: center; min-width: 190px; }
+.learn-best { font-size: 12px; color: var(--muted); text-align: center; }
+.learn-level { font: 600 9.5px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 999px; background: var(--ink); color: var(--accent); margin-right: 4px; }
+.learn-live { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+#whats-new { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(26, 26, 26, 0.32); }
+.wn-sheet { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: grid; gap: 12px; padding: 24px 26px; border-radius: 22px; background: #fdfdfa; box-shadow: var(--shadow-3); }
+.wn-sheet h2 { font-size: 26px; line-height: 1.1; }
+.wn-sheet h3 { font-size: 14px; margin-bottom: 4px; }
+.wn-sheet ul { margin-left: 18px; display: grid; gap: 4px; font-size: 13.5px; }
+.wn-note { color: var(--muted); font-size: 12.5px; }
+.wn-actions { display: flex; gap: 10px; }

@@ -7,7 +7,7 @@ const { JSDOM } = require('jsdom');
 const { DEFAULT_SETTINGS, MODELS, HOLD_KEYS } = require('../src/shared/constants');
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-async function fixture(t) {
+async function fixture(t, opts = {}) {
   const root = path.join(__dirname, '../src/app');
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), { runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
@@ -38,14 +38,23 @@ async function fixture(t) {
     padSet: async (key, value) => { saves.push({ pad: key, value }); padStore[key] = value; return { ok: true, pads: structuredClone(padStore) }; },
     padPress: async (key) => { saves.push({ press: key }); return { ok: true }; },
     padSave: async (key) => { padStore[key] = { ...padStore[key], windows: [{ app: 'Notes', exec: '/x', x: 0, y: 25, w: 800, h: 900 }] }; return { ok: true, message: 'Saved 1 window' }; },
-    padOpen: async () => true, padCamera: async () => ({ ok: true, on: true }) };
+    padOpen: async () => true, padCamera: async () => ({ ok: true, on: true }),
+    guideSummary: async () => {
+      const { GuideRunner } = require('../src/main/guide');
+      const runner = new GuideRunner({ store: { guide: () => guideData, saveGuide: (d) => { guideData = d; } } });
+      return { guides: runner.summary(), fresh: opts.fresh || [], seen: '2.5.0', version: '2.7.0', active: { active: false } };
+    },
+    guideSeen: async () => { saves.push('guide-seen'); return true; },
+    guideStart: async (id, mode) => { saves.push({ guide: id, mode }); return { active: true }; },
+    guideStop: async () => true };
+  let guideData = opts.guideData || {};
   api.testOverlay = async () => { saves.push('preview'); return { ok: true }; };
   api.repairDictation = async () => { saves.push('repair'); return { ok: true, state: structuredClone(state) }; };
   dom.window.speakeasy = api;
   dom.window.SpeakEasyMotion = { setEnabled() {} };
-  for (const file of ['../shared/writing.js', '../shared/pad.js', '../pad/pad-ui.js', 'onboarding.js']) dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
+  for (const file of ['../shared/writing.js', '../shared/pad.js', '../pad/pad-ui.js', '../shared/guides.js', 'onboarding.js']) dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
   // Classic scripts share one global scope in the browser; one eval keeps that true here.
-  dom.window.eval(['app.js', 'pad-tab.js'].map((file) => fs.readFileSync(path.join(root, file), 'utf8')).join('\n'));
+  dom.window.eval(['app.js', 'pad-tab.js', 'learn-tab.js'].map((file) => fs.readFileSync(path.join(root, file), 'utf8')).join('\n'));
   await settle();
   const $ = (selector) => dom.window.document.querySelector(selector);
   const click = async (selector) => { assert.ok($(selector), selector); $(selector).click(); await settle(); };
@@ -197,4 +206,33 @@ test('Pad tab teaches voice commands and logs what was heard', async (t) => {
   assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ voiceCommands: false }));
   await f.push({ type: 'pad', phase: 'plan', heard: 'put Chrome on the left', steps: ['Google Chrome to left half'], via: 'local', at: Date.now() });
   assert.match(f.$('#pad-log').textContent, /put Chrome on the left/);
+});
+
+test('after an update, What is new lists the new features and starts the walkthrough oldest first', async (t) => {
+  const f = await fixture(t, { fresh: ['voice-commands', 'control-pad'] });
+  await settle(); await settle();
+  assert.ok(f.$('#whats-new'), 'What is new shows once');
+  assert.match(f.$('#whats-new').textContent, /The Control Pad/);
+  assert.match(f.$('#whats-new').textContent, /Talk to your computer/);
+  await f.click('#wn-go');
+  await settle();
+  assert.ok(f.saves.includes('guide-seen'));
+  assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ guide: 'control-pad', mode: 'lesson' }));
+  assert.equal(f.$('#whats-new'), null);
+});
+
+test('Learn tab shows every guide with progress, best level, and both ways in', async (t) => {
+  const f = await fixture(t, { guideData: { steps: { 'cp-open': true, 'cp-left': true }, challenges: { 'control-pad': { seconds: 84, level: 'Operator' } } } });
+  await f.click('[data-tab="learn"]');
+  await settle();
+  const cards = f.dom.window.document.querySelectorAll('.learn-card');
+  assert.equal(cards.length, 3);
+  const pad = f.$('.learn-card[data-guide="control-pad"]');
+  assert.match(pad.textContent, /2 of 10 steps/);
+  assert.match(pad.textContent, /Keep going/);
+  assert.match(pad.textContent, /OPERATOR best 1:24/);
+  assert.match(f.$('.learn-card[data-guide="voice-commands"]').textContent, /NEW IN 2.7.0/);
+  await f.click('.learn-card[data-guide="voice-commands"] [data-learn="challenge"]');
+  assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ guide: 'voice-commands', mode: 'challenge' }));
+  assert.ok(f.$('.nav-item[data-tab="learn"]').classList.contains('has-new'));
 });

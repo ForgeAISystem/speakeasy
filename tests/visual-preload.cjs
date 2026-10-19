@@ -23,7 +23,12 @@ pads['2'] = { type: 'app', app: 'Google Chrome' };
 pads['3'] = { type: 'url', label: 'Command Center', url: 'https://command.forgeaisystem.com' };
 pads['4'] = { type: 'shortcut', name: 'Focus mode' };
 pads.V = { type: 'text', label: 'Morning prompt', text: 'You are my chief of staff.' };
+const { GuideRunner } = require('../src/main/guide');
+let guideData = { steps: { 'cp-globe': true, 'cp-open': true, 'cp-left': true, 'cp-right': true }, challenges: { 'control-pad': { seconds: 84, level: 'Operator' } } };
+const guideRunner = new GuideRunner({ store: { guide: () => guideData, saveGuide: (d) => { guideData = d; } } });
 contextBridge.exposeInMainWorld('speakeasy', {
+  guideSummary: async () => ({ guides: guideRunner.summary(), fresh: globalThis.__fresh || [], seen: '2.5.0', version: require('../package.json').version, active: { active: false } }),
+  guideSeen: async () => true, guideStart: async () => ({ active: true }), guideStop: async () => true,
   globeStatus: async () => ({ supported: true, value: null, opensPopup: true }), globeFix: async () => ({ ok: true }), globeRestore: async () => ({ ok: true }),
   padGet: async () => ({ available: true, pads, shortcut: 'Control+Option+P', shortcutError: '' }),
   padSet: async (key, value) => { pads[key] = value; return { ok: true, pads }; }, padPress: async () => ({ ok: true }),

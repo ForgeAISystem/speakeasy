@@ -1,5 +1,7 @@
 # SpeakEasy: agent runbook
 
+**Every user-facing feature ships with a walkthrough (Harsh, 2026-10-18).** Add or update its guide in src/shared/guides.js: what's new lines, lessons whose steps check real app events, and a timed challenge. Rules and the event list: [docs/GUIDES.md](docs/GUIDES.md). No guide, no release.
+
 **Installing or updating SpeakEasy for someone? Follow [INSTALL.md](INSTALL.md) and stop there.** It works on any Mac. STATE.md, SESSION-HANDOFF.md, BUILD_LOG.md, and docs/verification/ track the maintainer's own build Mac; their "installed" and "do not reinstall" notes do not apply to the computer you are on.
 
 **Developing SpeakEasy?** Read [STATE.md](STATE.md) first for the latest build and verification limits, then this file.
@@ -87,3 +89,7 @@ Run npm test (87 checks), the offscreen visual script (26 screens, 5 indicator s
 Voice commands. src/main/commands.js turns a spoken request into steps (snap, open_app, open_url, pad, shortcut, keys, paste, record, camera, teach). planLocally() handles everyday phrasing offline; plan() falls back to Claude (forced run_steps tool, Haiku 5.5, thinking off) only when polishAnthropicKey is set. validate() is the gate for both: unknown verbs, non-http links, apps that are not installed, bad regions or keys are dropped, max 8 steps. needsConfirm() holds keys, paste, Shortcuts and pads of those types until Return. A recording is a command when the pad was open at fn-down (commandMode in index.js) or when the transcript starts with a wake phrase (wakeCommand). Commands never paste their transcript and are not saved to History. ControlPad.showPlan/confirm/runSteps run it; native/window.c gained frame <pid> for snapping a named app.
 
 Run npm test (97 checks), the offscreen visual script (adds control-pad-plan.png), dist:mac, package check. Not provable from an agent shell: a spoken command end to end, Claude planning with a real key, Return confirm on a real pad.
+
+## v2.8 notes (2026-10-18)
+
+Walkthroughs. src/shared/guides.js holds the guides (shared by main and the Learn tab). src/main/guide.js GuideRunner runs one at a time; push() in index.js feeds every app event through toGuideEvent() into it, so steps finish only on real actions. The coach (src/coach/) is a non-activating always-on-top panel in the top right; starting a guide hides the main window so practice happens in real apps. What's new shows once per update for guides newer than guide.json seenVersion (installs from before 2.8 count as 2.5.0). Progress and best challenge times live in guide.json. Research behind it: docs/RESEARCH-2026-10-18.md.

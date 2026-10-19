@@ -586,7 +586,7 @@ document.querySelectorAll('.nav-item').forEach((item) => {
   item.addEventListener('click', () => switchTab(item.getAttribute('data-tab')));
 });
 
-// Cmd/Ctrl+1-6 jumps straight to a tab
+// Cmd/Ctrl+1-7 jumps straight to a tab
 const TAB_ORDER = ['home', 'history', 'dictionary', 'snippets', 'settings'];
 document.addEventListener('keydown', (e) => {
   if (setup.visible) return;
@@ -595,7 +595,7 @@ document.addEventListener('keydown', (e) => {
     switchTab('history').then(() => document.getElementById('hist-search')?.focus());
     return;
   }
-  if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '6') {
+  if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '7') {
     e.preventDefault();
     switchTab(TAB_ORDER[Number(e.key) - 1]);
   }
@@ -718,4 +718,5 @@ api.onPush(async (msg) => {
   window.SpeakEasyMotion.setEnabled(S.settings.subtleMotion);
   renderAll();
   if (!S.settings.onboarded || !S.settings.model) showOnboard(true);
+  else if (window.SpeakEasyLearn) window.SpeakEasyLearn.whatsNew();
 })();

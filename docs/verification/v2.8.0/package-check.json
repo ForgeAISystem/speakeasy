@@ -1,0 +1,11 @@
+{
+  "version": "2.8.0",
+  "sourceFilesChecked": 54,
+  "failures": [],
+  "artworkPackaged": true,
+  "dmg": {
+    "file": "SpeakEasy-2.8.0-arm64.dmg",
+    "bytes": 151722058,
+    "sha256": "a8d6392f833ce5b66281f8c43855281222e3e83dd048355f5e3ebbb1e8cc737f"
+  }
+}

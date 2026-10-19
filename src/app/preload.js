@@ -39,5 +39,9 @@ contextBridge.exposeInMainWorld('speakeasy', {
   globeStatus: () => ipcRenderer.invoke('globe:status'),
   globeFix: () => ipcRenderer.invoke('globe:fix'),
   globeRestore: () => ipcRenderer.invoke('globe:restore'),
+  guideSummary: () => ipcRenderer.invoke('guide:summary'),
+  guideSeen: () => ipcRenderer.invoke('guide:seen'),
+  guideStart: (id, mode) => ipcRenderer.invoke('guide:start', id, mode),
+  guideStop: () => ipcRenderer.invoke('guide:stop'),
   onPush: (cb) => ipcRenderer.on('push', (_e, payload) => cb(payload))
 });

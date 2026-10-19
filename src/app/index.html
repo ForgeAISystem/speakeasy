@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="./refinement.css">
 <link rel="stylesheet" href="../pad/tiles.css">
 <link rel="stylesheet" href="./pad-tab.css">
+<link rel="stylesheet" href="./learn-tab.css">
 </head>
 <body>
 
@@ -56,6 +57,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       Pad
     </button>
+    <button class="nav-item" data-tab="learn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8l10-5 10 5-10 5L2 8z"/><path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5"/></svg>
+      Learn
+    </button>
     <button class="nav-item" data-tab="settings" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Settings
@@ -70,6 +75,7 @@
     <section class="tab" id="tab-dictionary"></section>
     <section class="tab" id="tab-snippets"></section>
     <section class="tab" id="tab-pad"></section>
+    <section class="tab" id="tab-learn"></section>
     <section class="tab" id="tab-settings"></section>
   </main>
 </div>
@@ -80,9 +86,11 @@
 <script src="../shared/writing.js"></script>
 <script src="../shared/pad.js"></script>
 <script src="../pad/pad-ui.js"></script>
+<script src="../shared/guides.js"></script>
 <script src="./motion.js"></script>
 <script src="./onboarding.js"></script>
 <script src="./app.js"></script>
 <script src="./pad-tab.js"></script>
+<script src="./learn-tab.js"></script>
 </body>
 </html>

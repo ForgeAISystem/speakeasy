@@ -43,6 +43,9 @@ app.whenReady().then(async () => {
   await run("document.querySelector('#runtime-check').open = false; runtimeOpen = false");
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
+  await capture('learn', "switchTab('learn')", 980, 760);
+  await capture('whats-new', "window.speakeasy.guideSummary().then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['voice-commands', 'control-pad'] }))", 980, 760);
+  await run("document.querySelector('#whats-new')?.remove()");
   await capture('pad', "switchTab('pad').then(() => document.querySelector('#pad-grid .pad-tile[data-key=\"1\"]').click())", 980, 760);
   await capture('snippets', "switchTab('snippets')");
   await capture('dictionary', "switchTab('dictionary')");
@@ -52,7 +55,7 @@ app.whenReady().then(async () => {
   await capture('permissions', 'setup.go(1)');
   await capture('shortcut', 'setup.go(3)');
   // The minimum native window is 560x480. Reserve space for its title bar.
-  for (const tab of ['home', 'history', 'dictionary', 'snippets', 'pad', 'settings']) {
+  for (const tab of ['home', 'history', 'dictionary', 'snippets', 'pad', 'learn', 'settings']) {
     await capture(`${tab}-small`, `setup.close(); switchTab('${tab}')`, 560, 450);
   }
   await capture('settings-advanced-small', "document.querySelector('.advanced-settings').open = true", 560, 450);
@@ -110,5 +113,37 @@ app.whenReady().then(async () => {
   console.log(JSON.stringify({ controlPad: padCheck }));
   if (padCheck.tiles !== 16 || !padCheck.fits || !padCheck.planFits) failed = true;
   pad.destroy();
+  // The coach: waiting on a step, a step just done, a challenge, a challenge result.
+  const coach = new BrowserWindow({ width: 380, height: 300, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
+    webPreferences: { preload: path.join(root, 'src/coach/preload.js'), offscreen: true } });
+  coach.webContents.setFrameRate(15);
+  await coach.loadFile(path.join(root, 'src/coach/coach.html'));
+  const { GuideRunner } = require('../src/main/guide');
+  let views = [];
+  let clockNow = Date.now();
+  const runner = new GuideRunner({ store: { guide: () => ({}), saveGuide() {} }, onState: (v) => views.push(v), now: () => clockNow, timers: { setTimeout: () => 0, clearTimeout() {} } });
+  await runner.start('control-pad');
+  runner.next();
+  const coachShots = [['coach-step', runner.view()]];
+  runner.onEvent({ type: 'pad-open' });
+  coachShots.push(['coach-done', runner.view()]);
+  await runner.start('control-pad', 'challenge');
+  runner.onEvent({ type: 'pad', key: '1', ok: true });
+  runner.onEvent({ type: 'camera', on: true });
+  coachShots.push(['coach-challenge', runner.view()]);
+  runner.onEvent({ type: 'pad', key: 'E', ok: true });
+  clockNow += 84000;
+  runner.onEvent({ type: 'pad', key: 'V', ok: true });
+  coachShots.push(['coach-result', runner.view()]);
+  const coachChecks = [];
+  for (const [name, view] of coachShots) {
+    coach.webContents.send('coach:state', view);
+    await delay(250);
+    coachChecks.push({ name, ...(await coach.webContents.executeJavaScript(`(() => { const c = document.querySelector('#card'); return { fits: c.scrollHeight <= c.clientHeight + 1, text: c.textContent.slice(0, 60) }; })()`)) });
+    fs.writeFileSync(path.join(out, name + '.png'), (await coach.webContents.capturePage()).toPNG());
+  }
+  console.log(JSON.stringify({ coach: coachChecks }));
+  if (coachChecks.some((c) => !c.fits)) failed = true;
+  coach.destroy();
   app.exit(failed ? 1 : 0);
 }).catch((error) => { console.error(error); app.exit(1); });

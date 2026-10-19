@@ -88,6 +88,7 @@ class ControlPad {
     const send = () => win.webContents.send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '' });
     if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
     win.showInactive();
+    this.d.onEvent && this.d.onEvent({ phase: 'open', at: Date.now() });
     this._bindKeys();
     clearTimeout(this.closeTimer);
     this.closeTimer = setTimeout(() => this.close(), 12000);
@@ -126,7 +127,7 @@ class ControlPad {
     clearTimeout(this.closeTimer);
     const confirm = plan.steps.some((st) => st.confirm);
     this._send('pad:plan', { heard: plan.heard, reply: plan.reply, via: plan.via, confirm, steps: plan.steps.map((st) => ({ text: st.text, confirm: st.confirm })) });
-    this.d.onEvent && this.d.onEvent({ phase: 'plan', heard: plan.heard, steps: plan.steps.map((st) => st.text), via: plan.via, at: Date.now() });
+    this.d.onEvent && this.d.onEvent({ phase: 'plan', heard: plan.heard, steps: plan.steps.map((st) => st.text), via: plan.via, wake: !!plan.wake, at: Date.now() });
     if (!plan.steps.length) { this.closeTimer = setTimeout(() => this.close(), 4500); return { ok: false, ran: 0 }; }
     if (!confirm) return this.runSteps(plan.steps);
     this.pending = plan.steps;
@@ -162,6 +163,7 @@ class ControlPad {
       let res;
       try { res = await this.runStep(steps[i]); } catch (e) { res = { ok: false, message: e.message }; }
       if (res.ok) ran++;
+      this.d.onEvent && this.d.onEvent({ phase: 'voice-step', do: steps[i].do, ok: !!res.ok, at: Date.now() });
       this._send('pad:step', { i, state: res.ok ? 'ok' : 'fail', message: res.message });
       this.d.onEvent && this.d.onEvent({ key: steps[i].key || 'VOICE', ok: res.ok, message: `${steps[i].text}: ${res.message || (res.ok ? 'done' : 'failed')}`, label: 'Voice', source: 'voice', at: Date.now() });
     }

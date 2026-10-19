@@ -26,6 +26,8 @@ const { readWispr } = require('./wispr-import');
 const { ControlPad } = require('./control-pad');
 const globeKey = require('./globe-key');
 const commands = require('./commands');
+const { GuideRunner, toGuideEvent } = require('./guide');
+const guides = require('../shared/guides');
 const { quietestPoint } = require('../shared/quiet-point');
 
 let mainWindow = null;
@@ -34,6 +36,8 @@ let captureWindow = null;
 let tray = null;
 let hotkeys = null;
 let controlPad = null;
+let guide = null;
+let coachWindow = null;
 let commandMode = false; // this recording is a voice command (the pad was open when fn went down)
 let padAccel = null;
 const transcriber = new TranscriberManager();
@@ -226,6 +230,7 @@ function showMainWindow() {
 
 function push(type, payload) {
   if (type === 'dictation') dictFeedback = { phase: payload.phase, message: payload.message || '' };
+  if (guide) { const ev = toGuideEvent(type, payload); if (ev) guide.onEvent(ev); }
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('push', { type, ...payload });
   }
@@ -493,7 +498,7 @@ async function onDictateStop() {
     if (voice !== null) {
       audioStore.removeRecording(wavName);
       wavName = null;
-      await runVoiceCommand(voice);
+      await runVoiceCommand(voice, !commandMode);
       return;
     }
     const context = await Promise.race([frontContextPromise, new Promise((r) => setTimeout(() => r({ app: '', title: '' }), 400))]) || { app: '', title: '' };
@@ -539,7 +544,7 @@ async function onDictateStop() {
     audioStore.removeRecording(wavName);
 
     if (ok) overlayState('done', { words, fallbackReason });
-    push('dictation', { phase: 'done', text, words, pasted: ok });
+    push('dictation', { phase: 'done', text, words, pasted: ok, handsFree: !!hotkeys.lastHandsFree });
     push('stats', {});
   } catch (e) {
     console.error('[dictation]', e);
@@ -568,7 +573,7 @@ async function onDictateStop() {
 }
 
 // A spoken request for the Control Pad: plan it, show it on the pad, run it.
-async function runVoiceCommand(text) {
+async function runVoiceCommand(text, wake = false) {
   overlayState('processing', { phase: 'command' });
   if (controlPad.lastFrontPromise && !controlPad.isOpen()) await controlPad.lastFrontPromise;
   const pads = controlPad.pads();
@@ -580,7 +585,7 @@ async function runVoiceCommand(text) {
     ? { message: steps.length === 1 ? steps[0].text : `${steps.length} steps`, hint: waits ? 'Press Return to run it' : 'On it' }
     : { message: text ? 'No command found' : 'Nothing heard' });
   push('dictation', { phase: 'idle' });
-  await controlPad.showPlan({ ...result, steps });
+  await controlPad.showPlan({ ...result, steps, wake });
 }
 
 function onDictateCancel() {
@@ -919,6 +924,7 @@ ipcMain.handle('pad:set', padOnly((_e, key, value) => {
   if (!Object.hasOwn(pads, key)) return { ok: false, message: 'No such pad' };
   pads[key] = value && typeof value === 'object' ? { ...value } : { type: 'none' };
   store.savePad(pads);
+  push('pad', { phase: 'set', key });
   return { ok: true, pads: controlPad.pads() };
 }));
 ipcMain.handle('pad:press', padOnly((_e, key, source) => controlPad.press(key, source === 'test' ? 'test' : 'click')));
@@ -936,6 +942,7 @@ ipcMain.handle('globe:fix', async () => {
     const res = await globeKey.fix();
     // Keep the first value we ever replaced so Undo returns the Mac to the user's own choice.
     if (res.ok && store.settings().globePrevious === undefined) store.updateSettings({ globePrevious: res.previous === null ? 'unset' : res.previous });
+    if (res.ok) push('globe', { fixed: true });
     return { ok: res.ok };
   } catch (e) { return { ok: false, error: e.message }; }
 });
@@ -947,6 +954,57 @@ ipcMain.handle('globe:restore', async () => {
     store.updateSettings({ globePrevious: undefined });
     return { ok: true };
   } catch (e) { return { ok: false, error: e.message }; }
+});
+
+// ---- Walkthroughs: What's new, the coach panel, challenges ----
+function guideSeen() {
+  const p = guide ? guide.progress() : {};
+  // Installs from before walkthroughs existed already know everything up to 2.5.
+  return p.seenVersion || (store.settings().onboarded ? '2.5.0' : app.getVersion());
+}
+function createCoach() {
+  if (coachWindow && !coachWindow.isDestroyed()) return coachWindow;
+  const win = coachWindow = new BrowserWindow({
+    width: 380, height: 300, show: false, frame: false, transparent: true, resizable: false,
+    minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, hasShadow: false,
+    focusable: false, type: 'panel', alwaysOnTop: true,
+    webPreferences: { preload: path.join(__dirname, '..', 'coach', 'preload.js') }
+  });
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.loadFile(path.join(__dirname, '..', 'coach', 'coach.html'));
+  win.on('closed', () => { if (coachWindow === win) coachWindow = null; });
+  return win;
+}
+function renderCoach(view) {
+  push('guide', view);
+  if (!view.active) { if (coachWindow && !coachWindow.isDestroyed()) coachWindow.hide(); return; }
+  const win = createCoach();
+  const send = () => win.webContents.send('coach:state', view);
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
+  if (!win.isVisible()) {
+    const a = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+    win.setPosition(Math.round(a.x + a.width - 380 - 16), Math.round(a.y + 16), false);
+    win.showInactive();
+  }
+}
+ipcMain.handle('guide:summary', () => ({ guides: guide.summary(), seen: guideSeen(), version: app.getVersion(),
+  fresh: store.settings().onboarded ? guides.whatsNew(guideSeen(), app.getVersion()).map((g) => g.id) : [], active: guide.view() }));
+ipcMain.handle('guide:seen', () => { guide.markSeen(app.getVersion()); return true; });
+ipcMain.handle('guide:start', async (_e, id, mode) => {
+  const view = await guide.start(id, mode === 'challenge' ? 'challenge' : 'lesson');
+  if (view && mainWindow && !mainWindow.isDestroyed()) mainWindow.hide(); // make room to practice in real apps
+  return view;
+});
+ipcMain.handle('guide:stop', () => { guide.stop(); return true; });
+ipcMain.handle('guide:next', () => { guide.next(); return guide.view(); });
+ipcMain.handle('guide:back', () => { guide.back(); return guide.view(); });
+ipcMain.handle('guide:action', (_e, run) => {
+  const m = /^tab:(settings|pad|home|learn)$/.exec(String(run || ''));
+  if (!m) return false;
+  showMainWindow();
+  push('open-tab', { tab: m[1] });
+  return true;
 });
 
 ipcMain.handle('mics:list', () => listMics());
@@ -1040,6 +1098,12 @@ if (!gotLock) {
       onQuit: () => { app.isQuittingForReal = true; app.quit(); }
     });
     tray.ensureTray();
+
+    guide = new GuideRunner({
+      store,
+      onState: renderCoach,
+      precheck: async (name) => name === 'globeFixed' && !(await globeKey.status()).opensPopup
+    });
 
     if (isMac) {
       controlPad = new ControlPad({

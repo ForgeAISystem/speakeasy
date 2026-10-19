@@ -1,5 +1,11 @@
 # Build log
 
+## 2026-10-18: v2.8.0 installed
+
+- Installed on Harsh's go at 22:07 (done by the parent session) from dist/SpeakEasy-2.8.0-arm64.dmg (SHA-256 e50b17988607aa193875e0d11208b07079565068d8ae346afe8714c1e7f90d0d, feat/guides at 7dc1252). v2.7.0 and a profile JSON copy moved to dist/rollback-v270-20261018-220707/.
+- Launched through LaunchServices. Log: hotkey listener active, engine ready on parakeet-v2; the Fn helper runs with --mic. History count unchanged (95).
+- Not verified: a physical walk through the guides.
+
 ## 2026-10-18: v2.9.0 pad teaching
 
 - From the research ranking (docs/RESEARCH-2026-10-18.md section 5): hold-to-peek cheat sheet (2), starter pad (3), faster way at the moment of use (5), forgiving voice (6), save and restore after a monitor reconnect (7). Branch feat/pad-teaching from feat/guides.
@@ -9,7 +15,7 @@
 - Voice: "You can say" strip on the pad from the owner's own layouts, apps, links, prompts and front app (every line passes the offline planner). Near misses ("Chrome left", "put crome on the right", "open slak") come back as "Did you mean...?" with the words that work next time and wait for Return. Also used when Claude returns nothing or fails.
 - Layouts: "save this layout as Morning" lands on the pad named Morning, else a free workflow pad, else an empty pad. "put Morning back", "put my windows back". With two or more screens, a snapshot every 30 s per monitor setup (layouts.json); display changes pause snapshots 2 minutes so the old layout survives; a reconnect offers "Put N windows back" on the pad, Return runs it.
 - Guides: "Learn the pad as you go" (peek, starter, faster way) and "Say it your way" (strip, Did you mean, save and restore). New events: pad-peek, pad-starter, pad-tip, layout-restore; plan via suggest.
-- 122 tests pass (15 new). Offscreen: 30 screens plus pad peek, starter question, locked starter pad and its peek, Did you mean, monitor offer, tip; no overflow. Package check: 57 files, both helpers. DMG dist/SpeakEasy-2.9.0-arm64.dmg. Not installed.
+- 122 tests pass (15 new). Offscreen: 30 screens plus pad peek, starter question, locked starter pad and its peek, Did you mean, monitor offer, tip; no overflow. Package check: 57 files, both helpers. DMG dist/SpeakEasy-2.9.0-arm64.dmg. Not installed; the running app is v2.8.0. The build left every dist/rollback-* folder untouched.
 - Not verified: the mic-key hold on real hardware, a real hand drag through `watch` (needs Accessibility, which the agent shell lacks), a real monitor unplug and reconnect, the print dialog.
 
 ## 2026-10-18: v2.8.0 walkthroughs

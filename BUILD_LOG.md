@@ -1,5 +1,10 @@
 # Build log
 
+## 2026-10-18: v2.9.0 merged and installed
+
+- On Harsh's word, merged feat/pad-teaching, feat/voice-edit and feat/next-wave into release/v2.9 (side-by-side conflicts; every feature kept). What's new lists one line per new guide, basics first. 149 tests (window-watcher test failed once under load, passed on reruns), offscreen 34 screens, package check 65 files.
+- Installed on Harsh's go ("I'm not dictating"): DMG SHA-256 bd6f997a15b6854b3c8a1cd228c9c49d1469f1feb61ee59e06db69174ecc0eb3 checked, v2.8.0 quit normally and moved with a profile JSON copy to rollback-v280-20261018-223718, launched through LaunchServices. Log: hotkey listener active, engine ready on parakeet-v2; fn helper runs with --mic. History unchanged. No OS setting or permission changed by the agent.
+
 ## 2026-10-18: v2.8.0 installed
 
 - Installed on Harsh's go at 22:07 (done by the parent session) from dist/SpeakEasy-2.8.0-arm64.dmg (SHA-256 e50b17988607aa193875e0d11208b07079565068d8ae346afe8714c1e7f90d0d, feat/guides at 7dc1252). v2.7.0 and a profile JSON copy moved to dist/rollback-v270-20261018-220707/.

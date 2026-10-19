@@ -11,7 +11,7 @@ async function fixture(t, opts = {}) {
   const root = path.join(__dirname, '../src/app');
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), { runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
-  const state = { settings: { ...DEFAULT_SETTINGS, onboarded: true, model: 'moonshine-base', cleanupMode: 'clean' },
+  const state = { settings: { ...DEFAULT_SETTINGS, holdKey: 'Fn', onboarded: true, model: 'moonshine-base', cleanupMode: 'clean' }, // a Mac, on any CI runner
     platform: 'darwin', version: '2.4.0', engine: { state: 'ready' }, permissions: { mic: 'granted', accessibility: true },
     shortcut: { ready: true }, models: { installed: ['moonshine-base'], downloads: {}, catalog: MODELS }, holdKeys: HOLD_KEYS,
     runtime: { captureReady: true, overlayReady: true, dictState: 'idle', phase: 'idle' },

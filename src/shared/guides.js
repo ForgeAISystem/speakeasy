@@ -124,6 +124,48 @@
       }
     },
     {
+      id: 'power-tools',
+      version: '2.9.0',
+      title: 'Power tools',
+      tagline: 'Faster, safer, and less typing every day.',
+      whatsNew: [
+        'Scratchpad: Option+S, think out loud, send it where you were.',
+        'Voice web search and “summarize this page”.',
+        'Per-app rules: Slack casual, client email formal.',
+        'Snippet fill-ins like {date} and {clipboard}, plus dictating with a mouse button.',
+        'A warning when the mic hears nothing, and Your week on Home.'
+      ],
+      lessons: [
+        { title: 'Scratchpad', steps: [
+          { id: 'pt-scratch', do: 'Click into any app. Press Option+S, hold fn and say a thought, then press Command+Return.', hint: 'Send pastes the note into the app you came from.', check: { event: 'scratch', sent: true } }
+        ] },
+        { title: 'Ask the web', steps: [
+          { id: 'pt-search', do: 'Open the pad. Hold fn and say “search the web for best CRM for distributors”.', hint: 'Say “on YouTube” to search videos instead.', check: { event: 'voice-step', do: 'search', ok: true } },
+          { id: 'pt-sum', do: 'Open any article in Chrome. Open the pad, hold fn: “summarize this page”. Press Return.', hint: 'Needs a Claude key in Settings. The summary is copied for you.', check: { event: 'voice-step', do: 'summarize', ok: true } }
+        ] },
+        { title: 'Your words, your way', steps: [
+          { id: 'pt-rule', do: 'In Settings, under Per-app rules, add Slack with the Casual style.', hint: 'Rules beat SpeakEasy’s own guess for that app.', check: { event: 'app-rule' }, action: { label: 'Open Settings', run: 'tab:settings' } },
+          { id: 'pt-tag', do: 'In Snippets, add “meeting header” as “Notes for {day}, {date}”. Then hold fn and say “meeting header”.', hint: '{clipboard} drops in whatever you copied last.', check: { event: 'dictation', phase: 'done', textMatch: '(monday|tuesday|wednesday|thursday|friday|saturday|sunday)' } }
+        ] },
+        { title: 'Never lose a word', steps: [
+          { id: 'pt-silent', do: 'Hold fn and stay quiet for three seconds, then press Esc.', hint: 'The pill warns you when the mic hears nothing. Wrong mic? Change it in Settings.', check: { event: 'dictation', phase: 'silent' } },
+          { id: 'pt-play', do: 'Turn on “Keep recordings for 14 days” in Settings. Dictate once, then press play on it in History.', hint: 'Hear what you really said when a word looks wrong.', check: { event: 'history-play' }, action: { label: 'Open Settings', run: 'tab:settings' } },
+          { id: 'pt-mouse', do: 'In Settings, pick a mouse button to dictate with. Hold it, talk, let go.', hint: 'Double-click it for hands-free.', check: { event: 'dictation', phase: 'done', mouse: true }, action: { label: 'Open Settings', run: 'tab:settings' } }
+        ] }
+      ],
+      challenge: {
+        title: 'Power hour in three minutes',
+        intro: 'Four jobs, any order, no hints.',
+        levels: [[120, 'Pro'], [180, 'Operator']],
+        tasks: [
+          { id: 'px-search', goal: 'Search the web by voice', check: { event: 'voice-step', do: 'search', ok: true } },
+          { id: 'px-scratch', goal: 'Send a Scratchpad note into an app', check: { event: 'scratch', sent: true } },
+          { id: 'px-mouse', goal: 'Dictate a sentence with your mouse button', check: { event: 'dictation', phase: 'done', mouse: true } },
+          { id: 'px-tag', goal: 'Say a snippet that fills in today’s day', check: { event: 'dictation', phase: 'done', textMatch: '(monday|tuesday|wednesday|thursday|friday|saturday|sunday)' } }
+        ]
+      }
+    },
+    {
       id: 'voice-commands',
       version: '2.7.0',
       title: 'Talk to your computer',
@@ -239,7 +281,7 @@
     if (!check || !ev || ev.type !== check.event) return false;
     for (const [k, v] of Object.entries(check)) {
       if (k === 'event') continue;
-      if (k === 'minWords') { if (!(Number(ev.words) >= v)) return false; } else if (k === 'minSteps') { if (!(Number(ev.steps) >= v)) return false; } else if (k === 'minWindows') { if (!(Number(ev.windows) >= v)) return false; } else if (k === 'textHas') { if (!String(ev.text || '').includes(v)) return false; } else if (ev[k] !== v) return false;
+      if (k === 'minWords') { if (!(Number(ev.words) >= v)) return false; } else if (k === 'minSteps') { if (!(Number(ev.steps) >= v)) return false; } else if (k === 'minWindows') { if (!(Number(ev.windows) >= v)) return false; } else if (k === 'textHas') { if (!String(ev.text || '').includes(v)) return false; } else if (k === 'textMatch') { if (!new RegExp(v, 'i').test(String(ev.text || ''))) return false; } else if (ev[k] !== v) return false;
     }
     return true;
   }

@@ -11,6 +11,8 @@ function fixture(settings, options = {}) {
   const context = { module: { exports: {} }, console: { error() {} }, AbortSignal,
     require(id) {
       if (id === '../shared/writing') return writing;
+      if (id === '../shared/snippet-tags') return require('../src/shared/snippet-tags');
+      if (id === 'electron') return { clipboard: { readText: () => options.clipboard || '' } };
       return { settings: () => settings, dictionary: () => ({ data: options.dictionary || [] }), snippets: () => ({ data: options.snippets || [] }) };
     }, fetch: async (...args) => { requests++; return options.fetch(...args); }
   };
@@ -191,4 +193,25 @@ test('a Claude refusal keeps the local text and labels the fallback', async () =
   const result = await context.module.exports.cleanup('um send the invoice');
   assert.equal(result.text, 'Send the invoice');
   assert.equal(result.fallbackReason, 'provider-unavailable');
+});
+
+test('snippet tags fill in the date, day, time and clipboard when spoken', () => {
+  const f = fixture({ cleanupMode: 'clean' }, { clipboard: 'https://cal.com/harsh', snippets: [{ trigger: 'meeting header', expansion: 'Notes for {day}, {date}\nLink: {clipboard}' }] });
+  const out = f.applySnippets('meeting header');
+  assert.match(out, /^Notes for \w+day, \w+ \d{1,2}, \d{4}\nLink: https:\/\/cal\.com\/harsh$/);
+  const tags = require('../src/shared/snippet-tags');
+  const now = new Date(2026, 9, 18, 21, 5);
+  assert.equal(tags.expandTags('{date} {time} {day} {unknown}', { now }), 'October 18, 2026 9:05 PM Sunday {unknown}');
+  assert.equal(tags.expandTags('{clipboard}', { clipboard: () => { throw new Error('no'); } }), '');
+});
+
+test('per-app rules beat the automatic guess and pass the note to Polished', () => {
+  const f = fixture({ cleanupMode: 'clean' });
+  const rules = [{ app: 'Slack', style: 'casual', note: 'No sign-off.' }, { app: 'Gmail', style: 'formal', note: 'Sign off with Best, Harsh' }];
+  assert.equal(f.appStyle({ app: 'Slack' }, rules).category, 'messaging');
+  assert.match(f.appStyle({ app: 'Slack' }, rules).hint, /Casual.*No sign-off\./);
+  assert.equal(f.appStyle({ app: 'Google Chrome', title: 'Inbox - Gmail' }, rules).category, 'email');
+  assert.equal(f.appStyle({ app: 'Slack' }, []).category, 'work-chat', 'no rule: automatic');
+  assert.equal(f.appStyle({ app: 'Slack' }, [], false).category, 'other', 'automatic off and no rule');
+  assert.equal(f.appStyle({ app: 'Slack' }, [{ app: 'Slack', style: 'bogus' }]).category, 'work-chat', 'unknown style ignored');
 });

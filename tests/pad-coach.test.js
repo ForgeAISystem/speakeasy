@@ -120,10 +120,10 @@ test('the new teaching events reach the walkthroughs', () => {
   assert.equal(toGuideEvent('pad', { phase: 'saved', key: '2', ok: true }), null);
   // Every 2.9 guide check uses an event the app emits.
   const known = new Set(['pad-open', 'pad', 'pad-save', 'pad-set', 'plan', 'voice-step', 'camera', 'dictation', 'globe', 'pad-peek', 'pad-starter', 'pad-tip', 'layout-restore',
-    'rewrite', 'undo', 'history-search', 'history-paste']);
+    'rewrite', 'undo', 'history-search', 'history-paste', 'scratch', 'app-rule', 'history-play']);
   for (const g of G.GUIDES) {
     for (const s of G.steps(g)) assert.ok(known.has(s.check.event), s.id);
     for (const t of g.challenge.tasks) assert.ok(known.has(t.check.event), t.id);
   }
-  assert.deepEqual(G.whatsNew('2.8.0', '2.9.0').map((g) => g.id).sort(), ['pad-coach', 'say-it-your-way', 'voice-edit']);
+  assert.deepEqual(G.whatsNew('2.8.0', '2.9.0').map((g) => g.id).sort(), ['pad-coach', 'power-tools', 'say-it-your-way', 'voice-edit']);
 });

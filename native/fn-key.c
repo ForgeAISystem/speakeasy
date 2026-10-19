@@ -1,5 +1,6 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -11,6 +12,8 @@ static bool shiftDown = false; // fn+Shift rewrites the selection instead of dic
 static bool claimMic = false; // --mic: the microphone key (F5 on newer MacBooks) opens the Control Pad
 static pid_t parent;
 static const int64_t MIC_KEY = 176;
+static int64_t mouseButton = -1; // --mouse N: hold this mouse button to dictate (2 middle, 3 back, 4 forward)
+static bool mouseDown = false;
 
 static void emit(const char *event) {
   printf("{\"event\":\"%s\"}\n", event);
@@ -26,6 +29,12 @@ static CGEventRef handle(CGEventTapProxy proxy, CGEventType type, CGEventRef eve
   }
   if (type == kCGEventKeyDown && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == 53) {
     emit("cancel");
+  }
+  if (mouseButton >= 0 && (type == kCGEventOtherMouseDown || type == kCGEventOtherMouseUp)
+      && CGEventGetIntegerValueField(event, kCGMouseEventButtonNumber) == mouseButton) {
+    bool down = type == kCGEventOtherMouseDown;
+    if (down != mouseDown) { mouseDown = down; emit(down ? "mouse-down" : "mouse-up"); }
+    return NULL; // the browser does not go Back while it dictates
   }
   if (claimMic && (type == kCGEventKeyDown || type == kCGEventKeyUp)
       && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == MIC_KEY) {
@@ -67,8 +76,12 @@ int main(int argc, char **argv) {
     return 0;
   }
   parent = getppid();
-  for (int i = 1; i < argc; i++) if (strcmp(argv[i], "--mic") == 0) claimMic = true;
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--mic") == 0) claimMic = true;
+    else if (strcmp(argv[i], "--mouse") == 0 && i + 1 < argc) mouseButton = atoi(argv[++i]);
+  }
   CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged) | CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp);
+  if (mouseButton >= 0) mask |= CGEventMaskBit(kCGEventOtherMouseDown) | CGEventMaskBit(kCGEventOtherMouseUp);
   tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, mask, handle, NULL);
   if (!tap) { emit("permission-required"); return 1; }
   CFRunLoopSourceRef source = CFMachPortCreateRunLoopSource(NULL, tap, 0);

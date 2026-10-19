@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('speakeasy', {
   downloadModel: (id) => ipcRenderer.invoke('models:download', id),
   removeModel: (id) => ipcRenderer.invoke('models:remove', id),
   historyList: () => ipcRenderer.invoke('history:list'),
+  historyAudio: (id) => ipcRenderer.invoke('history:audio', id),
   historyRetry: (id) => ipcRenderer.invoke('history:retry', id),
   historyRemove: (id) => ipcRenderer.invoke('history:remove', id),
   historyClear: () => ipcRenderer.invoke('history:clear'),

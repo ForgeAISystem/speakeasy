@@ -18,7 +18,7 @@ function fixture(t, reduced = false) {
   const preference = { matches: reduced, addEventListener: (_, fn) => { onChange = fn; } };
   dom.window.matchMedia = () => preference;
   dom.window.HTMLCanvasElement.prototype.getContext = () => ({ createLinearGradient: () => ({ addColorStop() {} }), clearRect() {}, beginPath() {}, roundRect() {}, fill() {} });
-  dom.window.overlayBridge = { onState: (fn) => { onState = fn; }, onArmed: (fn) => { onArmed = fn; }, onLevel() {} };
+  dom.window.overlayBridge = { onState: (fn) => { onState = fn; }, onArmed: (fn) => { onArmed = fn; }, onLevel() {}, onWarn() {} };
   dom.window.eval(fs.readFileSync(path.join(dir, 'overlay.js'), 'utf8'));
   return { frames, timers, state: (state, extra = {}) => onState({ state, sounds: false, ...extra }),
     arm: () => onArmed({ sounds: false }), text: () => dom.window.document.getElementById('label').textContent,

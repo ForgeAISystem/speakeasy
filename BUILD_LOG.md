@@ -27,6 +27,19 @@
 - Walkthrough "Edit by voice" (v2.9.0): 7 steps that check real events (terminal dictation, terminal new line, rewrite by Shift and by voice, undo, search, paste) and a 4-task timed challenge. New guide events: rewrite, undo, history-search, history-paste, dictation.terminal.
 - 128 tests pass (21 new). Offscreen: 31 screens, 8 indicator states (3 new rewrite states), pad plan and history results, 6 coach states. Package check: 57 source files, both helpers, version 2.9.0. DMG dist/SpeakEasy-2.9.0-arm64.dmg, SHA-256 47e2964c8398cf7c832b214206a99b4063f995f018cc1a46cc861c394baf83f4. Not installed.
 - Not verified from the agent shell: a physical fn+Shift press, real Cmd+C / Cmd+Z / Shift+Return in other apps, a rewrite through Claude with a real key or a running Ollama, the search paste into a live app.
+## 2026-10-18: v2.9.0 power tools (from the Glaido and Wispr Flow comparison)
+
+- Harsh asked what Glaido ("Glido") and Wispr Flow shipped and to decompile them. Declined decompiling (their code is copyrighted); studied public pages and wrote docs/COMPETITORS-2026-10-18.md with 13 ranked builds. Items 1 to 4 went to their own session; this branch builds the rest except MCP.
+- Mic: lid closed on System default picks the first external mic (src/shared/mic.js); a SilenceWatch warns in the pill after 2 s of near-zero input and clears on sound.
+- Home: Your week (14-day words chart, words per minute, streak, speed vs typing) from existing stats.
+- Snippets: {date} {day} {time} {clipboard} fill-ins (src/shared/snippet-tags.js), hint on the Snippets tab.
+- History: opt-in keepAudio keeps the WAV (pruned at 14 days) with a play button; CSP allows blob media.
+- Mouse Flow: fn helper claims the chosen mouse button (--mouse N) and emits mouse-down/up as the dictation key; uiohook path listens too. Setting in Settings.
+- Voice: search (web, YouTube) runs locally; summarize reads the front Chrome/Safari/Arc/Brave/Edge tab via AppleScript, fetches it in main, strips to text, sends to Claude with the page marked as data, copies the summary, shows it on the pad. Needs a key and Return.
+- Per-app rules in Settings (app or title match; casual, chat, formal, prompt, code, plain; a note for Polished). Rules win over the automatic guess.
+- Scratchpad: Option+S floating note, autosaves to scratchpad.txt, Send (Cmd+Return) returns to the previous app and pastes.
+- Guide "Power tools" with 8 checked steps and a challenge; new guide events: dictation silent/mouse, scratch sent, app-rule, history-play; textMatch checks.
+- 113 tests pass (6 new). Offscreen: 31 screens, scratchpad, coach, pad, plan. Package check: 59 files, both helpers. DMG built in the worktree. Not installed. Not verified: physical mouse button, clamshell, real silence warning, real summary with a key, Scratchpad send focus return.
 
 ## 2026-10-18: v2.8.0 walkthroughs
 

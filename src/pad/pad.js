@@ -102,6 +102,7 @@ bridge.onPlan((plan) => {
   document.getElementById('plan-eyebrow').textContent = EYEBROW[plan.via] || 'YOU SAID';
   document.getElementById('plan-heard').textContent = plan.title || (plan.heard ? `“${plan.heard}”` : 'Nothing heard');
   document.getElementById('plan-steps').innerHTML = plan.steps.map((st, i) => `<li data-i="${i}" class="${st.confirm ? 'confirm' : ''}"><span class="mark"></span><span class="txt">${UI.esc(st.text)}</span><span class="msg"></span></li>`).join('');
+  document.getElementById('plan-reply').classList.remove('note');
   document.getElementById('plan-reply').textContent = plan.reply || (plan.steps.length ? '' : 'Nothing to run.');
   document.getElementById('plan-actions').hidden = !plan.confirm;
   statusEl.textContent = plan.confirm ? 'Check it, then press Return' : plan.steps.length ? 'Running' : 'Try again with fn';
@@ -156,4 +157,10 @@ bridge.onSelect(({ selected }) => select(selected));
 document.getElementById('result-list').addEventListener('click', (e) => {
   const li = e.target.closest('li');
   if (li) bridge.pick(Number(li.dataset.i));
+});
+
+bridge.onNote(({ title, text }) => {
+  const reply = document.getElementById('plan-reply');
+  reply.classList.add('note');
+  reply.textContent = (title ? title + '\n\n' : '') + text + '\n\nCopied. Paste it anywhere.';
 });

@@ -11,7 +11,15 @@ const state = {
   runtime: { captureReady: true, overlayReady: true, dictState: 'idle', phase: 'idle' },
   holdKeys: HOLD_KEYS, languages: { names: LANGUAGE_NAMES },
   models: { installed: ['moonshine-base'], downloads: {}, catalog: MODELS },
-  stats: { today: { words: 126, timeSavedSeconds: 143 }, allTime: { transcriptions: 12 } }
+  stats: (() => {
+    const p = (n) => String(n).padStart(2, '0');
+    const days = {};
+    [420, 0, 880, 1240, 610, 0, 0, 930, 1510, 760, 1120, 1890, 640, 126].forEach((w, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (13 - i));
+      if (w) days[`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`] = { words: w, transcriptions: 3, speechSeconds: w / 2.4 };
+    });
+    return { today: { words: 126, timeSavedSeconds: 143 }, week: { words: 7046, timeSavedSeconds: 7800 }, allTime: { transcriptions: 95, words: 16779 }, wpm: 150, streak: 7, days };
+  })()
 };
 const rows = [
   { id: 'sample-1', ts: now, text: 'Let’s keep the first version simple. One clear idea, beautifully done.', raw: 'Um, let’s keep the first version simple. Uh, one clear idea, beautifully done.', app: 'Notes', speechSeconds: 7.4, lang: 'en' },

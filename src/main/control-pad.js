@@ -294,7 +294,9 @@ class ControlPad {
       this.d.onEvent && this.d.onEvent({ key: steps[i].key || 'VOICE', ok: res.ok, message: `${steps[i].text}: ${res.message || (res.ok ? 'done' : 'failed')}`, label: 'Voice', source: 'voice', at: Date.now() });
     }
     clearTimeout(this.closeTimer);
-    this.closeTimer = setTimeout(() => this.close(), ran === steps.length ? 1400 : 4000);
+    // A summary needs reading time; Esc still closes it at once.
+    this.closeTimer = setTimeout(() => this.close(), this.noteShown ? 45000 : ran === steps.length ? 1400 : 4000);
+    this.noteShown = false;
     return { ok: ran === steps.length, ran };
   }
 
@@ -304,6 +306,13 @@ class ControlPad {
       case 'snap': return step.app === 'front' ? this.snap(step.region) : this.snapApp(step.app, step.region);
       case 'open_app': return this.openApp(step.app);
       case 'open_url': return this.openUrl(step.url);
+      case 'search': return this.openUrl(require('./commands').searchUrl(step.engine, step.query));
+      case 'summarize': {
+        if (!this.d.summarizePage) return { ok: false, message: 'Summaries are not set up' };
+        const res = await this.d.summarizePage(this.target);
+        if (res.ok) { this._send('pad:note', { title: res.title, text: res.text }); this.noteShown = true; }
+        return res;
+      }
       case 'pad':
         this.d.onEvent && this.d.onEvent({ key: step.key, phase: 'hit', at: Date.now(), source: 'voice' });
         return this.runAction(pads[step.key], step.key);

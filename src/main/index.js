@@ -29,6 +29,7 @@ const commands = require('./commands');
 const { GuideRunner, toGuideEvent } = require('./guide');
 const guides = require('../shared/guides');
 const { quietestPoint } = require('../shared/quiet-point');
+const { pickMic, SilenceWatch } = require('../shared/mic');
 
 let mainWindow = null;
 let overlayWindow = null;
@@ -56,6 +57,9 @@ let overlayPayload = { state: 'hidden' };
 let captureReady = false;
 let captureWatchdog = null;
 let lastAudioAt = 0;
+let micCache = [];
+const silence = new SilenceWatch();
+let armedAt = 0;
 let captureRestarts = 0, overlayRestarts = 0;
 let stopWaiter = null; // resolves when capture:stopped arrives
 let engineState = 'off'; // off | loading | ready | error
@@ -351,6 +355,8 @@ function onDictateStart() {
     return;
   }
   dictState = 'recording';
+  armedAt = 0;
+  listMics().then((mics) => { if (mics.length) micCache = mics; }).catch(() => {}); // fresh list for next time
   commandMode = !!(controlPad && controlPad.isOpen() && store.settings().voiceCommands !== false);
   if (commandMode) controlPad.listening();
   else if (controlPad) controlPad.captureTarget(); // a "Hey computer" command acts on this window
@@ -365,7 +371,8 @@ function onDictateStart() {
   overlayState('listening');
   tray.setState('recording', 'Listening...');
   try {
-    captureWindow.webContents.send('capture:start', { deviceId: store.settings().micDeviceId, session: captureSession });
+    const lidClosed = isMac && !screen.getAllDisplays().some((d) => d.internal);
+    captureWindow.webContents.send('capture:start', { deviceId: pickMic({ setting: store.settings().micDeviceId, mics: micCache, lidClosed }), session: captureSession });
   } catch {
     failCapture('Microphone disconnected. Try Repair connection.');
     return;
@@ -539,12 +546,14 @@ async function onDictateStop() {
       polished: polished || undefined,
       cleanupMode,
       fallbackReason,
-      pasted: ok
+      pasted: ok,
+      // Opt-in: keep the audio 14 days so History can play it back.
+      audioFile: store.settings().keepAudio && wavName ? wavName : undefined
     });
-    audioStore.removeRecording(wavName);
+    if (!store.settings().keepAudio) audioStore.removeRecording(wavName);
 
     if (ok) overlayState('done', { words, fallbackReason });
-    push('dictation', { phase: 'done', text, words, pasted: ok, handsFree: !!hotkeys.lastHandsFree });
+    push('dictation', { phase: 'done', text, words, pasted: ok, handsFree: !!hotkeys.lastHandsFree, mouse: hotkeys.lastSource === 'mouse' });
     push('stats', {});
   } catch (e) {
     console.error('[dictation]', e);
@@ -570,6 +579,40 @@ async function onDictateStop() {
     commandMode = false;
     tray.setState('idle', 'Ready');
   }
+}
+
+// "Summarize this page": the open browser tab, read on this Mac, summarized by
+// Claude only when the user has added a key. The page text is never stored.
+const BROWSER_TABS = {
+  'Google Chrome': 'URL of active tab of front window', Arc: 'URL of active tab of front window',
+  'Brave Browser': 'URL of active tab of front window', 'Microsoft Edge': 'URL of active tab of front window',
+  Safari: 'URL of front document'
+};
+function frontTabUrl(app) {
+  if (!BROWSER_TABS[app]) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    require('child_process').execFile('osascript', ['-e', `tell application "${app}" to return ${BROWSER_TABS[app]}`], { timeout: 4000 },
+      (err, out) => resolve(err ? null : String(out).trim()));
+  });
+}
+async function summarizePage(target) {
+  const cfg = store.settings();
+  if (!cfg.polishAnthropicKey) return { ok: false, message: 'Add a Claude key in Settings to summarize pages.' };
+  const url = await frontTabUrl(target && target.app);
+  if (!url || !/^https?:\/\//i.test(url)) return { ok: false, message: 'Open the page in Chrome or Safari first.' };
+  let html;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000), redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 (Macintosh) SpeakEasy' } });
+    html = await res.text();
+  } catch { return { ok: false, message: 'Could not load that page.' }; }
+  const title = ((html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || '').trim();
+  const text = commands.pageText(html);
+  if (text.length < 200) return { ok: false, message: 'No readable text. Pages behind a sign-in cannot be read.' };
+  try {
+    const summary = await commands.summarizeText(title, text, cfg);
+    clipboard.writeText(summary);
+    return { ok: true, message: 'Summary copied', title, text: summary };
+  } catch (e) { return { ok: false, message: `Claude is unavailable (${String(e.message).slice(0, 60)}).` }; }
 }
 
 // A spoken request for the Control Pad: plan it, show it on the pad, run it.
@@ -638,6 +681,14 @@ ipcMain.on('capture:chunk', (_e, session, pcm, rms) => {
   if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send('overlay:level', rms);
   }
+  // A wrong or muted mic sends chunks of silence: say so after two seconds.
+  if (dictState === 'recording' && armedAt) {
+    const change = silence.feed(Number(rms) || 0, Date.now());
+    if (change && overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send('overlay:warn', { message: change === 'silent' ? 'No sound. Check your mic in Settings.' : '' });
+    }
+    if (change === 'silent') push('dictation', { phase: 'silent', message: 'No sound from the microphone.' });
+  }
   maybeDecodeAhead();
 });
 
@@ -652,6 +703,8 @@ ipcMain.on('capture:armed', (_e, session) => {
   if (session !== captureSession) return;
   if (dictState === 'recording' && overlayWindow && !overlayWindow.isDestroyed()) {
     overlayPayload = { ...overlayPayload, armed: true, startedAt: Date.now() };
+    armedAt = Date.now();
+    silence.reset(armedAt);
     push('dictation', { phase: 'armed' });
     if (overlayReady) overlayWindow.webContents.send('overlay:armed', { sounds: store.settings().sounds, startedAt: overlayPayload.startedAt });
   }
@@ -785,7 +838,8 @@ ipcMain.handle('settings:update', async (_e, partial) => {
   const modelChanged = partial.model !== undefined && partial.model !== before.model;
   const langChanged = partial.language !== undefined && partial.language !== before.language;
   const keyChanged = (partial.holdKey !== undefined && partial.holdKey !== before.holdKey) ||
-    (partial.padMicKey !== undefined && partial.padMicKey !== before.padMicKey);
+    (partial.padMicKey !== undefined && partial.padMicKey !== before.padMicKey) ||
+    (partial.mouseButton !== undefined && partial.mouseButton !== before.mouseButton);
   const padKeyChanged = partial.padShortcut !== undefined && partial.padShortcut !== before.padShortcut;
   const loginChanged = partial.launchAtLogin !== undefined && partial.launchAtLogin !== before.launchAtLogin;
 
@@ -797,6 +851,8 @@ ipcMain.handle('settings:update', async (_e, partial) => {
   }
   if (loginChanged) app.setLoginItemSettings({ openAtLogin: cfg.launchAtLogin });
   if (padKeyChanged) registerPadShortcut();
+  if (partial.appRules !== undefined && partial.appRules.length) push('rules', { count: partial.appRules.length });
+  if (partial.scratchShortcut !== undefined && partial.scratchShortcut !== before.scratchShortcut) registerScratchShortcut();
   if (modelChanged || langChanged) await ensureEngine();
   return fullState();
 });
@@ -819,6 +875,14 @@ ipcMain.handle('models:remove', (_e, id) => {
 });
 
 ipcMain.handle('history:list', () => store.history().data);
+// Playback of a kept recording: WAV bytes for an <audio> element, or null once pruned.
+ipcMain.handle('history:audio', (_e, id) => {
+  const entry = store.history().data.find((h) => h.id === id);
+  const file = entry && entry.audioFile && audioStore.recordingPath(entry.audioFile);
+  if (!file || !fs.existsSync(file)) return null;
+  if (guide) guide.onEvent({ type: 'history-play' });
+  return fs.readFileSync(file);
+});
 ipcMain.handle('history:remove', (_e, id) => {
   const entry = store.history().data.find((h) => h.id === id);
   if (entry && entry.audioFile) audioStore.removeRecording(entry.audioFile);
@@ -956,6 +1020,56 @@ ipcMain.handle('globe:restore', async () => {
   } catch (e) { return { ok: false, error: e.message }; }
 });
 
+// ---- Scratchpad: Option+S, dictate into it, Send pastes where you were ----
+let scratchWindow = null;
+let scratchReturn = null; // the window in front when the Scratchpad opened
+function scratchFile() { return path.join(app.getPath('userData'), 'scratchpad.txt'); }
+function createScratch() {
+  if (scratchWindow && !scratchWindow.isDestroyed()) return scratchWindow;
+  const a = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  const win = scratchWindow = new BrowserWindow({
+    width: 380, height: 320, x: Math.round(a.x + a.width - 380 - 16), y: Math.round(a.y + a.height - 320 - 16),
+    show: false, frame: false, resizable: true, minWidth: 300, minHeight: 200, skipTaskbar: true, alwaysOnTop: true,
+    fullscreenable: false, backgroundColor: '#fdfdf8', title: 'Scratchpad',
+    webPreferences: { preload: path.join(__dirname, '..', 'scratch', 'preload.js') }
+  });
+  win.setAlwaysOnTop(true, 'floating');
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.loadFile(path.join(__dirname, '..', 'scratch', 'scratch.html'));
+  win.on('closed', () => { if (scratchWindow === win) scratchWindow = null; });
+  return win;
+}
+async function toggleScratch() {
+  if (scratchWindow && !scratchWindow.isDestroyed() && scratchWindow.isVisible() && scratchWindow.isFocused()) { scratchWindow.hide(); return; }
+  scratchReturn = controlPad ? await controlPad.front() : null;
+  const win = createScratch();
+  win.show();
+  win.focus();
+  win.webContents.send('scratch:focus');
+  push('scratch', { open: true });
+}
+let scratchAccel = null;
+function registerScratchShortcut() {
+  if (scratchAccel) { try { globalShortcut.unregister(scratchAccel); } catch { /* gone */ } scratchAccel = null; }
+  const accel = store.settings().scratchShortcut;
+  if (!accel || accel === 'off') return;
+  try { if (globalShortcut.register(accel, toggleScratch)) scratchAccel = accel; } catch (e) { console.error('[scratch]', e.message); }
+}
+ipcMain.handle('scratch:load', () => { try { return fs.readFileSync(scratchFile(), 'utf8'); } catch { return ''; } });
+ipcMain.handle('scratch:save', (_e, text) => { fs.writeFileSync(scratchFile(), String(text || '').slice(0, 200000)); return true; });
+ipcMain.handle('scratch:close', () => { if (scratchWindow && !scratchWindow.isDestroyed()) scratchWindow.hide(); return true; });
+ipcMain.handle('scratch:send', async (_e, text) => {
+  if (scratchWindow && !scratchWindow.isDestroyed()) scratchWindow.hide();
+  if (scratchReturn) {
+    await new Promise((resolve) => require('child_process').execFile('osascript', ['-e', `tell application "System Events" to set frontmost of (first process whose unix id is ${Number(scratchReturn.pid)}) to true`], { timeout: 3000 }, () => resolve()));
+  } else if (isMac) app.hide();
+  await new Promise((r) => setTimeout(r, 180));
+  const ok = await injectText(String(text || ''), { restoreClipboard: store.settings().restoreClipboard });
+  push('scratch', { sent: ok });
+  return { ok };
+});
+ipcMain.handle('scratch:open', () => toggleScratch());
+
 // ---- Walkthroughs: What's new, the coach panel, challenges ----
 function guideSeen() {
   const p = guide ? guide.progress() : {};
@@ -1007,7 +1121,7 @@ ipcMain.handle('guide:action', (_e, run) => {
   return true;
 });
 
-ipcMain.handle('mics:list', () => listMics());
+ipcMain.handle('mics:list', async () => { const mics = await listMics(); if (mics.length) micCache = mics; return mics; });
 ipcMain.handle('clipboard:copy', (_e, text) => { clipboard.writeText(text); return true; });
 
 ipcMain.handle('perm:request-mic', async () => {
@@ -1110,6 +1224,7 @@ if (!gotLock) {
         electron: { BrowserWindow, screen, globalShortcut, shell, systemPreferences },
         store,
         injectText,
+        summarizePage,
         helperPath: app.isPackaged
           ? path.join(process.resourcesPath, 'native', 'speakeasy-window')
           : path.join(__dirname, '..', '..', 'build', 'native', 'speakeasy-window'),
@@ -1118,6 +1233,7 @@ if (!gotLock) {
       tray.onPad = () => controlPad.toggle();
       tray._menu();
       registerPadShortcut();
+      registerScratchShortcut();
     }
 
     hotkeys = new HotkeyManager({
@@ -1125,6 +1241,7 @@ if (!gotLock) {
       onStop: onDictateStop,
       onCancel: onDictateCancel,
       micKey: () => isMac && store.settings().padMicKey !== false,
+      mouseButton: () => store.settings().mouseButton || 'off',
       onMic: () => { if (dictState === 'idle') controlPad && controlPad.toggle(); },
       onKey: (event) => { lastKeyAt = Date.now(); push('shortcut-key', { ...event, at: lastKeyAt }); },
       onStatus: (status) => {

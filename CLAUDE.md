@@ -93,3 +93,7 @@ Run npm test (97 checks), the offscreen visual script (adds control-pad-plan.png
 ## v2.8 notes (2026-10-18)
 
 Walkthroughs. src/shared/guides.js holds the guides (shared by main and the Learn tab). src/main/guide.js GuideRunner runs one at a time; push() in index.js feeds every app event through toGuideEvent() into it, so steps finish only on real actions. The coach (src/coach/) is a non-activating always-on-top panel in the top right; starting a guide hides the main window so practice happens in real apps. What's new shows once per update for guides newer than guide.json seenVersion (installs from before 2.8 count as 2.5.0). Progress and best challenge times live in guide.json. Research behind it: docs/RESEARCH-2026-10-18.md.
+
+## v2.9 notes (2026-10-18)
+
+Power tools from docs/COMPETITORS-2026-10-18.md. Mic choice goes through pickMic() at record start (micCache refreshed each dictation); SilenceWatch drives overlay:warn. Mouse Flow lives in the fn helper (--mouse N, CGEvent button numbers 2/3/4) and uiohook (3/4/5). Summaries: summarizePage() in index.js (osascript for the front tab URL, fetch in main, commands.pageText, commands.summarizeText). Scratchpad: src/scratch/, scratch:* IPC, scratchpad.txt in userData. Per-app rules: cleanup.appStyle(context, rules, auto). Snippet tags: src/shared/snippet-tags.js. Every feature has a step in the "power-tools" guide.

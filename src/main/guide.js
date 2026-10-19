@@ -172,9 +172,11 @@ function toGuideEvent(type, msg) {
     if (msg.key && msg.source !== 'voice') return { type: 'pad', key: msg.key, ok: !!msg.ok, source: msg.source };
     return null;
   }
-  if (type === 'dictation' && (msg.phase === 'done' || msg.phase === 'cancelled')) {
-    return { type: 'dictation', phase: msg.phase, words: msg.words || 0, text: msg.text || '', handsFree: !!msg.handsFree };
+  if (type === 'dictation' && (msg.phase === 'done' || msg.phase === 'cancelled' || msg.phase === 'silent')) {
+    return { type: 'dictation', phase: msg.phase, words: msg.words || 0, text: msg.text || '', handsFree: !!msg.handsFree, mouse: !!msg.mouse };
   }
+  if (type === 'scratch' && msg.sent !== undefined) return { type: 'scratch', sent: !!msg.sent };
+  if (type === 'rules') return { type: 'app-rule', count: msg.count || 0 };
   if (type === 'globe') return { type: 'globe', fixed: !!msg.fixed };
   return null;
 }

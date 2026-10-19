@@ -29,7 +29,7 @@ function fixture() {
     electron: { app: { requestSingleInstanceLock: () => true, on() {}, whenReady: () => new Promise(() => {}) },
       BrowserWindow: Window,
       ipcMain: { on: (name, fn) => ipc.set(name, fn), handle: (name, fn) => handlers.set(name, fn) },
-      screen: { getCursorScreenPoint: () => ({ x: 0, y: 0 }), getDisplayNearestPoint: () => ({ workArea: { x: 0, y: 0, width: 1440, height: 900 } }) },
+      screen: { getAllDisplays: () => [{ internal: true }], getCursorScreenPoint: () => ({ x: 0, y: 0 }), getDisplayNearestPoint: () => ({ workArea: { x: 0, y: 0, width: 1440, height: 900 } }) },
       systemPreferences: { getMediaAccessStatus: () => 'granted', isTrustedAccessibilityClient: () => true } },
     './store': { settings: () => cfg, addHistory: (row) => history.push(row) },
     './window-bounds': require('../src/main/window-bounds'), './cleanup': {},
@@ -37,7 +37,7 @@ function fixture() {
     './audio-store': { saveRecording: () => 'fixture.wav' },
     './transcriber': { TranscriberManager: class {} },
     './system-audio': { setDictationMute() {}, restoreNow() {} }, './control-pad': { ControlPad: class {} }, './globe-key': {}, './commands': { wakeCommand: () => null }, './guide': { GuideRunner: class {}, toGuideEvent: () => null }, '../shared/guides': require('../src/shared/guides'), './wispr-import': { readWispr: async () => ({ available: false, words: [], snippets: [] }) },
-    '../shared/quiet-point': require('../src/shared/quiet-point'),
+    '../shared/quiet-point': require('../src/shared/quiet-point'), '../shared/mic': require('../src/shared/mic'),
     '../shared/constants': require('../src/shared/constants'), '../shared/writing': require('../src/shared/writing')
   };
   const context = vm.createContext({

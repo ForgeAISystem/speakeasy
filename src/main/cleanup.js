@@ -2,6 +2,11 @@
 
 const { dictionary, snippets, settings } = require('./store');
 const writing = require('../shared/writing');
+const { expandTags } = require('../shared/snippet-tags');
+
+function readClipboard() {
+  try { return require('electron').clipboard.readText(); } catch { return ''; }
+}
 
 const FILLERS = /\b(?:um+|uh+|uhm+|erm+|er|mmm+|hmm+)\b[,.]?\s*/gi;
 
@@ -103,16 +108,17 @@ function applyDictionary(text) {
   return out;
 }
 
-function applySnippets(text) {
+function applySnippets(text, tagContext = { clipboard: readClipboard }) {
   let out = text;
   for (const s of snippets().data) {
     if (!s.trigger || !s.expansion) continue;
+    const expansion = () => expandTags(s.expansion, tagContext);
     // Whole dictation is just the trigger (allow trailing punctuation)
     const whole = new RegExp(`^\\s*${escapeRegex(s.trigger)}\\s*[.!?]?\\s*$`, 'i');
-    if (whole.test(out)) return s.expansion;
+    if (whole.test(out)) return expansion();
     // Trigger inside a longer sentence: whole-word match
     const inline = new RegExp(wordPattern(s.trigger), 'gi');
-    out = out.replace(inline, () => s.expansion);
+    out = out.replace(inline, expansion);
   }
   return out;
 }
@@ -176,7 +182,29 @@ const APP_STYLES = [
   ['work-chat', /^(?:slack|microsoft teams|teams)$/i, false, 'A work chat message. Clear and conversational.']
 ];
 
-function appStyle({ app = '', title = '' } = {}) {
+// The user's own rules come first: { app, style, note }. `app` matches the app
+// name, or text in the window title (so "Gmail" works inside Chrome).
+const RULE_STYLES = {
+  casual: ['messaging', 'Casual and short, like a text message.'],
+  chat: ['work-chat', 'A work chat message. Clear and conversational.'],
+  formal: ['email', 'Formal and polished. Complete sentences.'],
+  prompt: ['ai', 'A prompt to an AI assistant. Keep every instruction and detail. Lists are welcome.'],
+  code: ['code', 'Keep identifiers, file names, commands, and technical terms exactly as spoken.'],
+  plain: ['other', '']
+};
+function ruleFor({ app = '', title = '' }, rules) {
+  const a = app.toLowerCase(), t = title.toLowerCase();
+  return (rules || []).find((r) => r && r.app && RULE_STYLES[r.style] && (a === r.app.toLowerCase() || (r.app.length > 2 && t.includes(r.app.toLowerCase()))));
+}
+
+function appStyle({ app = '', title = '' } = {}, rules = [], auto = true) {
+  const rule = ruleFor({ app, title }, rules);
+  if (rule) {
+    const [category, hint] = RULE_STYLES[rule.style];
+    const note = String(rule.note || '').trim().slice(0, 200);
+    return { category, hint: [hint, note].filter(Boolean).join(' '), rule: true };
+  }
+  if (!auto) return { category: 'other', hint: '' };
   for (const [category, pattern, checkTitle, hint] of APP_STYLES) {
     if (pattern.test(app) || (checkTitle && pattern.test(title))) return { category, hint };
   }
@@ -290,7 +318,7 @@ async function cleanup(rawText, context = {}) {
   const cleanupMode = writing.mode(cfg);
   if (cleanupMode === 'original') return { text: rawText, cleanupMode, polished: false, organized: false };
   const canUseAI = cleanupMode === 'polished' && writing.providerReady(cfg);
-  const style = cfg.matchAppStyle !== false ? appStyle(context) : appStyle();
+  const style = appStyle(context, cfg.appRules, cfg.matchAppStyle !== false);
   const aiContext = {
     app: context.app,
     style,

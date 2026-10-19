@@ -228,7 +228,7 @@ test('Learn tab shows every guide with progress, best level, and both ways in', 
   await f.click('[data-tab="learn"]');
   await settle();
   const cards = f.dom.window.document.querySelectorAll('.learn-card');
-  assert.equal(cards.length, 3);
+  assert.equal(cards.length, 4);
   const pad = f.$('.learn-card[data-guide="control-pad"]');
   assert.match(pad.textContent, /2 of 10 steps/);
   assert.match(pad.textContent, /Keep going/);

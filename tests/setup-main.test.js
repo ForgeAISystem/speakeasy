@@ -34,7 +34,7 @@ function fixture() {
     './cleanup': {}, './injector': {}, './hotkey': {}, './models': {}, './tray': {}, './audio-store': {},
     './transcriber': { TranscriberManager: class {} },
     './system-audio': { setDictationMute() {}, restoreNow() {} }, './control-pad': { ControlPad: class {} }, './globe-key': {}, './commands': { wakeCommand: () => null }, './guide': { GuideRunner: class {}, toGuideEvent: () => null }, '../shared/guides': require('../src/shared/guides'), './wispr-import': { readWispr: async () => ({ available: false, words: [], snippets: [] }) },
-    '../shared/quiet-point': require('../src/shared/quiet-point'),
+    '../shared/quiet-point': require('../src/shared/quiet-point'), '../shared/mic': require('../src/shared/mic'),
     '../shared/constants': require('../src/shared/constants'),
     '../shared/writing': require('../src/shared/writing')
   };

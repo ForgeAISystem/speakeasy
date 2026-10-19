@@ -41,6 +41,8 @@ test('checks match only the real action', () => {
 
 test('What is new lists only features newer than what you have seen', () => {
   assert.deepEqual(G.whatsNew('2.5.0', '2.7.0').map((g) => g.id), ['control-pad', 'voice-commands']);
+  assert.deepEqual(G.whatsNew('2.8.0', '2.9.0').map((g) => g.id), ['power-tools']);
+  assert.ok(G.matches({ event: 'dictation', phase: 'done', textMatch: '(monday|sunday)' }, { type: 'dictation', phase: 'done', text: 'Notes for Sunday, October 18' }));
   assert.deepEqual(G.whatsNew('2.6.0', '2.7.0').map((g) => g.id), ['voice-commands']);
   assert.deepEqual(G.whatsNew('2.7.0', '2.7.0'), []);
   assert.ok(G.newer('2.10.0', '2.9.9'));
@@ -115,7 +117,11 @@ test('app pushes become guide events; voice runs do not double count as pad pres
   assert.equal(toGuideEvent('pad', { key: 'V', ok: true, source: 'voice' }), null);
   assert.deepEqual(toGuideEvent('pad', { key: '1', ok: true, source: 'save' }), { type: 'pad-save', key: '1', ok: true });
   assert.deepEqual(toGuideEvent('pad', { phase: 'plan', steps: ['a', 'b'], wake: true, via: 'local' }), { type: 'plan', steps: 2, wake: true, via: 'local' });
-  assert.deepEqual(toGuideEvent('dictation', { phase: 'done', words: 5, text: 'hi', handsFree: true }), { type: 'dictation', phase: 'done', words: 5, text: 'hi', handsFree: true });
+  assert.deepEqual(toGuideEvent('dictation', { phase: 'done', words: 5, text: 'hi', handsFree: true, mouse: true }), { type: 'dictation', phase: 'done', words: 5, text: 'hi', handsFree: true, mouse: true });
+  assert.deepEqual(toGuideEvent('dictation', { phase: 'silent' }), { type: 'dictation', phase: 'silent', words: 0, text: '', handsFree: false, mouse: false });
+  assert.deepEqual(toGuideEvent('scratch', { sent: true }), { type: 'scratch', sent: true });
+  assert.equal(toGuideEvent('scratch', { open: true }), null);
+  assert.deepEqual(toGuideEvent('rules', { count: 2 }), { type: 'app-rule', count: 2 });
   assert.equal(toGuideEvent('dictation', { phase: 'recording' }), null);
   assert.deepEqual(toGuideEvent('globe', { fixed: true }), { type: 'globe', fixed: true });
 });

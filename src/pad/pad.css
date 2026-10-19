@@ -38,3 +38,5 @@ footer kbd { font: 600 10px 'JetBrains Mono', ui-monospace, monospace; color: #f
 .plan-actions { display: flex; align-items: center; gap: 12px; margin-top: auto; color: #bac7ae; font-size: 11px; }
 .plan-actions[hidden] { display: none; }
 .plan-actions button { font: 600 12.5px -apple-system, system-ui, sans-serif; padding: 8px 14px; border-radius: 9px; border: 0; background: #ffa946; color: #1a1a1a; cursor: pointer; }
+
+.plan-reply.note { white-space: pre-wrap; color: #ffffeb; font-size: 12.5px; line-height: 1.45; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 235, 0.06); }

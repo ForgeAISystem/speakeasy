@@ -44,6 +44,8 @@ app.whenReady().then(async () => {
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
   await capture('learn', "switchTab('learn')", 980, 760);
+  await capture('settings-rules', "switchTab('settings').then(() => { document.querySelector('#rule-add').click(); document.querySelector('#app-rules').scrollIntoView({ block: 'center' }); })", 980, 760);
+  await capture('home-week', "switchTab('home').then(() => document.querySelector('.insights').scrollIntoView({ block: 'center' }))", 980, 760);
   await capture('whats-new', "switchTab('home').then(() => window.speakeasy.guideSummary()).then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['voice-commands', 'control-pad'] }))", 980, 760);
   await run("window.SpeakEasyLearn.whatsNew({ guides: [], fresh: [], version: '' })");
   await capture('pad', "switchTab('pad').then(() => document.querySelector('#pad-grid .pad-tile[data-key=\"1\"]').click())", 980, 760);
@@ -113,6 +115,14 @@ app.whenReady().then(async () => {
   console.log(JSON.stringify({ controlPad: padCheck }));
   if (padCheck.tiles !== 16 || !padCheck.fits || !padCheck.planFits) failed = true;
   pad.destroy();
+  // The Scratchpad with a note in it.
+  const scratch = new BrowserWindow({ width: 380, height: 320, show: false, frame: false, focusable: false, skipTaskbar: true,
+    webPreferences: { preload: path.join(root, 'tests/scratch-visual-preload.cjs'), offscreen: true } });
+  scratch.webContents.setFrameRate(15);
+  await scratch.loadFile(path.join(root, 'src/scratch/scratch.html'));
+  await delay(300);
+  fs.writeFileSync(path.join(out, 'scratchpad.png'), (await scratch.webContents.capturePage()).toPNG());
+  scratch.destroy();
   // The coach: waiting on a step, a step just done, a challenge, a challenge result.
   const coach = new BrowserWindow({ width: 380, height: 300, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
     webPreferences: { preload: path.join(root, 'src/coach/preload.js'), offscreen: true } });

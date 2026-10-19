@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('padBridge', {
   onResult: (cb) => ipcRenderer.on('pad:result', (_e, payload) => cb(payload)),
   onListening: (cb) => ipcRenderer.on('pad:listening', () => cb()),
   onPlan: (cb) => ipcRenderer.on('pad:plan', (_e, payload) => cb(payload)),
+  onNote: (cb) => ipcRenderer.on('pad:note', (_e, payload) => cb(payload)),
   onStep: (cb) => ipcRenderer.on('pad:step', (_e, payload) => cb(payload)),
   confirm: () => ipcRenderer.invoke('pad:confirm'),
   press: (key) => ipcRenderer.invoke('pad:press', key, 'click'),

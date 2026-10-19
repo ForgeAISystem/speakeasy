@@ -14,6 +14,10 @@ const KEYCODES = {
   F9: UiohookKey.F9
 };
 
+// Mouse Flow: hold a mouse button like the dictation key. native = CGEvent
+// button number (Fn helper), hook = uiohook button number (other keys).
+const MOUSE_BUTTONS = { middle: { native: 2, hook: 3 }, back: { native: 3, hook: 4 }, forward: { native: 4, hook: 5 } };
+
 const TAP_MS = 350;        // released faster than this = a tap, not a hold
 const DOUBLE_TAP_MS = 900; // second tap within this window = hands-free toggle
 
@@ -26,10 +30,11 @@ const DOUBLE_TAP_MS = 900; // second tap within this window = hands-free toggle
  * Callbacks: onStart(), onStop(), onCancel()  (onStop/onCancel only fire while active)
  */
 class HotkeyManager {
-  constructor({ onStart, onStop, onCancel, onKey, onStatus, onMic, micKey }) {
+  constructor({ onStart, onStop, onCancel, onKey, onStatus, onMic, micKey, mouseButton }) {
     this.onStart = onStart;
     this.onMic = onMic;
     this.micKey = micKey || (() => false); // claim the microphone key for the Control Pad
+    this.mouseButton = mouseButton || (() => 'off'); // 'off' | 'middle' | 'back' | 'forward'
     this.onStop = onStop;
     this.onCancel = onCancel;
     this.onKey = onKey;
@@ -69,6 +74,11 @@ class HotkeyManager {
     if (keyName === 'Fn') return this._startFn();
     uIOhook.on('keydown', this._down);
     uIOhook.on('keyup', this._up);
+    const button = MOUSE_BUTTONS[this.mouseButton()];
+    this._mouseDown = (e) => { if (button && e.button === button.hook) { this.lastSource = 'mouse'; this._down({ keycode: this.keycode }); } };
+    this._mouseUp = (e) => { if (button && e.button === button.hook) this._up({ keycode: this.keycode }); };
+    uIOhook.on('mousedown', this._mouseDown);
+    uIOhook.on('mouseup', this._mouseUp);
     try {
       uIOhook.start();
     } catch (e) {
@@ -93,6 +103,7 @@ class HotkeyManager {
     }
     uIOhook.removeListener('keydown', this._down);
     uIOhook.removeListener('keyup', this._up);
+    if (this._mouseDown) { uIOhook.removeListener('mousedown', this._mouseDown); uIOhook.removeListener('mouseup', this._mouseUp); }
     if (this.running && this.keyName !== 'Fn') {
       try { uIOhook.stop(); } catch { /* already stopped */ }
     }
@@ -110,7 +121,10 @@ class HotkeyManager {
       ? path.join(process.resourcesPath, 'native', 'speakeasy-fn')
       : path.join(__dirname, '..', '..', 'build', 'native', 'speakeasy-fn');
     return new Promise((resolve, reject) => {
-      const child = spawn(executable, this.micKey() ? ['--mic'] : [], { stdio: ['ignore', 'pipe', 'pipe'] });
+      const args = this.micKey() ? ['--mic'] : [];
+      const button = MOUSE_BUTTONS[this.mouseButton()];
+      if (button) args.push('--mouse', String(button.native));
+      const child = spawn(executable, args, { stdio: ['ignore', 'pipe', 'pipe'] });
       this.helper = child;
       let pending = true;
       let buffer = '';
@@ -152,10 +166,12 @@ class HotkeyManager {
               if (Date.now() - lastHeartbeat > 10000) fail('The Fn listener stopped responding. Reconnecting.');
             }, 3000);
             if (pending) { pending = false; clearTimeout(timer); resolve(true); }
-          } else if (event === 'down') this._down({ keycode: -1 });
+          } else if (event === 'down') { this.lastSource = 'key'; this._down({ keycode: -1 }); }
           else if (event === 'up') this._up({ keycode: -1 });
           else if (event === 'heartbeat') lastHeartbeat = Date.now();
           else if (event === 'mic') this._safe(this.onMic);
+          else if (event === 'mouse-down') { this.lastSource = 'mouse'; this._down({ keycode: -1 }); }
+          else if (event === 'mouse-up') this._up({ keycode: -1 });
           else if (event === 'reset') this._listenerReset();
           else if (event === 'cancel' && this.active) this._cancel();
           else if (event === 'permission-required') fail('Allow SpeakEasy in Accessibility and Input Monitoring, then retry.');
@@ -255,4 +271,4 @@ class HotkeyManager {
   }
 }
 
-module.exports = { HotkeyManager };
+module.exports = { HotkeyManager, MOUSE_BUTTONS };

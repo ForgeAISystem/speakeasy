@@ -111,6 +111,7 @@ function setState(payload) {
   armed = false;
   elapsed.textContent = '';
   hint.textContent = '';
+  hint.classList.remove('warn');
   document.documentElement.dataset.motion = motionAllowed() ? 'on' : 'off';
   const sounds = payload.sounds !== false;
 
@@ -184,3 +185,8 @@ function arm(payload) {
   if (payload.sounds !== false) blip(660, 990, 90);
 }
 window.overlayBridge.onArmed(arm);
+window.overlayBridge.onWarn(({ message }) => {
+  if (state !== 'listening') return;
+  hint.textContent = message || 'Release / tap to write · Esc cancels';
+  hint.classList.toggle('warn', !!message);
+});

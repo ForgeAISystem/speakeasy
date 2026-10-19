@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>Scratchpad</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/figtree/500.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/figtree/700.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/600.css">
+<style>
+  :root { --ink: #1a1a1a; --muted: #6f6e6a; --accent: #ffa946; --paper: #fdfdf8; --line: rgba(26, 26, 26, 0.1); }
+  html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: 'Figtree', -apple-system, system-ui, sans-serif; overflow: hidden; }
+  main { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+  header { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; -webkit-app-region: drag; }
+  header .t { font: 600 9.5px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: #a2601a; flex: 1; }
+  header .saved { font-size: 11px; color: var(--muted); }
+  textarea { border: 0; outline: 0; resize: none; background: transparent; padding: 4px 14px; font: 500 14.5px/1.5 'Figtree', -apple-system, system-ui, sans-serif; color: var(--ink); }
+  textarea::placeholder { color: #a8a7a2; }
+  footer { display: flex; gap: 8px; align-items: center; padding: 8px 12px 12px; border-top: 1px solid var(--line); }
+  footer .hint { flex: 1; font-size: 11px; color: var(--muted); }
+  button { font: 700 12px 'Figtree', -apple-system, system-ui, sans-serif; padding: 7px 12px; border-radius: 9px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink); }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button:disabled { opacity: 0.4; cursor: default; }
+</style>
+</head>
+<body>
+<main>
+  <header><span class="t">SCRATCHPAD</span><span class="saved" id="saved"></span></header>
+  <textarea id="text" placeholder="Hold fn and think out loud. Edit here, then send it where you were." aria-label="Scratchpad"></textarea>
+  <footer><span class="hint">⌘↩ sends · Esc hides</span><button id="clear" type="button">Clear</button><button class="primary" id="send" type="button">Send</button></footer>
+</main>
+<script src="./scratch.js"></script>
+</body>
+</html>

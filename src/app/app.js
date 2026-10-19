@@ -7,6 +7,7 @@ const writing = window.SpeakEasyWriting;
 let historyQuery = '', historyFilter = 'all', historyRows = [], historyRequest = 0;
 let toastTimer;
 let runtimeOpen = false, repairing = false;
+let playing = null; // the History recording being played back
 function toast(message) {
   const el = document.getElementById('toast');
   el.textContent = message;
@@ -155,6 +156,7 @@ function renderHome() {
     <details class="runtime-check" id="runtime-check" ${runtimeOpen ? 'open' : ''}><summary>Check dictation</summary><div id="runtime-body"></div></details>
     <div class="writing-bar"><span class="writing-label">How your words arrive</span><div class="mode-switch" role="group" aria-label="Cleanup mode">${modeButtons()}</div></div>
     <div class="home-summary"><div><strong>${num(st.today.words)}</strong><span>words today</span></div><div><strong>${fmtDuration(st.today.timeSavedSeconds)}</strong><span>estimated time saved</span></div><div><strong>${num(st.allTime.transcriptions)}</strong><span>dictations so far</span></div></div>
+    ${insightsHtml(st)}
     <div class="home-section-head"><h2>Recent words</h2><button class="muted-link" id="home-history">View history</button></div>
     <div class="row-list" id="home-recent"><div class="home-empty">Your next thought goes here.<br>Try a sentence in Notes, Mail, or your favorite app.</div></div>
     <div class="home-footer"><span>${activeModelIsEnglishOnly() ? 'English voice' : 'Multilingual voice'} · ${local ? 'Audio stays on your computer.' : 'Text cleanup uses Anthropic.'}</span><button class="btn ghost btn-sm" id="home-hide">Keep running in ${S.platform === 'darwin' ? 'menu bar' : 'tray'}</button></div>
@@ -203,6 +205,30 @@ document.addEventListener('click', async (e) => {
   renderGlobe();
 });
 
+// Your week: 14 days of words as bars, plus speed, streak and time saved.
+function insightsHtml(st) {
+  if (!st || !st.days || !st.allTime || !st.allTime.transcriptions) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  const key = (d) => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  const days = [];
+  for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push({ d, words: (st.days[key(d)] || {}).words || 0 }); }
+  const max = Math.max(1, ...days.map((x) => x.words));
+  const w = 14, gap = 6, h = 64;
+  const bars = days.map((x, i) => { const bh = x.words ? Math.max(3, Math.round((x.words / max) * h)) : 2; return `<rect x="${i * (w + gap)}" y="${h - bh}" width="${w}" height="${bh}" rx="3" class="${i === 13 ? 'today' : x.words ? '' : 'empty'}"><title>${x.d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}: ${num(x.words)} words</title></rect>`; }).join('');
+  const best = days.reduce((a, b) => (b.words > a.words ? b : a), days[0]);
+  return `<section class="insights" aria-label="Your last two weeks">
+    <div class="insights-head"><h2>Your week</h2><span>${num(st.week.words)} words · ${fmtDuration(st.week.timeSavedSeconds)} saved</span></div>
+    <div class="insights-body">
+      <svg class="insights-bars" viewBox="0 0 ${14 * (w + gap) - gap} ${h}" role="img" aria-label="Words per day for the last 14 days. Best day ${num(best.words)} words.">${bars}</svg>
+      <div class="insights-stats">
+        <div><strong>${num(st.wpm || 0)}</strong><span>words per minute</span></div>
+        <div><strong>${num(st.streak || 0)}</strong><span>${st.streak === 1 ? 'day' : 'days'} in a row</span></div>
+        <div><strong>${num(Math.round((st.wpm || 0) / 40 * 10) / 10)}x</strong><span>faster than typing</span></div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function historyRowHtml(r, compact = false) {
   if (r.failed) {
     return `
@@ -229,6 +255,7 @@ function historyRowHtml(r, compact = false) {
         ${!compact && r.raw && r.raw !== r.text ? `<details class="history-original"><summary>Compare original</summary><div class="original-box"><p>${esc(r.raw)}</p><button class="btn ghost btn-sm" data-action="copy-original">Copy original</button></div></details>` : ''}
       </div>
       <div class="actions">
+        ${r.audioFile ? '<button class="icon-btn" data-action="play" aria-label="Play recording" title="Play recording">&#9654;</button>' : ''}
         <button class="icon-btn" data-action="copy" aria-label="Copy transcript" title="Copy transcript">&#x2398;</button>
         <button class="icon-btn danger" data-action="delete" aria-label="Delete transcript" title="Delete transcript">&#x2715;</button>
       </div>
@@ -355,6 +382,7 @@ async function renderSnippets() {
   el.innerHTML = `
     <h1>Snippets</h1>
     <p class="sub">Say a trigger phrase, get the full text. Signatures, addresses, links, canned replies.</p>
+    <p class="snip-tags">Fill-ins: <code>{date}</code> <code>{day}</code> <code>{time}</code> <code>{clipboard}</code>. Example: “Notes for {day}, {date}”.</p>
     <div class="form-row">
       <label class="field-label">When I say<input type="text" id="snip-trigger" placeholder="e.g. my calendar link"></label>
       <label class="field-label">Write this<textarea id="snip-expansion" placeholder="A link, signature, or a few paragraphs…"></textarea></label>
@@ -462,10 +490,26 @@ async function renderSettings() {
         <label class="switch"><input type="checkbox" id="set-appstyle" ${cfg.matchAppStyle !== false ? 'checked' : ''}><span class="track"></span></label>
       </div>
       ${isMac ? `<div class="set-row">
+        <div class="info"><div class="name">Scratchpad shortcut</div><div class="desc">Opens a floating note. Dictate into it, edit, then Send pastes it where you were.</div></div>
+        <select id="set-scratch">${[['Alt+S', 'Option + S'], ['Control+Option+S', 'Control + Option + S'], ['off', 'Off']].map(([v, l]) => `<option value="${v}" ${(cfg.scratchShortcut || 'off') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      </div>` : ''}
+      <div class="set-row">
+        <div class="info"><div class="name">Dictate with a mouse button</div><div class="desc">Hold the button to talk, let go to write. Double-click it for hands-free. The side buttons stop going Back and Forward while this is on.</div></div>
+        <select id="set-mouse">${[['off', 'Off'], ['back', 'Back side button'], ['forward', 'Forward side button'], ['middle', 'Middle button']].map(([v, l]) => `<option value="${v}" ${(cfg.mouseButton || 'off') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      </div>
+      <div class="set-row">
+        <div class="info"><div class="name">Keep recordings for 14 days</div><div class="desc">Play back what you really said from History. Audio stays on this computer and is deleted after 14 days.</div></div>
+        <label class="switch"><input type="checkbox" id="set-keepaudio" ${cfg.keepAudio ? 'checked' : ''}><span class="track"></span></label>
+      </div>
+      ${isMac ? `<div class="set-row">
         <div class="info"><div class="name">Mute audio while dictating</div><div class="desc">Silences music and videos while you speak, then turns them back on.</div></div>
         <label class="switch"><input type="checkbox" id="set-mute" ${cfg.muteWhileDictating ? 'checked' : ''}><span class="track"></span></label>
       </div>` : ''}
     </div>
+
+    <div class="section-title">Per-app rules</div>
+    <div class="set-group" id="app-rules">${appRulesHtml(cfg.appRules || [])}</div>
+    <datalist id="rule-apps">${[...new Set((await api.historyList()).map((r) => r.app).filter(Boolean))].sort().map((a) => `<option value="${esc(a)}">`).join('')}</datalist>
 
     <details class="advanced-settings"><summary>Voice models &amp; optional AI cleanup</summary><div class="section-title">Voice models</div>
     ${Object.values(S.models.catalog).map(modelCardHtml).join('')}
@@ -533,6 +577,10 @@ async function renderSettings() {
   document.getElementById('set-mic').addEventListener('change', (e) => save({ micDeviceId: e.target.value }));
   document.getElementById('set-lang').addEventListener('change', (e) => save({ language: e.target.value }));
   document.getElementById('set-appstyle').addEventListener('change', (e) => save({ matchAppStyle: e.target.checked }));
+  bindAppRules(save);
+  document.getElementById('set-scratch')?.addEventListener('change', (e) => save({ scratchShortcut: e.target.value }));
+  document.getElementById('set-mouse').addEventListener('change', (e) => save({ mouseButton: e.target.value }));
+  document.getElementById('set-keepaudio').addEventListener('change', (e) => save({ keepAudio: e.target.checked }));
   document.getElementById('set-mute')?.addEventListener('change', (e) => save({ muteWhileDictating: e.target.checked }));
   document.getElementById('set-motion').addEventListener('change', (e) => save({ subtleMotion: e.target.checked }));
   document.getElementById('set-sounds').addEventListener('change', (e) => save({ sounds: e.target.checked }));
@@ -548,6 +596,40 @@ async function renderSettings() {
   document.getElementById('set-anthropic-key').addEventListener('change', (e) => save({ polishAnthropicKey: e.target.value.trim() }));
   document.getElementById('btn-rerun-onboard').addEventListener('click', () => { showOnboard(true); });
   renderGlobe();
+}
+
+const RULE_STYLES = [['casual', 'Casual'], ['chat', 'Work chat'], ['formal', 'Formal'], ['prompt', 'AI prompt'], ['code', 'Code'], ['plain', 'Plain']];
+function appRulesHtml(rules) {
+  const rows = rules.map((r, i) => `<div class="set-row rule-row" data-rule="${i}">
+      <input type="text" data-rule-field="app" value="${esc(r.app || '')}" placeholder="App, e.g. Slack" list="rule-apps" aria-label="App">
+      <select data-rule-field="style" aria-label="Style">${RULE_STYLES.map(([v, l]) => `<option value="${v}" ${r.style === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <input type="text" data-rule-field="note" value="${esc(r.note || '')}" placeholder="Note for Polished, e.g. sign off with Best, Harsh" maxlength="200" aria-label="Note">
+      <button class="icon-btn danger" data-rule-del="${i}" aria-label="Remove rule" title="Remove">&#x2715;</button>
+    </div>`).join('');
+  return `${rows || '<div class="set-row"><div class="info"><div class="desc">SpeakEasy already matches common apps. Add a rule to choose the style yourself.</div></div></div>'}
+    <div class="set-row"><div class="info"><div class="desc">Style applies in Clean and Polished. Notes are used by Polished.</div></div><button class="btn ghost btn-sm" id="rule-add">Add rule</button></div>`;
+}
+
+function bindAppRules(save) {
+  const box = document.getElementById('app-rules');
+  if (!box) return;
+  const rules = () => [...box.querySelectorAll('.rule-row')].map((row) => ({
+    app: row.querySelector('[data-rule-field="app"]').value.trim(),
+    style: row.querySelector('[data-rule-field="style"]').value,
+    note: row.querySelector('[data-rule-field="note"]').value.trim()
+  }));
+  box.addEventListener('change', () => save({ appRules: rules().filter((r) => r.app) }));
+  box.addEventListener('click', async (e) => {
+    if (e.target.id === 'rule-add') {
+      const next = [...rules(), { app: '', style: 'casual', note: '' }];
+      box.innerHTML = appRulesHtml(next);
+      box.querySelector('.rule-row:last-of-type [data-rule-field="app"]')?.focus();
+    } else if (e.target.dataset.ruleDel !== undefined) {
+      const next = rules().filter((_r, i) => i !== Number(e.target.dataset.ruleDel));
+      box.innerHTML = appRulesHtml(next);
+      await save({ appRules: next.filter((r) => r.app) });
+    }
+  });
 }
 
 function renderHomeIfActive() {
@@ -616,6 +698,12 @@ document.getElementById('content').addEventListener('click', async (e) => {
     const rows = await api.historyList();
     const r = rows.find((x) => x.id === row.getAttribute('data-id'));
     if (r) { await api.copy(action === 'copy-original' ? r.raw || r.text : r.text); toast(action === 'copy-original' ? 'Original transcript copied.' : 'Copied to clipboard.'); }
+  } else if (action === 'play' && row) {
+    if (playing) { playing.pause(); URL.revokeObjectURL(playing.src); }
+    const bytes = await api.historyAudio(row.getAttribute('data-id'));
+    if (!bytes) { toast('That recording is older than 14 days and was cleared.'); return; }
+    playing = new Audio(URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' })));
+    playing.play().catch(() => toast('Could not play that recording.'));
   } else if (action === 'retry' && row) {
     btn.disabled = true;
     btn.textContent = 'Retrying';

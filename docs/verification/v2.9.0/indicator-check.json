@@ -28,5 +28,23 @@
     "label": "Microphone unavailable. Check Settings.",
     "visible": true,
     "fits": true
+  },
+  {
+    "phase": "rewrite-armed",
+    "label": "Say the edit",
+    "visible": true,
+    "fits": true
+  },
+  {
+    "phase": "rewriting",
+    "label": "Rewriting · Shorter",
+    "visible": true,
+    "fits": true
+  },
+  {
+    "phase": "rewrite",
+    "label": "Shorter · 64 → 22 words",
+    "visible": true,
+    "fits": true
   }
 ]

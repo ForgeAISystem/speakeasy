@@ -337,5 +337,5 @@ async function cleanup(rawText, context = {}) {
 
 module.exports = {
   cleanup, removeFillers, applyDictionary, applySnippets, detectOrganize, applySpokenCommands,
-  appStyle, splitForPolish, plausibleEdit, DISFLUENCIES
+  appStyle, splitForPolish, plausibleEdit, DISFLUENCIES, llmWithOllama, llmWithAnthropic
 };

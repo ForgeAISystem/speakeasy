@@ -238,3 +238,43 @@ test('Learn tab shows every guide with progress, best level, and both ways in', 
   assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ guide: 'voice-commands', mode: 'challenge' }));
   assert.ok(f.$('.nav-item[data-tab="learn"]').classList.contains('has-new'));
 });
+
+test('Settings: terminal mode switch, undo shortcut, and your own rewrite transforms', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-tab="settings"]');
+  await settle();
+  const term = f.$('#set-terminal');
+  assert.equal(term.checked, true);
+  term.checked = false;
+  term.dispatchEvent(new f.dom.window.Event('change'));
+  await settle();
+  assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ terminalMode: false }));
+  assert.match(f.$('#edit-group').textContent, /Control\+Command\+Z/);
+  assert.match(f.$('#edit-group').textContent, /Prompt Engineer/);
+  await f.click('#transform-add');
+  await settle();
+  const row = f.$('.transform-item');
+  row.querySelector('.t-name').value = 'Casual';
+  row.querySelector('.t-prompt').value = 'Rewrite in a casual tone.';
+  row.querySelector('.t-prompt').dispatchEvent(new f.dom.window.Event('change', { bubbles: true }));
+  await settle();
+  const saved = f.saves.at(-1).transforms;
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].name, 'Casual');
+  assert.equal(saved[0].prompt, 'Rewrite in a casual tone.');
+  await f.click('[data-action="transform-delete"]');
+  await settle();
+  assert.equal(f.saves.at(-1).transforms.length, 0);
+});
+
+test('History tags rewrites, terminal dictations, and undone edits', async (t) => {
+  const f = await fixture(t);
+  f.rows().unshift({ id: 'r', ts: Date.now(), text: 'Short.', raw: 'A much longer paragraph.', app: 'Notes', transform: 'Shorter', undone: true },
+    { id: 'tm', ts: Date.now(), text: 'git status', raw: 'Git status.', app: 'iTerm2', terminal: true, speechSeconds: 2 });
+  await f.click('[data-tab="history"]');
+  await settle();
+  const text = f.$('#hist-list').textContent;
+  assert.match(text, /Shorter/);
+  assert.match(text, /Undone/);
+  assert.match(text, /Terminal/);
+});

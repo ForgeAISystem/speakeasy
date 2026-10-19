@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function fixture() {
+function fixture(overrides = {}) {
   const ipc = new Map(), handlers = new Map(), windows = [], timers = new Map(), sends = [], history = [];
   let now = 10000, timerId = 0;
   class Window extends EventEmitter {
@@ -38,7 +38,9 @@ function fixture() {
     './transcriber': { TranscriberManager: class {} },
     './system-audio': { setDictationMute() {}, restoreNow() {} }, './control-pad': { ControlPad: class {} }, './globe-key': {}, './commands': { wakeCommand: () => null }, './guide': { GuideRunner: class {}, toGuideEvent: () => null }, '../shared/guides': require('../src/shared/guides'), './pad-coach': require('../src/main/pad-coach'), '../shared/pad': require('../src/shared/pad'), './wispr-import': { readWispr: async () => ({ available: false, words: [], snippets: [] }) },
     '../shared/quiet-point': require('../src/shared/quiet-point'),
-    '../shared/constants': require('../src/shared/constants'), '../shared/writing': require('../src/shared/writing')
+    './terminal': require('../src/main/terminal'), './rewrite': require('../src/main/rewrite'), './history-search': require('../src/main/history-search'),
+    '../shared/constants': require('../src/shared/constants'), '../shared/writing': require('../src/shared/writing'),
+    ...overrides
   };
   const context = vm.createContext({
     require: (id) => modules[id] || require(id), __dirname: path.join(__dirname, '../src/main'),
@@ -205,4 +207,124 @@ test('cancelling a dictation drops segments decoded during recording', () => {
   f.run('onDictateCancel()');
   assert.equal(f.run('liveParts.length'), 0);
   assert.equal(f.run('liveOffset'), 0);
+});
+
+// ---- Edit by voice (v2.9): terminal mode, rewrite, undo, history search ----
+
+function editFixture({ front = { app: 'Notes', title: '' }, selection = 'One. Two. Three. Four. Five. Six.', settings = {}, history = [], clean } = {}) {
+  const calls = { inject: [], undo: [], copies: 0, results: null, closed: 0 };
+  const rows = [...history];
+  const real = require('../src/main/rewrite');
+  const cfg = { holdKey: 'Fn', model: 'moonshine-base', sounds: false, restoreClipboard: true, ...settings };
+  const f = fixture({
+    './store': { settings: () => cfg, addHistory: (row) => rows.unshift(row), recordTranscription() {},
+      history: () => ({ data: rows, save() {} }) },
+    './injector': {
+      getFrontContext: async () => front,
+      injectText: async (text, opts) => { calls.inject.push({ text, ...opts }); return true; },
+      copySelection: async () => { calls.copies++; return selection; },
+      undoPaste: async (opts) => { calls.undo.push(opts); return true; }
+    },
+    './rewrite': { ...real, run: (sel, t, c) => real.run(sel, t, c, { ollama: async () => 'One to six.', anthropic: async () => 'Claude short.' }) },
+    './cleanup': { cleanup: clean || (async (raw) => ({ text: raw.replace(/^um,?\s*/i, '').replace(/^./, (c) => c.toUpperCase()), cleanupMode: 'clean' })) }
+  });
+  f.run('hotkeys.shiftReleased = async () => {}; hotkeys.withShift = false; hotkeys.lastHandsFree = false;');
+  f.run('audioStore.removeRecording = () => {}');
+  f.run('controlPad = { isOpen: () => false, close() { globalThis.__closed = (globalThis.__closed || 0) + 1; }, showResults: async (r) => { globalThis.__results = r; return { ok: true }; }, pads: () => ({}), captureTarget() {} }');
+  return { ...f, calls, rows, cfg };
+}
+
+test('terminal mode: straight quotes, no final period, and new lines are Shift+Return pastes', async () => {
+  const f = editFixture({ front: { app: 'iTerm2', title: '✳ Fix the build' }, clean: async () => ({ text: 'Run “npm test”\nthen commit.', cleanupMode: 'clean' }) });
+  f.createOverlay();
+  f.run("transcribeDictation = async () => ({ text: 'um, run “npm test” new line then commit.', lang: '', ms: 3 }); collectAudio = async () => new Float32Array(16000); frontContextPromise = Promise.resolve({ app: 'iTerm2', title: '' }); dictState = 'recording'");
+  await f.run('onDictateStop()');
+  assert.deepEqual(f.calls.inject.map(({ text, terminal }) => ({ text, terminal })), [{ text: 'Run "npm test"\nthen commit', terminal: true }]);
+  assert.equal(f.rows[0].terminal, true);
+  await f.run('undoLastEdit()');
+  assert.deepEqual({ ...f.calls.undo[0] }, { terminal: true, pasted: 'Run "npm test"\nthen commit', restore: 'um, run “npm test” new line then commit.', restoreClipboard: true });
+  assert.equal(f.rows[0].undone, true);
+});
+
+test('terminal mode stays off outside terminals and when switched off', async () => {
+  for (const [front, settings] of [[{ app: 'Notes', title: '' }, {}], [{ app: 'Terminal', title: '' }, { terminalMode: false }]]) {
+    const f = editFixture({ front, settings });
+    f.createOverlay();
+    f.run(`transcribeDictation = async () => ({ text: 'ship it.', ms: 1 }); collectAudio = async () => new Float32Array(16000); frontContextPromise = Promise.resolve(${JSON.stringify(front)}); dictState = 'recording'`);
+    await f.run('onDictateStop()');
+    assert.equal(f.calls.inject[0].text, 'Ship it.');
+    assert.equal(f.calls.inject[0].terminal, false);
+  }
+});
+
+test('fn+Shift rewrites the selection: copy, transform, show, paste over, record in History', async () => {
+  const f = editFixture();
+  const overlay = f.createOverlay();
+  f.run("hotkeys.withShift = true; transcribeDictation = async () => ({ text: 'make this shorter', ms: 2 }); collectAudio = async () => new Float32Array(16000); frontContextPromise = Promise.resolve({ app: 'Notes', title: '' }); dictState = 'recording'");
+  await f.run('onDictateStop()');
+  assert.equal(f.calls.copies, 1);
+  assert.deepEqual(f.calls.inject.map(({ text, terminal }) => ({ text, terminal })), [{ text: 'One to six.', terminal: false }]);
+  assert.equal(f.rows[0].transform, 'Shorter');
+  assert.equal(f.rows[0].raw, 'One. Two. Three. Four. Five. Six.');
+  const shown = f.sends.filter(([c]) => c === 'overlay:state').at(-1)[1];
+  assert.equal(shown.state, 'rewrite');
+  assert.equal(shown.before, 6);
+  assert.equal(shown.after, 3);
+  assert.ok(overlay.visible);
+  assert.equal(f.run('dictState'), 'idle');
+  await f.run('undoLastEdit()');
+  assert.deepEqual({ ...f.calls.undo[0] }, { terminal: false, pasted: 'One to six.', restore: '', restoreClipboard: true });
+});
+
+test('a rewrite uses Claude when a key is set, and says so when nothing is selected', async () => {
+  const f = editFixture({ settings: { polishAnthropicKey: 'sk-test' } });
+  f.createOverlay();
+  await f.run("runRewrite('Hey computer polish this', 'voice')");
+  assert.equal(f.calls.inject[0].text, 'Claude short.');
+  assert.equal(f.rows[0].rewriteVia, 'anthropic');
+  const empty = editFixture({ selection: '' });
+  empty.createOverlay();
+  await empty.run("runRewrite('make this shorter', 'shift')");
+  assert.equal(empty.calls.inject.length, 0);
+  assert.equal(empty.run('overlayPayload.message'), 'Select some text first');
+});
+
+test('"Hey computer, make this shorter" rewrites; window commands still plan', async () => {
+  const f = editFixture();
+  f.createOverlay();
+  f.run('globalThis.__planned = 0; commands.plan = async () => { globalThis.__planned++; return { steps: [] }; }; commands.describe = () => ""; commands.needsConfirm = () => false; commands.installedApps = () => []; controlPad.showPlan = async () => ({}); controlPad.isOpen = () => true; controlPad.target = null');
+  await f.run("runVoiceCommand('make this shorter', true)");
+  assert.equal(f.calls.copies, 1);
+  await f.run("runVoiceCommand('make this full screen', true)");
+  assert.equal(f.run('globalThis.__planned'), 1);
+});
+
+test('undo refuses when nothing changed, in another app, or with nothing pasted yet', async () => {
+  const f = editFixture();
+  f.createOverlay();
+  await f.run('undoLastEdit()');
+  assert.equal(f.run('overlayPayload.message'), 'Nothing to undo yet');
+  f.run("lastEdit = { kind: 'dictation', app: 'Notes', changed: false, at: Date.now() }");
+  await f.run('undoLastEdit()');
+  assert.match(f.run('overlayPayload.message'), /word for word/);
+  f.run("lastEdit = { kind: 'dictation', app: 'Slack', changed: true, pasted: 'Hi.', restore: 'hi', at: Date.now() }");
+  await f.run('undoLastEdit()');
+  assert.equal(f.run('overlayPayload.message'), 'Go back to Slack to undo');
+  assert.equal(f.calls.undo.length, 0);
+});
+
+test('"what did I say about" searches History locally and shows matches on the pad', async () => {
+  const history = [
+    { id: 'a', ts: 3, text: 'Lunch with Sam on Friday.', app: 'Notes' },
+    { id: 'b', ts: 2, text: 'The Legacy invoice for October is still open.', app: 'Slack' },
+    { id: 'c', ts: 1, text: 'Send Legacy their invoices before the call.', app: 'Mail' },
+    { id: 'd', ts: 4, text: 'Legacy invoices shortened.', transform: 'Shorter' }
+  ];
+  const f = editFixture({ history });
+  f.createOverlay();
+  await f.run("runVoiceCommand('what did I say about the Legacy invoices?', true)");
+  const shown = f.run('globalThis.__results');
+  assert.equal(shown.query, 'the Legacy invoices');
+  assert.deepEqual(shown.items.map((i) => i.id), ['b', 'c']);
+  assert.equal(shown.wake, true);
 });

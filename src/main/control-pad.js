@@ -159,7 +159,9 @@ class ControlPad {
     this.asking = false;
     this._unbindKeys();
     this._unbindConfirm();
+    this._unbindArrows();
     this.pending = null;
+    this.results = null;
     if (this.win && !this.win.isDestroyed()) this.win.hide();
     return true;
   }
@@ -185,6 +187,8 @@ class ControlPad {
       await this.open(this.lastFront || null);
     }
     clearTimeout(this.closeTimer);
+    this.results = null;
+    this._unbindArrows();
     const confirm = plan.steps.some((st) => st.confirm);
     this.asking = false;
     this._send('pad:plan', { heard: plan.heard, title: plan.title || '', reply: plan.reply, via: plan.via, say: plan.say || '', confirm, steps: plan.steps.map((st) => ({ text: st.text, confirm: st.confirm })) });
@@ -196,6 +200,65 @@ class ControlPad {
     this._bindConfirm();
     this.closeTimer = setTimeout(() => this.close(), 20000);
     return { ok: true, waiting: true };
+  }
+
+  /**
+   * History search results on the pad: Up/Down picks, Return (or a click)
+   * pastes the pick into the app you were using. items: [{ id, ts, app, text, snippet }]
+   */
+  async showResults({ query, items, wake }) {
+    if (!this.isOpen()) {
+      if (this.lastFrontPromise) await this.lastFrontPromise;
+      await this.open(this.lastFront || null);
+    }
+    clearTimeout(this.closeTimer);
+    this.pending = null;
+    this.results = items.length ? { items, selected: 0 } : null;
+    this._send('pad:results', { query, selected: 0, items: items.map((it) => ({ snippet: it.snippet, app: it.app, ts: it.ts })) });
+    this.d.onEvent && this.d.onEvent({ phase: 'results', query, count: items.length, wake: !!wake, at: Date.now() });
+    if (!items.length) { this.closeTimer = setTimeout(() => this.close(), 4500); return { ok: false, count: 0 }; }
+    this._bindConfirm();
+    this._bindArrows();
+    this.closeTimer = setTimeout(() => this.close(), 30000);
+    return { ok: true, count: items.length };
+  }
+
+  _select(delta) {
+    if (!this.results) return;
+    const n = this.results.items.length;
+    this.results.selected = (this.results.selected + delta + n) % n;
+    this._send('pad:select', { selected: this.results.selected });
+  }
+
+  _bindArrows() {
+    if (this.arrowsBound) return;
+    const { globalShortcut } = this.d.electron;
+    try { globalShortcut.register('Up', () => this._select(-1)); globalShortcut.register('Down', () => this._select(1)); this.arrowsBound = true; } catch { /* click instead */ }
+  }
+
+  _unbindArrows() {
+    if (!this.arrowsBound) return;
+    try { this.d.electron.globalShortcut.unregister('Up'); this.d.electron.globalShortcut.unregister('Down'); } catch { /* gone */ }
+    this.arrowsBound = false;
+  }
+
+  /** A click on a result row: paste that one. */
+  pick(i) {
+    if (!this.results || !this.results.items[i]) return { ok: false };
+    this.results.selected = i;
+    return this.confirm();
+  }
+
+  async _pasteResult() {
+    const { items, selected } = this.results;
+    this.results = null;
+    this._unbindConfirm();
+    this._unbindArrows();
+    clearTimeout(this.closeTimer);
+    let res;
+    try { res = await this.runAction({ type: 'text', text: items[selected].text }, 'VOICE'); } catch (e) { res = { ok: false, message: e.message }; }
+    this.d.onEvent && this.d.onEvent({ phase: 'history-paste', ok: !!res.ok, at: Date.now() });
+    return res;
   }
 
   _bindConfirm() {
@@ -210,6 +273,7 @@ class ControlPad {
   }
 
   confirm() {
+    if (this.results) return this._pasteResult();
     const steps = this.pending;
     if (!steps) return { ok: false };
     this.pending = null;

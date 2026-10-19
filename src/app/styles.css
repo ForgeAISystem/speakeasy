@@ -353,3 +353,17 @@ select { appearance: none; -webkit-appearance: none; cursor: pointer; }
 ::-webkit-scrollbar-thumb { background: rgba(26, 26, 26, 0.14); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(26, 26, 26, 0.22); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* Edit by voice: undo chip and the user's own transforms */
+.shortcut-chip {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: nowrap; flex-shrink: 0;
+  background: var(--fill); box-shadow: inset 0 0 0 1px var(--hairline); border-radius: 6px; padding: 3px 9px; color: var(--ink);
+}
+.transform-list { display: grid; gap: 8px; margin: 10px 0; }
+.transform-list:empty { display: none; }
+.transform-item { display: grid; grid-template-columns: minmax(90px, 150px) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.set-row .transform-item input[type="text"] { width: 100%; min-width: 0; }
+@media (max-width: 640px) {
+  .transform-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .transform-item .t-prompt { grid-column: 1; grid-row: 2; }
+}

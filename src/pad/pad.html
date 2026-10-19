@@ -33,6 +33,13 @@
       <p class="plan-reply" id="plan-reply"></p>
       <div class="plan-actions" id="plan-actions" hidden><button type="button" id="plan-run">Run it</button><span><kbd>Return</kbd> runs · <kbd>Esc</kbd> cancels</span></div>
     </section>
+    <section id="results" class="plan results" hidden aria-live="polite">
+      <div class="plan-eyebrow">FROM YOUR HISTORY · ON THIS MAC</div>
+      <p class="plan-heard" id="results-query"></p>
+      <ol class="result-list" id="result-list"></ol>
+      <p class="plan-reply" id="results-empty"></p>
+      <div class="plan-actions" id="results-actions"><span><kbd>↑</kbd> <kbd>↓</kbd> picks · <kbd>Return</kbd> pastes · <kbd>Esc</kbd> closes</span></div>
+    </section>
   </div>
   <footer><span id="status">Tap a key, or hold <kbd>fn</kbd> and say it</span><span class="keys"><button type="button" id="peek-btn" class="peek-btn"><kbd>/</kbd> cheat sheet</button> · <kbd>Esc</kbd> closes</span></footer>
 </main>

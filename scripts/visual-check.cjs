@@ -43,8 +43,10 @@ app.whenReady().then(async () => {
   await run("document.querySelector('#runtime-check').open = false; runtimeOpen = false");
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
+  await capture('settings-edit-by-voice', "switchTab('settings').then(() => document.querySelector('#edit-group').scrollIntoView())");
+  await capture('settings-edit-by-voice-small', "switchTab('settings').then(() => document.querySelector('#edit-group').scrollIntoView())", 560, 450);
   await capture('learn', "switchTab('learn')", 980, 760);
-  await capture('whats-new', "switchTab('home').then(() => window.speakeasy.guideSummary()).then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['pad-coach', 'say-it-your-way'] }))", 980, 760);
+  await capture('whats-new', "switchTab('home').then(() => window.speakeasy.guideSummary()).then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['pad-coach', 'say-it-your-way', 'voice-edit'] }))", 980, 760);
   await run("window.SpeakEasyLearn.whatsNew({ guides: [], fresh: [], version: '' })");
   await capture('pad', "switchTab('pad').then(() => document.querySelector('#pad-grid .pad-tile[data-key=\"1\"]').click())", 980, 760);
   await capture('pad-cheat-sheet', "document.querySelector('#cheat').scrollIntoView()", 980, 760);
@@ -79,10 +81,10 @@ app.whenReady().then(async () => {
   bar.webContents.setFrameRate(15);
   await bar.loadFile(path.join(root, 'src/overlay/overlay.html'));
   const overlays = [];
-  for (const phase of ['listening', 'armed', 'processing', 'preview', 'error']) {
+  for (const phase of ['listening', 'armed', 'processing', 'preview', 'error', 'rewrite-armed', 'rewriting', 'rewrite']) {
     await bar.webContents.executeJavaScript(`window.overlayFixture.show('${phase}')`);
     await delay(250);
-    const check = await bar.webContents.executeJavaScript(`({ label: document.querySelector('#label').textContent, visible: getComputedStyle(document.querySelector('#pill')).opacity === '1', fits: document.querySelector('#pill').getBoundingClientRect().right <= innerWidth })`);
+    const check = await bar.webContents.executeJavaScript(`(() => { const r = document.querySelector('#pill').getBoundingClientRect(); return { label: document.querySelector('#label').textContent, visible: getComputedStyle(document.querySelector('#pill')).opacity === '1', fits: r.right <= innerWidth && r.left >= 0 && r.top >= 0 }; })()`);
     overlays.push({ phase, ...check });
     fs.writeFileSync(path.join(out, 'indicator-' + phase + '.png'), (await bar.webContents.capturePage()).toPNG());
   }
@@ -152,8 +154,18 @@ app.whenReady().then(async () => {
   padCheck.monitorHeard = await pad.webContents.executeJavaScript(`document.querySelector('#plan-heard').textContent`);
   fs.writeFileSync(path.join(out, 'control-pad-monitor-back.png'), (await pad.webContents.capturePage()).toPNG());
   console.log(JSON.stringify({ controlPad: padCheck }));
+  pad.webContents.send('pad:results', { query: 'the Legacy invoices', selected: 0, items: [
+    { snippet: 'The Legacy invoice for October is still open. Bryan posts it Monday, then we chase the two DSD stores that are late.', app: 'Slack', ts: Date.now() - 3600000 },
+    { snippet: 'Send Legacy their invoices before the Thursday call.', app: 'Mail', ts: Date.now() - 3 * 86400000 },
+    { snippet: '...and the Legacy invoices need the new terms line before they go out...', app: 'Notes', ts: Date.now() - 12 * 86400000 }] });
+  await delay(200);
+  pad.webContents.send('pad:select', { selected: 1 });
+  await delay(150);
+  padCheck.resultsFit = await pad.webContents.executeJavaScript(`(() => { const p = document.querySelector('#results'); return !p.hidden && p.scrollHeight <= p.clientHeight + 1 && document.querySelectorAll('#result-list li.selected').length === 1; })()`);
+  fs.writeFileSync(path.join(out, 'control-pad-history.png'), (await pad.webContents.capturePage()).toPNG());
+  console.log(JSON.stringify({ controlPadResults: padCheck.resultsFit }));
   if (padCheck.tiles !== 16 || !padCheck.fits || !padCheck.planFits || padCheck.peek.words !== 16 || !padCheck.peekFits || !padCheck.askFits ||
-    padCheck.locked !== 12 || !padCheck.lockedFits || !padCheck.sayFits || !padCheck.lockedPeekFits || !/DID YOU MEAN/.test(padCheck.guess.eyebrow) || !/screen is back/.test(padCheck.monitorHeard)) failed = true;
+    padCheck.locked !== 12 || !padCheck.lockedFits || !padCheck.sayFits || !padCheck.lockedPeekFits || !/DID YOU MEAN/.test(padCheck.guess.eyebrow) || !/screen is back/.test(padCheck.monitorHeard) || !padCheck.resultsFit) failed = true;
   pad.destroy();
   // The faster-way tip.
   const tipWin = new BrowserWindow({ width: 560, height: 64, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
@@ -190,6 +202,13 @@ app.whenReady().then(async () => {
   clockNow += 84000;
   runner.onEvent({ type: 'pad', key: 'V', ok: true });
   coachShots.push(['coach-result', runner.view()]);
+  await runner.start('voice-edit');
+  runner.next(); runner.next();
+  coachShots.push(['coach-voice-edit', runner.view()]);
+  await runner.start('voice-edit', 'challenge');
+  runner.onEvent({ type: 'dictation', phase: 'done', terminal: true });
+  runner.onEvent({ type: 'rewrite', ok: true, via: 'shift' });
+  coachShots.push(['coach-voice-edit-challenge', runner.view()]);
   const coachChecks = [];
   for (const [name, view] of coachShots) {
     coach.webContents.send('coach:state', view);

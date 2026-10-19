@@ -172,13 +172,17 @@ function toGuideEvent(type, msg) {
     if (msg.phase === 'tip') return { type: 'pad-tip', region: msg.region };
     if (msg.phase === 'layout-restore') return { type: 'layout-restore', ok: !!msg.ok, source: msg.source };
     if (msg.phase === 'hit' || msg.phase === 'saved') return null;
+    if (msg.phase === 'results') return { type: 'history-search', found: msg.count > 0, wake: !!msg.wake };
+    if (msg.phase === 'history-paste') return { type: 'history-paste', ok: !!msg.ok };
     if (msg.key && msg.source === 'save') return { type: 'pad-save', key: msg.key, ok: !!msg.ok };
     if (msg.key && msg.source !== 'voice') return { type: 'pad', key: msg.key, ok: !!msg.ok, source: msg.source };
     return null;
   }
   if (type === 'dictation' && (msg.phase === 'done' || msg.phase === 'cancelled')) {
-    return { type: 'dictation', phase: msg.phase, words: msg.words || 0, text: msg.text || '', handsFree: !!msg.handsFree };
+    return { type: 'dictation', phase: msg.phase, words: msg.words || 0, text: msg.text || '', handsFree: !!msg.handsFree, terminal: !!msg.terminal };
   }
+  if (type === 'rewrite') return { type: 'rewrite', ok: !!msg.ok, via: msg.via, transform: msg.transform };
+  if (type === 'undo') return { type: 'undo', ok: !!msg.ok, kind: msg.kind };
   if (type === 'globe') return { type: 'globe', fixed: !!msg.fixed };
   return null;
 }

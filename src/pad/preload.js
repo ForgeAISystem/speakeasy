@@ -11,7 +11,10 @@ contextBridge.exposeInMainWorld('padBridge', {
   onTip: (cb) => ipcRenderer.on('tip:show', (_e, payload) => cb(payload)),
   starter: (goal) => ipcRenderer.invoke('pad:starter', goal),
   peek: () => ipcRenderer.invoke('pad:peek'),
+  onResults: (cb) => ipcRenderer.on('pad:results', (_e, payload) => cb(payload)),
+  onSelect: (cb) => ipcRenderer.on('pad:select', (_e, payload) => cb(payload)),
   confirm: () => ipcRenderer.invoke('pad:confirm'),
+  pick: (i) => ipcRenderer.invoke('pad:pick', i),
   press: (key) => ipcRenderer.invoke('pad:press', key, 'click'),
   save: (key) => ipcRenderer.invoke('pad:save', key),
   close: () => ipcRenderer.invoke('pad:close')

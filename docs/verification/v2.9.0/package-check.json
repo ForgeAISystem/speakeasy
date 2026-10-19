@@ -5,7 +5,7 @@
   "artworkPackaged": true,
   "dmg": {
     "file": "SpeakEasy-2.9.0-arm64.dmg",
-    "bytes": 151743010,
-    "sha256": "9f451e1a25be49002e2fc6d106ef899ee253f98ceffcfc0309db814d3886330d"
+    "bytes": 151736038,
+    "sha256": "47e2964c8398cf7c832b214206a99b4063f995f018cc1a46cc861c394baf83f4"
   }
 }

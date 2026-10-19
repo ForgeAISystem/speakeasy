@@ -8,6 +8,8 @@ const label = document.getElementById('label');
 const ctx = wave.getContext('2d');
 const hint = document.getElementById('hint');
 const elapsed = document.getElementById('elapsed');
+const preview = document.getElementById('preview');
+let rewriting = false; // fn+Shift: the words are an edit for the selected text
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 let motionEnabled = true, armed = false, clockTimer = null;
 const motionAllowed = () => motionEnabled && !motionPreference.matches;
@@ -111,6 +113,8 @@ function setState(payload) {
   armed = false;
   elapsed.textContent = '';
   hint.textContent = '';
+  preview.textContent = '';
+  rewriting = !!payload.rewrite;
   document.documentElement.dataset.motion = motionAllowed() ? 'on' : 'off';
   const sounds = payload.sounds !== false;
 
@@ -134,8 +138,10 @@ function setState(payload) {
     pill.classList.add('visible');
     spinner.style.display = 'block';
     // 'refine' = the AI polish / organize pass; default = transcription.
-    label.textContent = payload.phase === 'command' ? 'Working it out' : payload.phase === 'refine' ? 'Polishing your words' : 'Transcribing';
-    hint.textContent = payload.phase === 'command' ? 'Planning your command' : payload.phase === 'refine' ? (payload.localPolish ? 'On your computer' : 'With Anthropic') : 'On your computer';
+    label.textContent = payload.phase === 'command' ? 'Working it out' : payload.phase === 'refine' ? 'Polishing your words'
+      : payload.phase === 'rewrite' ? `Rewriting · ${payload.transform || 'your text'}` : 'Transcribing';
+    hint.textContent = payload.phase === 'command' ? 'Planning your command'
+      : payload.phase === 'refine' || payload.phase === 'rewrite' ? (payload.localPolish ? 'On your computer' : 'With Anthropic') : 'On your computer';
     if (sounds && payload.phase !== 'refine') blip(990, 660, 80);
   } else if (state === 'loading') {
     pill.classList.add('visible');
@@ -152,6 +158,13 @@ function setState(payload) {
     check.style.display = 'block';
     label.textContent = payload.message || 'Got it';
     hint.textContent = payload.hint || '';
+    if (sounds) blip(520, 780, 110, 0.05);
+  } else if (state === 'rewrite') {
+    pill.classList.add('visible');
+    check.style.display = 'block';
+    label.textContent = `${payload.transform || 'Rewrite'} · ${payload.before} → ${payload.after} words`;
+    hint.textContent = payload.undo ? `${shortcutLabel(payload.undo)} puts the old text back` : 'Pasted over your selection';
+    preview.textContent = String(payload.preview || '').slice(0, 220);
     if (sounds) blip(520, 780, 110, 0.05);
   } else if (state === 'cancelled') {
     pill.classList.add('visible');
@@ -170,6 +183,15 @@ function setState(payload) {
   }
 }
 
+// "Command+Control+Z" -> "⌃⌘Z" on a Mac, "Shift+Alt+U" elsewhere.
+function shortcutLabel(accel) {
+  if (!/Command/.test(accel)) return accel;
+  const marks = { Control: '⌃', Option: '⌥', Alt: '⌥', Shift: '⇧', Command: '⌘' };
+  const parts = accel.split('+');
+  const key = parts.pop();
+  return ['Control', 'Option', 'Alt', 'Shift', 'Command'].filter((m) => parts.includes(m)).map((m) => marks[m]).join('') + key;
+}
+
 window.overlayBridge.onState(setState);
 window.overlayBridge.onLevel((rms) => { targetLevel = rms; });
 function arm(payload) {
@@ -178,8 +200,8 @@ function arm(payload) {
   recordStartedAt = payload.startedAt || Date.now();
   spinner.style.display = 'none';
   wave.style.display = 'block';
-  label.textContent = 'Listening';
-  hint.textContent = 'Release / tap to write · Esc cancels';
+  label.textContent = rewriting ? 'Say the edit' : 'Listening';
+  hint.textContent = rewriting ? 'Like “make this shorter” · Esc cancels' : 'Release / tap to write · Esc cancels';
   syncAnimation();
   if (payload.sounds !== false) blip(660, 990, 90);
 }

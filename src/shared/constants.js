@@ -122,6 +122,8 @@ const DEFAULT_SETTINGS = {
   padTips: true, // after a window is moved by hand, show the pad key and words that do it faster
   padRestore: true, // when a monitor comes back, offer to put the windows back
   // padStarter: { goal } after the first-open question, { all: true } for all 16 keys (unset: ask)
+  terminalMode: true, // terminals and Claude Code: straight quotes, no final period, new line = Shift+Return, never Return
+  transforms: [], // rewrite what I selected: the user's own transforms [{ id, name, prompt }]
   globePrevious: undefined, // macOS Globe key setting before SpeakEasy's emoji fix, for Undo
   settingsVersion: 0 // one-time upgrades in main/index.js migrateSettings()
 };

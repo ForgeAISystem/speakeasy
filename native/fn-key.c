@@ -3,10 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 
-// Only Fn transitions, Escape and the microphone key leave this process.
-// No typed text is collected.
+// Only Fn transitions, Shift up/down, Escape and the microphone key leave
+// this process. No typed text is collected.
 static CFMachPortRef tap;
 static bool fnDown = false;
+static bool shiftDown = false; // fn+Shift rewrites the selection instead of dictating
 static bool claimMic = false; // --mic: the microphone key (F5 on newer MacBooks) opens the Control Pad
 static pid_t parent;
 static const int64_t MIC_KEY = 176;
@@ -31,6 +32,10 @@ static CGEventRef handle(CGEventTapProxy proxy, CGEventType type, CGEventRef eve
     if (type == kCGEventKeyDown && !CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat)) emit("mic");
     if (type == kCGEventKeyUp) emit("mic-up"); // held past a moment: the pad shows its cheat sheet
     return NULL; // macOS dictation stays closed while SpeakEasy owns the key
+  }
+  if (type == kCGEventFlagsChanged) {
+    bool shift = (CGEventGetFlags(event) & kCGEventFlagMaskShift) != 0;
+    if (shift != shiftDown) { shiftDown = shift; emit(shift ? "shift-down" : "shift-up"); }
   }
   if (type == kCGEventFlagsChanged && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == 63) {
     bool down = (CGEventGetFlags(event) & kCGEventFlagMaskSecondaryFn) != 0;

@@ -36,3 +36,12 @@ Remaining distribution gate: no Developer ID identity was present, so the local 
 - An AI reply that drops or adds many words is discarded for the local text, so a prompt-like dictation is not replaced by an answer.
 - Mute while dictating is off by default, uses osascript volume commands, and only restores a mute it set itself, including on quit.
 - New dependency: `@anthropic-ai/sdk` 0.133.0 (loaded only when Claude cleanup runs).
+
+## v2.9 additions (2026-10-18)
+
+- The Fn helper now also reports Shift down/up so fn+Shift can mean "rewrite the selection". It still exports no typed characters: only Fn, Shift, Escape and the microphone key transitions leave the process.
+- Rewrite what I selected copies the selection with a synthetic Cmd+C, reads the clipboard once, and puts the user's clipboard back (text or image). The selection and the spoken edit go to Claude only when an Anthropic key is set; otherwise to Ollama on 127.0.0.1. The prompt fences the selection as data, and the result is pasted only, never run. Rewrites are saved in local History (result plus the original selection) like dictations.
+- Undo AI edit presses Cmd+Z (text fields) or Backspace for the exact pasted length (terminals) in the same app that received the paste, within 10 minutes; another front app or an older paste is refused.
+- Terminal mode never presses Return. New lines become Shift+Return keystrokes, so a dictated or pasted prompt never sends itself; pad prompts and the paste-last key follow the same rule in terminals.
+- History search runs entirely on this computer against History. No index, network call, or new file is created.
+- No new OS permission, system setting, dependency, or network host.

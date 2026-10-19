@@ -56,6 +56,24 @@
       "height": 680
     },
     {
+      "screen": "settings-edit-by-voice",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 680
+    },
+    {
+      "screen": "settings-edit-by-voice-small",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 560,
+      "height": 450
+    },
+    {
       "screen": "learn",
       "loadedArtwork": true,
       "horizontalOverflow": false,
@@ -75,15 +93,6 @@
     },
     {
       "screen": "pad",
-      "loadedArtwork": true,
-      "horizontalOverflow": false,
-      "contentOverflow": false,
-      "setupOverflow": false,
-      "width": 980,
-      "height": 760
-    },
-    {
-      "screen": "pad-cheat-sheet",
       "loadedArtwork": true,
       "horizontalOverflow": false,
       "contentOverflow": false,

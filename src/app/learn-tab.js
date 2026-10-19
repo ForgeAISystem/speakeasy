@@ -59,8 +59,11 @@
   async function whatsNew(given) {
     const s = given || await load();
     markNav();
+    // Oldest release first; within a release, the order guides.js lists them (basics before power moves).
+    const G = window.SpeakEasyGuides;
+    const rank = (g) => G.GUIDES.findIndex((x) => x.id === g.id);
     fresh = s.fresh.map((id) => s.guides.find((g) => g.id === id)).filter(Boolean)
-      .sort((a, b) => (window.SpeakEasyGuides.newer(a.version, b.version) ? 1 : -1));
+      .sort((a, b) => (G.newer(a.version, b.version) ? 1 : G.newer(b.version, a.version) ? -1 : rank(a) - rank(b)));
     freshVersion = s.version;
     fillHome();
   }
@@ -72,8 +75,8 @@
     const minutes = Math.max(3, fresh.reduce((n, g) => n + g.totalSteps, 0));
     slot.innerHTML = `<div class="wn-card" role="region" aria-labelledby="whats-new-title">
       <div class="eyebrow">NEW IN ${e(freshVersion)}</div>
-      <h2 id="whats-new-title">${fresh.length === 1 ? e(fresh[0].title) : fresh.map((g) => e(g.title)).join(' + ')}</h2>
-      <ul>${fresh.flatMap((g) => g.whatsNew).slice(0, 4).map((w) => `<li>${e(w)}</li>`).join('')}</ul>
+      <h2 id="whats-new-title">${fresh.length === 1 ? e(fresh[0].title) : fresh.length === 2 ? fresh.map((g) => e(g.title)).join(' + ') : `${fresh.length} new things to try`}</h2>
+      <ul>${fresh.length === 1 ? fresh[0].whatsNew.map((w) => `<li>${e(w)}</li>`).join('') : fresh.map((g) => `<li><strong>${e(g.title)}:</strong> ${e(g.whatsNew[0])}</li>`).join('')}</ul>
       <p class="wn-note">About ${minutes} minutes in your own apps. Each step checks itself, then a quick challenge.</p>
       <div class="wn-actions"><button class="btn" id="wn-go">Walk me through it</button><button class="btn ghost" id="wn-later">Later</button></div>
     </div>`;

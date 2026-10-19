@@ -7,8 +7,82 @@
 // A step's check matches one app event: { event, ...fields }. Plain fields must
 // be equal. minWords / minSteps / minWindows are lower bounds. textHas searches
 // the dictated text.
+//
+// A lesson may list `unlocks`: keys on a starter pad that open once every step
+// in that lesson is done (src/main/pad-coach.js).
 (function (root) {
   const GUIDES = [
+    {
+      id: 'pad-coach',
+      version: '2.9.0',
+      title: 'Learn the pad as you go',
+      tagline: 'The pad shows you what each key does.',
+      whatsNew: [
+        'Hold the mic key to see every key, its name, and what to say for it.',
+        'A new pad starts with four keys. Each lesson you finish unlocks more.',
+        'Move a window by hand and SpeakEasy shows you the faster way.'
+      ],
+      needs: ['control-pad'],
+      lessons: [
+        { title: 'Peek at your pad', steps: [
+          { id: 'pk-hold', do: 'Hold the mic key (F5) for one second.', hint: 'Every key shows its name and the words that run it. Let go to close. No mic key? Open the pad and press /.', check: { event: 'pad-peek' } }
+        ] },
+        { title: 'Pick your starter keys', steps: [
+          { id: 'st-pick', do: 'Open the pad. Pick what you want it for.', hint: 'You start with four keys. The Control Pad lessons unlock the rest. Want all 16 now? Pick Show all 16.', check: { event: 'pad-starter' }, doneIf: 'starterPicked' }
+        ] },
+        { title: 'The faster way', steps: [
+          { id: 'fp-drag', do: 'Drag a window to the left half of the screen with your mouse.', hint: 'A tip shows the key and the words that do it for you. Tips stop once you use the fast way three times.', check: { event: 'pad-tip' } },
+          { id: 'fp-fast', do: 'Now the fast way. Tap the mic key, then press A.', hint: 'One tap and one key. No dragging.', check: { event: 'pad', key: 'A', ok: true } }
+        ] }
+      ],
+      challenge: {
+        title: 'No looking',
+        intro: 'Three jobs. Peek if you need to.',
+        levels: [[30, 'Pro'], [60, 'Operator']],
+        tasks: [
+          { id: 'px-peek', goal: 'Open the cheat sheet', check: { event: 'pad-peek' } },
+          { id: 'px-right', goal: 'Snap a window to the right half', check: { event: 'pad', key: 'D', ok: true } },
+          { id: 'px-full', goal: 'Fill the screen with one window', check: { event: 'pad', key: 'S', ok: true } }
+        ]
+      }
+    },
+    {
+      id: 'say-it-your-way',
+      version: '2.9.0',
+      title: 'Say it your way',
+      tagline: 'Close enough is good enough.',
+      whatsNew: [
+        'The pad shows lines you can say, made from your own apps and pads.',
+        'Say it close and SpeakEasy asks “Did you mean...?”. Press Return to run it.',
+        'Say “save this layout as Morning” to keep your screen just as it is.',
+        'Plug a monitor back in and SpeakEasy offers to put your windows back.'
+      ],
+      needs: ['voice-commands'],
+      lessons: [
+        { title: 'Say what you see', steps: [
+          { id: 'sy-strip', do: 'Open the pad. Hold fn and say one line from “You can say”.', hint: 'The lines come from your own apps and pads. They change every few seconds.', check: { event: 'plan', minSteps: 1 } }
+        ] },
+        { title: 'Close enough', steps: [
+          { id: 'sy-miss', do: 'Open the pad. Hold fn and say only “Chrome left”.', hint: 'SpeakEasy asks “Did you mean...?” and shows the words that work next time.', check: { event: 'plan', via: 'suggest' } },
+          { id: 'sy-run', do: 'Press Return to run it.', hint: 'A guess always waits for Return. Esc cancels.', check: { event: 'voice-step', do: 'snap', ok: true } }
+        ] },
+        { title: 'Save your screen', steps: [
+          { id: 'sy-save', do: 'Set up your windows. Open the pad, hold fn and say “save this layout as Morning”.', hint: 'Morning lands on a free workflow pad, 1 to 4.', check: { event: 'voice-step', do: 'save_layout', ok: true } },
+          { id: 'sy-back', do: 'Move a window. Open the pad, hold fn and say “put Morning back”.', hint: 'Unplug a monitor and plug it back in: SpeakEasy offers to put your windows back. Press Return.', check: { event: 'layout-restore', ok: true } }
+        ] }
+      ],
+      challenge: {
+        title: 'Your words',
+        intro: 'Four jobs, voice only. Any order.',
+        levels: [[60, 'Pro'], [120, 'Operator']],
+        tasks: [
+          { id: 'sx-save', goal: 'Save your screen as a layout by voice', check: { event: 'voice-step', do: 'save_layout', ok: true } },
+          { id: 'sx-back', goal: 'Bring a saved layout back', check: { event: 'layout-restore', ok: true } },
+          { id: 'sx-guess', goal: 'Get a “Did you mean...?”', check: { event: 'plan', via: 'suggest' } },
+          { id: 'sx-two', goal: 'Move two apps with one sentence', check: { event: 'plan', minSteps: 2 } }
+        ]
+      }
+    },
     {
       id: 'voice-commands',
       version: '2.7.0',
@@ -62,17 +136,17 @@
         { title: 'Stop the emoji picker', steps: [
           { id: 'cp-globe', do: 'In Settings, click Fix it next to “Emoji picker on fn”.', hint: 'fn will only dictate. Undo sits right there if you want it back.', check: { event: 'globe', fixed: true }, action: { label: 'Open Settings', run: 'tab:settings' }, doneIf: 'globeFixed' }
         ] },
-        { title: 'Snap windows', steps: [
+        { title: 'Snap windows', unlocks: ['Q', 'W', 'E', 'Z', 'X', 'C', '1'], steps: [
           { id: 'cp-open', do: 'Click into Chrome or any app. Then tap the mic key (F5) on the top row.', hint: 'No luck? Press Control+Option+P.', check: { event: 'pad-open' } },
           { id: 'cp-left', do: 'Press A.', hint: 'The window jumps to the left half. Keys match the screen: Q is top left, C is bottom right.', check: { event: 'pad', key: 'A', ok: true } },
           { id: 'cp-right', do: 'Open the pad again and press D.', hint: 'D is the right half.', check: { event: 'pad', key: 'D', ok: true } },
           { id: 'cp-full', do: 'Open the pad and press S.', hint: 'S fills the screen. Press a pad twice to jump to your other screen.', check: { event: 'pad', key: 'S', ok: true } }
         ] },
-        { title: 'Save your setup', steps: [
+        { title: 'Save your setup', unlocks: ['2', '3', '4', 'R', 'F'], steps: [
           { id: 'cp-save', do: 'Put two apps side by side. Open the pad and press Shift+1.', hint: 'Pad 1 now remembers every window on screen.', check: { event: 'pad-save', key: '1', ok: true } },
           { id: 'cp-restore', do: 'Move a window somewhere else. Open the pad and press 1.', hint: 'Everything snaps back. Closed apps open first.', check: { event: 'pad', key: '1', ok: true } }
         ] },
-        { title: 'Record', steps: [
+        { title: 'Record', unlocks: ['V'], steps: [
           { id: 'cp-rec', do: 'Open the pad and press R.', hint: 'The recorder toolbar and a round camera appear. Pick Record, or press Esc to close the toolbar.', check: { event: 'pad', key: 'R', ok: true } },
           { id: 'cp-cam', do: 'Open the pad and press F to hide the camera.', hint: 'F shows or hides the camera any time.', check: { event: 'camera', on: false } }
         ] },

@@ -119,6 +119,9 @@ const DEFAULT_SETTINGS = {
   padShortcut: 'Control+Option+P', // opens the Control Pad ('off' disables)
   voiceCommands: true, // hold fn with the pad open, or start with "Hey computer", to tell the Mac what to do
   padMicKey: true, // the microphone key (F5 on newer MacBooks) opens the Control Pad
+  padTips: true, // after a window is moved by hand, show the pad key and words that do it faster
+  padRestore: true, // when a monitor comes back, offer to put the windows back
+  // padStarter: { goal } after the first-open question, { all: true } for all 16 keys (unset: ask)
   globePrevious: undefined, // macOS Globe key setting before SpeakEasy's emoji fix, for Undo
   settingsVersion: 0 // one-time upgrades in main/index.js migrateSettings()
 };

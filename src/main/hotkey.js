@@ -26,9 +26,10 @@ const DOUBLE_TAP_MS = 900; // second tap within this window = hands-free toggle
  * Callbacks: onStart(), onStop(), onCancel()  (onStop/onCancel only fire while active)
  */
 class HotkeyManager {
-  constructor({ onStart, onStop, onCancel, onKey, onStatus, onMic, micKey }) {
+  constructor({ onStart, onStop, onCancel, onKey, onStatus, onMic, onMicUp, micKey }) {
     this.onStart = onStart;
     this.onMic = onMic;
+    this.onMicUp = onMicUp;
     this.micKey = micKey || (() => false); // claim the microphone key for the Control Pad
     this.onStop = onStop;
     this.onCancel = onCancel;
@@ -156,6 +157,7 @@ class HotkeyManager {
           else if (event === 'up') this._up({ keycode: -1 });
           else if (event === 'heartbeat') lastHeartbeat = Date.now();
           else if (event === 'mic') this._safe(this.onMic);
+          else if (event === 'mic-up') this._safe(this.onMicUp);
           else if (event === 'reset') this._listenerReset();
           else if (event === 'cancel' && this.active) this._cancel();
           else if (event === 'permission-required') fail('Allow SpeakEasy in Accessibility and Input Monitoring, then retry.');

@@ -167,7 +167,11 @@ function toGuideEvent(type, msg) {
     if (msg.phase === 'camera') return { type: 'camera', on: !!msg.on };
     if (msg.phase === 'set') return { type: 'pad-set', key: msg.key };
     if (msg.phase === 'voice-step') return { type: 'voice-step', do: msg.do, ok: !!msg.ok };
-    if (msg.phase === 'hit') return null;
+    if (msg.phase === 'peek') return { type: 'pad-peek' };
+    if (msg.phase === 'starter') return { type: 'pad-starter', goal: msg.goal };
+    if (msg.phase === 'tip') return { type: 'pad-tip', region: msg.region };
+    if (msg.phase === 'layout-restore') return { type: 'layout-restore', ok: !!msg.ok, source: msg.source };
+    if (msg.phase === 'hit' || msg.phase === 'saved') return null;
     if (msg.key && msg.source === 'save') return { type: 'pad-save', key: msg.key, ok: !!msg.ok };
     if (msg.key && msg.source !== 'voice') return { type: 'pad', key: msg.key, ok: !!msg.ok, source: msg.source };
     return null;

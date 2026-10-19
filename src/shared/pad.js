@@ -74,6 +74,53 @@
     return ACTIONS[pad.type]?.label || '';
   }
 
+  // How to say each region so the offline voice planner understands it.
+  const SAY_REGION = { 'top-left': 'the top left', top: 'the top', 'top-right': 'the top right', left: 'the left', full: 'full screen',
+    right: 'the right', 'bottom-left': 'the bottom left', bottom: 'the bottom', 'bottom-right': 'the bottom right',
+    'left-third': 'the left third', 'center-third': 'the center third', 'right-third': 'the right third',
+    'left-two-thirds': 'the left two thirds', 'right-two-thirds': 'the right two thirds', center: 'the center' };
+
+  /** The words that run this pad by voice ('' for an empty pad). who: an app name, or "this" window. */
+  function phrase(key, pad, who = 'this') {
+    if (!pad) return '';
+    const own = pad.label ? String(pad.label).trim() : '';
+    switch (pad.type) {
+      case 'snap': return `put ${who} on ${SAY_REGION[pad.region] || 'full screen'}`;
+      case 'layout': return (pad.windows || []).length ? `load ${label(pad)}` : `save this layout as ${label(pad)}`;
+      case 'app': return own ? `open ${own}` : pad.app ? `open ${String(pad.app).split('/').pop().replace(/\.app$/, '')}` : '';
+      case 'url': {
+        if (own) return `open ${own}`;
+        const bare = String(pad.url || '').replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
+        return /^https?:/i.test(pad.url || '') && /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(bare) ? `open ${bare}` : `hit pad ${key}`;
+      }
+      case 'shortcut': return pad.name ? `run the ${pad.name} shortcut` : '';
+      case 'text': return own ? `paste ${own}` : `hit pad ${key}`;
+      case 'record': return 'start recording';
+      case 'camera': return 'show the camera';
+      case 'keys': return `hit pad ${key}`;
+      default: return '';
+    }
+  }
+
+  function overlap(a, b) {
+    const w = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+    const h = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+    if (w <= 0 || h <= 0) return 0;
+    const inter = w * h;
+    return inter / (a.width * a.height + b.width * b.height - inter);
+  }
+
+  /** The region a hand-placed window fills (at least 80% overlap), or null. */
+  function matchRegion(frame, area, min = 0.8) {
+    if (!frame || !area || !(frame.width > 0) || !(frame.height > 0)) return null;
+    let best = null, score = 0;
+    for (const id of Object.keys(REGIONS)) {
+      const s = overlap(frame, frameFor(id, area));
+      if (s > score) { score = s; best = id; }
+    }
+    return score >= min ? best : null;
+  }
+
   /** A whole-pixel frame inside workArea. Neighbors share an edge with no gap. */
   function frameFor(region, area) {
     const r = (REGIONS[region] || REGIONS.full).r;
@@ -103,7 +150,7 @@
     return null;
   }
 
-  const pad = { ROWS, KEYS, REGIONS, ACTIONS, defaultPads, normalize, label, frameFor, sameFrame, parseKeys };
+  const pad = { ROWS, KEYS, REGIONS, ACTIONS, SAY_REGION, defaultPads, normalize, label, phrase, frameFor, sameFrame, matchRegion, parseKeys };
   if (typeof module === 'object' && module.exports) module.exports = pad;
   else root.SpeakEasyPad = pad;
 })(globalThis);

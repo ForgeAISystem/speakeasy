@@ -36,3 +36,20 @@
 .voice-how kbd { font: 600 12px 'JetBrains Mono', ui-monospace, monospace; padding: 4px 9px; border-radius: 7px; background: var(--ink); color: var(--accent); }
 .voice-examples { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
 .voice-examples li { font-size: 12.5px; padding: 6px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+
+/* Cheat sheet: every key, its name and the words that run it. Printable. */
+.cheat-card { display: grid; gap: 12px; padding: 16px 18px; border-radius: 16px; background: var(--sheet); border: 1px solid var(--hairline); box-shadow: var(--shadow-1); }
+.cheat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cheat-head kbd { font: 600 11px 'JetBrains Mono', ui-monospace, monospace; padding: 1px 6px; border-radius: 5px; background: var(--ink); color: var(--accent); }
+.cheat-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; }
+.cheat-list li { display: grid; grid-template-columns: 26px 1fr; gap: 0 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--hairline); min-width: 0; }
+.cheat-list kbd { grid-row: span 2; font: 600 12px 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); background: var(--ink); border-radius: 6px; text-align: center; padding: 3px 0; }
+.cheat-name { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cheat-say { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.cheat-list li.locked { opacity: 0.55; }
+@media print {
+  body.print-cheat * { visibility: hidden; }
+  body.print-cheat #cheat, body.print-cheat #cheat * { visibility: visible; }
+  body.print-cheat #cheat { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none; border: 0; }
+  body.print-cheat #cheat-print { display: none; }
+}

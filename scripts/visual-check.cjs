@@ -44,9 +44,10 @@ app.whenReady().then(async () => {
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
   await capture('learn', "switchTab('learn')", 980, 760);
-  await capture('whats-new', "switchTab('home').then(() => window.speakeasy.guideSummary()).then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['voice-commands', 'control-pad'] }))", 980, 760);
+  await capture('whats-new', "switchTab('home').then(() => window.speakeasy.guideSummary()).then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['pad-coach', 'say-it-your-way'] }))", 980, 760);
   await run("window.SpeakEasyLearn.whatsNew({ guides: [], fresh: [], version: '' })");
   await capture('pad', "switchTab('pad').then(() => document.querySelector('#pad-grid .pad-tile[data-key=\"1\"]').click())", 980, 760);
+  await capture('pad-cheat-sheet', "document.querySelector('#cheat').scrollIntoView()", 980, 760);
   await capture('snippets', "switchTab('snippets')");
   await capture('dictionary', "switchTab('dictionary')");
   await capture('settings-advanced', "switchTab('settings').then(() => { document.querySelector('.advanced-settings').open = true; })");
@@ -90,7 +91,7 @@ app.whenReady().then(async () => {
   console.log(JSON.stringify({ indicatorScreens: overlays.length, passed: !failed }));
   bar.destroy();
   // The floating Control Pad with several pad types on it, after a live hit.
-  const pad = new BrowserWindow({ width: 452, height: 520, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
+  const pad = new BrowserWindow({ width: 452, height: 576, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
     webPreferences: { preload: path.join(root, 'src/pad/preload.js'), offscreen: true } });
   pad.webContents.setFrameRate(15);
   await pad.loadFile(path.join(root, 'src/pad/pad.html'));
@@ -99,7 +100,9 @@ app.whenReady().then(async () => {
   pads['1'] = { type: 'layout', label: 'Build day', windows: [{ app: 'Claude' }, { app: 'Chrome' }] };
   pads['2'] = { type: 'app', app: 'Google Chrome' };
   pads.V = { type: 'text', label: 'Morning prompt', text: 'x' };
-  pad.webContents.send('pad:show', { pads, target: 'Google Chrome' });
+  const C = require('../src/main/commands');
+  const examples = C.examples({ pads, apps: ['Claude', 'Google Chrome', 'Notes'], frontApp: 'Google Chrome' });
+  pad.webContents.send('pad:show', { pads, target: 'Google Chrome', examples, locks: {} });
   await delay(300);
   pad.webContents.send('pad:result', { key: 'A', ok: true, message: 'Google Chrome > Left half' });
   await delay(150);
@@ -110,9 +113,61 @@ app.whenReady().then(async () => {
   await delay(200);
   padCheck.planFits = await pad.webContents.executeJavaScript(`(() => { const p = document.querySelector('#plan'); return !p.hidden && p.scrollHeight <= p.clientHeight + 1; })()`);
   fs.writeFileSync(path.join(out, 'control-pad-plan.png'), (await pad.webContents.capturePage()).toPNG());
+  const padFits = () => pad.webContents.executeJavaScript(`(() => { const p = document.querySelector('#pad'); const tiles = [...document.querySelectorAll('.pad-tile')];
+    return p.scrollHeight <= p.clientHeight + 1 && tiles.every((t) => t.scrollHeight <= t.clientHeight + 1); })()`);
+  // Hold-to-peek: every key with its name and words.
+  pad.webContents.send('pad:show', { pads, target: 'Google Chrome', examples, locks: {} });
+  await delay(200);
+  pad.webContents.send('pad:peek', { on: true });
+  await delay(250);
+  padCheck.peek = await pad.webContents.executeJavaScript(`({ words: [...document.querySelectorAll('.pad-say')].filter((e) => getComputedStyle(e).display !== 'none').length,
+    sayHidden: getComputedStyle(document.querySelector('#say')).display === 'none' })`);
+  padCheck.peekFits = await padFits();
+  fs.writeFileSync(path.join(out, 'control-pad-peek.png'), (await pad.webContents.capturePage()).toPNG());
+  // First open of a new pad: the question, then the four-key starter pad.
+  const fresh = P.defaultPads();
+  pad.webContents.send('pad:show', { pads: fresh, target: 'Google Chrome', examples: examples.slice(1), locks: {}, ask: true });
+  await delay(300);
+  padCheck.askFits = await pad.webContents.executeJavaScript(`(() => { const a = document.querySelector('#ask'); return !a.hidden && a.scrollHeight <= a.clientHeight + 1; })()`);
+  fs.writeFileSync(path.join(out, 'control-pad-starter-ask.png'), (await pad.webContents.capturePage()).toPNG());
+  const locks = require('../src/main/pad-coach').locks({ goal: 'windows' }, {});
+  pad.webContents.send('pad:show', { pads: fresh, target: 'Google Chrome', examples: examples.slice(1), locks });
+  await delay(300);
+  padCheck.locked = await pad.webContents.executeJavaScript(`document.querySelectorAll('.pad-tile.locked').length`);
+  padCheck.lockedFits = await padFits();
+  padCheck.sayFits = await pad.webContents.executeJavaScript(`[...document.querySelectorAll('.say-line')].every((l) => l.getBoundingClientRect().bottom <= document.querySelector('#say').getBoundingClientRect().bottom + 0.5)`);
+  fs.writeFileSync(path.join(out, 'control-pad-starter.png'), (await pad.webContents.capturePage()).toPNG());
+  pad.webContents.send('pad:peek', { on: true });
+  await delay(250);
+  padCheck.lockedPeekFits = await padFits();
+  fs.writeFileSync(path.join(out, 'control-pad-starter-peek.png'), (await pad.webContents.capturePage()).toPNG());
+  // "Did you mean...?" and the monitor offer.
+  const guess = await C.plan('Chrome left', { pads, apps: ['Claude', 'Google Chrome', 'Notes'] }, {});
+  pad.webContents.send('pad:plan', { heard: guess.heard, via: guess.via, reply: guess.reply, confirm: true, steps: guess.steps.map((st) => ({ text: C.describe(st, pads), confirm: true })) });
+  await delay(200);
+  padCheck.guess = await pad.webContents.executeJavaScript(`({ eyebrow: document.querySelector('#plan-eyebrow').textContent, reply: document.querySelector('#plan-reply').textContent })`);
+  fs.writeFileSync(path.join(out, 'control-pad-did-you-mean.png'), (await pad.webContents.capturePage()).toPNG());
+  pad.webContents.send('pad:plan', { heard: '', title: 'Your screen is back. Put your windows back?', via: 'monitor', reply: '', confirm: true, steps: [{ text: 'Put 6 windows back where they were', confirm: true }] });
+  await delay(200);
+  padCheck.monitorHeard = await pad.webContents.executeJavaScript(`document.querySelector('#plan-heard').textContent`);
+  fs.writeFileSync(path.join(out, 'control-pad-monitor-back.png'), (await pad.webContents.capturePage()).toPNG());
   console.log(JSON.stringify({ controlPad: padCheck }));
-  if (padCheck.tiles !== 16 || !padCheck.fits || !padCheck.planFits) failed = true;
+  if (padCheck.tiles !== 16 || !padCheck.fits || !padCheck.planFits || padCheck.peek.words !== 16 || !padCheck.peekFits || !padCheck.askFits ||
+    padCheck.locked !== 12 || !padCheck.lockedFits || !padCheck.sayFits || !padCheck.lockedPeekFits || !/DID YOU MEAN/.test(padCheck.guess.eyebrow) || !/screen is back/.test(padCheck.monitorHeard)) failed = true;
   pad.destroy();
+  // The faster-way tip.
+  const tipWin = new BrowserWindow({ width: 560, height: 64, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
+    webPreferences: { preload: path.join(root, 'src/pad/preload.js'), offscreen: true } });
+  tipWin.webContents.setFrameRate(15);
+  await tipWin.loadFile(path.join(root, 'src/pad/tip.html'));
+  const tip = require('../src/main/pad-coach').tipFor({ region: 'left', app: 'Google Chrome' }, { pads: P.defaultPads(), opener: 'tap the mic key' });
+  tipWin.webContents.send('tip:show', tip);
+  await delay(300);
+  const tipCheck = await tipWin.webContents.executeJavaScript(`(() => { const t = document.querySelector('#tip'); return { text: t.textContent, fits: t.scrollHeight <= t.clientHeight + 1 && t.getBoundingClientRect().top >= 0 }; })()`);
+  fs.writeFileSync(path.join(out, 'tip.png'), (await tipWin.webContents.capturePage()).toPNG());
+  console.log(JSON.stringify({ tip: tipCheck }));
+  if (!tipCheck.fits) failed = true;
+  tipWin.destroy();
   // The coach: waiting on a step, a step just done, a challenge, a challenge result.
   const coach = new BrowserWindow({ width: 380, height: 300, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
     webPreferences: { preload: path.join(root, 'src/coach/preload.js'), offscreen: true } });

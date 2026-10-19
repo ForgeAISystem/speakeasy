@@ -90,6 +90,17 @@ function saveGuide(data) {
   return guideStore.data;
 }
 
+// Pad teaching: how often each fast move was used (tips stop at 3), and the
+// windows on each monitor setup so a reconnect can put them back.
+function makeStore(name) {
+  let st;
+  const get = () => { if (!st) st = new JsonStore(name, {}); return st.data; };
+  const set = (data) => { get(); st.data = data; st.save(); return st.data; };
+  return [get, set];
+}
+const [tips, saveTips] = makeStore('tips');
+const [layouts, saveLayouts] = makeStore('layouts');
+
 // ---- History (most recent first, capped) ----
 const HISTORY_CAP = 500;
 let historyStore;
@@ -210,6 +221,8 @@ module.exports = {
   windowState, saveWindowState,
   pad, savePad,
   guide, saveGuide,
+  tips, saveTips,
+  layouts, saveLayouts,
   history, addHistory, removeHistory, clearHistory,
   dictionary, snippets,
   recordTranscription, statsSummary

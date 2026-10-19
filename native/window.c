@@ -1,14 +1,18 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <libproc.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 // Window Pad helper. One command per run, one JSON line out.
 //   front                      the focused window of the frontmost app
 //   move <pid> <x> <y> <w> <h> place that app's focused (or main) window
 //   list                       on-screen app windows, front to back, one per app
 //   frame <pid>                that app's focused (or main) window frame
+//   watch                      runs until SpeakEasy quits; one line per window
+//                              the user moved or resized by hand (mouse held)
 // Reads window frames and app names only. No window titles or contents.
 
 static void jsonString(const char *s) {
@@ -172,14 +176,82 @@ static int frame(pid_t pid) {
   return 0;
 }
 
+// The focused window of the frontmost app, retained. 1 found, 0 none, -1 no Accessibility.
+static int focused(pid_t *pid, char *name, size_t size, AXUIElementRef *out, CGPoint *pos, CGSize *dim) {
+  AXUIElementRef system = AXUIElementCreateSystemWide();
+  CFTypeRef app = NULL;
+  AXError err = AXUIElementCopyAttributeValue(system, kAXFocusedApplicationAttribute, &app);
+  CFRelease(system);
+  if (err == kAXErrorAPIDisabled) return -1;
+  if (err != kAXErrorSuccess || !app) return 0;
+  AXUIElementGetPid(app, pid);
+  CFTypeRef title = NULL;
+  AXUIElementCopyAttributeValue(app, kAXTitleAttribute, &title);
+  cfString(title, name, size);
+  if (title) CFRelease(title);
+  CFTypeRef win = NULL;
+  AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute, &win);
+  CFRelease(app);
+  if (!win) return 0;
+  if (!frameOf((AXUIElementRef)win, pos, dim)) { CFRelease(win); return 0; }
+  *out = (AXUIElementRef)win;
+  return 1;
+}
+
+// Moves made by SpeakEasy happen with the mouse up, so they never show here.
+static int watch(void) {
+  pid_t owner = getppid();
+  bool down = false;
+  AXUIElementRef start = NULL;
+  pid_t startPid = 0;
+  CGPoint p0 = {0, 0};
+  CGSize s0 = {0, 0};
+  puts("{\"ok\":true,\"event\":\"watching\"}");
+  fflush(stdout);
+  for (;;) {
+    if (getppid() != owner) return 0;
+    bool now = CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kCGMouseButtonLeft);
+    char name[256];
+    if (now && !down) {
+      if (start) { CFRelease(start); start = NULL; }
+      int found = focused(&startPid, name, sizeof name, &start, &p0, &s0);
+      if (found < 0) return fail("accessibility");
+      if (!found) start = NULL;
+    } else if (!now && down && start) {
+      usleep(300000); // let a macOS tile animation finish
+      pid_t pid = 0;
+      AXUIElementRef end = NULL;
+      CGPoint p1;
+      CGSize s1;
+      if (focused(&pid, name, sizeof name, &end, &p1, &s1) > 0) {
+        bool same = pid == startPid && pid != owner && CFEqual(start, end);
+        bool changed = fabs(p1.x - p0.x) > 8 || fabs(p1.y - p0.y) > 8 || fabs(s1.width - s0.width) > 8 || fabs(s1.height - s0.height) > 8;
+        if (same && changed) {
+          printf("{\"event\":\"manual\",\"pid\":%d,\"app\":", pid);
+          jsonString(name);
+          printf(",\"bx\":%.0f,\"by\":%.0f,\"bw\":%.0f,\"bh\":%.0f,\"x\":%.0f,\"y\":%.0f,\"w\":%.0f,\"h\":%.0f}\n",
+                 p0.x, p0.y, s0.width, s0.height, p1.x, p1.y, s1.width, s1.height);
+          fflush(stdout);
+        }
+        CFRelease(end);
+      }
+      CFRelease(start);
+      start = NULL;
+    }
+    down = now;
+    usleep(now ? 50000 : 120000);
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc > 1 && strcmp(argv[1], "front") == 0) return front();
   if (argc > 1 && strcmp(argv[1], "list") == 0) return list(getpid());
+  if (argc > 1 && strcmp(argv[1], "watch") == 0) return watch();
   if (argc == 3 && strcmp(argv[1], "frame") == 0) return frame((pid_t)atoi(argv[2]));
   if (argc == 7 && strcmp(argv[1], "move") == 0) {
     CGPoint pos = { atof(argv[3]), atof(argv[4]) };
     CGSize size = { atof(argv[5]), atof(argv[6]) };
     return move((pid_t)atoi(argv[2]), pos, size);
   }
-  return fail("usage: front | list | frame <pid> | move <pid> <x> <y> <w> <h>");
+  return fail("usage: front | list | frame <pid> | move <pid> <x> <y> <w> <h> | watch");
 }

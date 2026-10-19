@@ -38,3 +38,33 @@ footer kbd { font: 600 10px 'JetBrains Mono', ui-monospace, monospace; color: #f
 .plan-actions { display: flex; align-items: center; gap: 12px; margin-top: auto; color: #bac7ae; font-size: 11px; }
 .plan-actions[hidden] { display: none; }
 .plan-actions button { font: 600 12.5px -apple-system, system-ui, sans-serif; padding: 8px 14px; border-radius: 9px; border: 0; background: #ffa946; color: #1a1a1a; cursor: pointer; }
+
+/* "You can say": the owner's own lines, two at a time. */
+.say { flex: none; display: flex; align-items: flex-start; gap: 10px; height: 44px; overflow: hidden; padding: 0 2px; }
+.say[hidden] { display: none; }
+.say-label { flex: none; padding-top: 3px; font: 600 9px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: #ffb867; }
+.say-lines { display: flex; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+.say-line { font-size: 11.5px; line-height: 1.35; color: #ffffeb; padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 235, 0.08); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+#pad.peek .say { display: none; }
+#pad.listening .say { visibility: hidden; }
+
+/* Hold-to-peek cheat sheet. */
+#pad.peek header .title::after { content: ' · cheat sheet'; color: #ffb867; }
+footer .peek-btn { all: unset; cursor: pointer; color: #bac7ae; }
+footer .peek-btn:hover { color: #ffffeb; }
+
+/* First open: what is the pad for? */
+.ask { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 14px;
+  background: #141b14; border: 1px solid rgba(255, 255, 235, 0.14); color: #ffffeb; }
+.ask[hidden] { display: none; }
+.ask-q { margin: 0; font-size: 17px; font-weight: 600; }
+.ask-sub { margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: #bac7ae; }
+.ask-goals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ask-goals button { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; text-align: left; padding: 12px; border-radius: 11px;
+  border: 1px solid rgba(255, 255, 235, 0.14); background: rgba(255, 255, 235, 0.06); color: #ffffeb; font: inherit; cursor: pointer; }
+.ask-goals button:hover { background: rgba(255, 169, 70, 0.18); border-color: rgba(255, 184, 103, 0.6); }
+.ask-goals kbd { grid-row: span 2; font: 600 13px 'JetBrains Mono', ui-monospace, monospace; color: #1a1a1a; background: #ffa946; border-radius: 6px; padding: 4px 8px; }
+.ask-goals span { font-size: 13px; font-weight: 600; }
+.ask-goals small { font-size: 10.5px; color: #bac7ae; }
+.ask-all { all: unset; margin-top: auto; align-self: flex-start; cursor: pointer; font-size: 12px; color: #ffd5a4; border-bottom: 1px solid rgba(255, 213, 164, 0.4); }
+.plan.guess .plan-reply { color: #ffd5a4; }

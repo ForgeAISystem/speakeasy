@@ -31,6 +31,16 @@ A check is `{ event, ...fields }`. It matches one event from `toGuideEvent()` in
 | `camera` | `on` | camera bubble shown or hidden |
 | `dictation` | `phase`, `words` (`minWords`), `text` (`textHas`), `handsFree` | a dictation finished or was cancelled |
 | `globe` | `fixed` | the fn emoji fix was applied |
+| `pad-peek` | none | the cheat sheet opened (mic key held, or / on the pad) |
+| `pad-starter` | `goal` | the owner answered "What do you want the pad for?" |
+| `pad-tip` | `region` | a faster-way tip showed after a window was moved by hand |
+| `layout-restore` | `ok`, `source` (`pad`, `voice`, `monitor`) | a saved layout or screen snapshot was put back |
+
+`plan` also carries `via`: `local`, `claude`, `suggest` (a "Did you mean...?" guess) or `none`. `voice-step` carries `do` values `save_layout` and `restore_windows` too.
+
+## Unlocks
+
+A lesson may list `unlocks: ['Q', ...]`. On a starter pad those keys open once every step of the lesson is done (`src/main/pad-coach.js`). A lesson must only ask for keys that are open by the time it runs: the starter keys (A, D, S plus the goal key) or keys an earlier lesson unlocks. `tests/pad-coach.test.js` checks that all 16 keys are covered.
 
 A new feature that has no event yet adds one: emit it through `push()` in `src/main/index.js` and map it in `toGuideEvent()`.
 

@@ -21,3 +21,20 @@
 .art .zone.empty { fill: none; stroke: rgba(255, 255, 235, 0.3); stroke-dasharray: 2 2; }
 .art .rec { fill: #ff5a4a; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Locked keys on a starter pad: dimmed, with the lesson that opens them. */
+.pad-tile.locked { opacity: 0.38; background: rgba(255, 255, 235, 0.03); border-style: dashed; }
+.pad-tile.locked .art { display: none; }
+.pad-tile.locked .pad-tag { color: #ffb867; }
+.pad-sub { line-height: 1.2; }
+
+/* The words that run a key. Hidden until the cheat sheet (.peek) or the printed sheet. */
+.pad-say { display: none; font-size: 9.5px; line-height: 1.25; color: #ffd5a4; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.peek .pad-tile { justify-content: flex-start; padding-top: 26px; }
+.peek .pad-tile .art { display: none; }
+.peek .pad-tile .pad-label { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.peek .pad-tile .pad-say { display: -webkit-box; margin-top: 3px; }
+.peek .pad-tile .pad-sub { display: none; }
+.peek .pad-tile.locked { opacity: 0.55; }
+.peek .pad-tile.locked .pad-sub { display: block; }
+.peek .pad-tile.locked .pad-say { display: none; }

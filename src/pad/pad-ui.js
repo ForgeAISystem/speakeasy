@@ -19,17 +19,23 @@
     return '';
   }
 
+  // opts: selected, locked (the lesson that unlocks this key). Every tile carries
+  // the words that run it; the cheat sheet (.peek) shows them.
   function tile(key, pad, opts = {}) {
-    const sub = pad.type === 'layout' ? `${(pad.windows || []).length || 'No'} windows` : pad.type === 'none' ? 'Empty' : '';
-    return `<button class="pad-tile type-${pad.type}${opts.selected ? ' selected' : ''}" data-key="${esc(key)}" type="button" aria-label="${esc(key)}: ${esc(P.label(pad) || 'Empty')}">
-      <span class="pad-key">${esc(key)}</span><span class="pad-tag">${TAGS[pad.type] || ''}</span>
+    const name = P.label(pad) || 'Empty';
+    const sub = opts.locked ? `After ${opts.locked}` : pad.type === 'layout' ? `${(pad.windows || []).length || 'No'} windows` : pad.type === 'none' ? 'Empty' : '';
+    const say = P.phrase(key, pad);
+    return `<button class="pad-tile type-${pad.type}${opts.selected ? ' selected' : ''}${opts.locked ? ' locked' : ''}" data-key="${esc(key)}" type="button" aria-label="${esc(key)}: ${esc(name)}${opts.locked ? ', locked' : ''}">
+      <span class="pad-key">${esc(key)}</span><span class="pad-tag">${opts.locked ? 'LOCKED' : TAGS[pad.type] || ''}</span>
       ${art(pad)}
-      <span class="pad-label">${esc(P.label(pad) || 'Empty')}</span>${sub ? `<span class="pad-sub">${esc(sub)}</span>` : ''}
+      <span class="pad-label">${esc(name)}</span>${sub ? `<span class="pad-sub">${esc(sub)}</span>` : ''}
+      ${say ? `<span class="pad-say">“${esc(say)}”</span>` : ''}
     </button>`;
   }
 
   function grid(pads, opts = {}) {
-    return P.KEYS.map((k) => tile(k, pads[k], { selected: opts.selected === k })).join('');
+    const locks = opts.locks || {};
+    return P.KEYS.map((k) => tile(k, pads[k], { selected: opts.selected === k, locked: locks[k] })).join('');
   }
 
   function flash(container, event) {

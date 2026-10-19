@@ -11,8 +11,21 @@
 <body>
 <main id="pad" role="dialog" aria-label="Control Pad">
   <header><span class="title">Control Pad</span><span id="target" class="target"></span></header>
+  <div id="say" class="say" hidden aria-live="polite"><span class="say-label">YOU CAN SAY</span><span id="say-lines" class="say-lines"></span></div>
   <div class="stage">
     <div id="grid" class="grid"></div>
+    <section id="ask" class="ask" hidden>
+      <div class="plan-eyebrow">NEW PAD</div>
+      <p class="ask-q">What do you want the pad for?</p>
+      <p class="ask-sub">You start with four keys. Each lesson you finish in Learn unlocks more.</p>
+      <div class="ask-goals">
+        <button type="button" data-goal="windows"><kbd>1</kbd><span>Windows</span><small>Snap and save your setup</small></button>
+        <button type="button" data-goal="apps"><kbd>2</kbd><span>Apps and links</span><small>Open what you use most</small></button>
+        <button type="button" data-goal="prompts"><kbd>3</kbd><span>Prompts</span><small>Paste your best prompt</small></button>
+        <button type="button" data-goal="recording"><kbd>4</kbd><span>Recording</span><small>Screen plus camera</small></button>
+      </div>
+      <button type="button" class="ask-all" data-goal="all">Show all 16 keys now</button>
+    </section>
     <section id="plan" class="plan" hidden aria-live="polite">
       <div class="plan-eyebrow" id="plan-eyebrow">YOU SAID</div>
       <p class="plan-heard" id="plan-heard"></p>
@@ -21,7 +34,7 @@
       <div class="plan-actions" id="plan-actions" hidden><button type="button" id="plan-run">Run it</button><span><kbd>Return</kbd> runs · <kbd>Esc</kbd> cancels</span></div>
     </section>
   </div>
-  <footer><span id="status">Tap a key, or hold <kbd>fn</kbd> and say it</span><span class="keys"><kbd>Shift</kbd>+<kbd>1</kbd> saves · <kbd>Esc</kbd> closes</span></footer>
+  <footer><span id="status">Tap a key, or hold <kbd>fn</kbd> and say it</span><span class="keys"><button type="button" id="peek-btn" class="peek-btn"><kbd>/</kbd> cheat sheet</button> · <kbd>Esc</kbd> closes</span></footer>
 </main>
 <script src="../shared/pad.js"></script>
 <script src="./pad-ui.js"></script>

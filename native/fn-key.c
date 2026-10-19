@@ -29,6 +29,7 @@ static CGEventRef handle(CGEventTapProxy proxy, CGEventType type, CGEventRef eve
   if (claimMic && (type == kCGEventKeyDown || type == kCGEventKeyUp)
       && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == MIC_KEY) {
     if (type == kCGEventKeyDown && !CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat)) emit("mic");
+    if (type == kCGEventKeyUp) emit("mic-up"); // held past a moment: the pad shows its cheat sheet
     return NULL; // macOS dictation stays closed while SpeakEasy owns the key
   }
   if (type == kCGEventFlagsChanged && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == 63) {

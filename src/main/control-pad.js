@@ -2,8 +2,9 @@
 
 const path = require('path');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const padModel = require('../shared/pad');
+const coach = require('./pad-coach');
 
 // The Control Pad: a floating 4x4 grid that runs one action per pad. It opens
 // without taking focus, so the app you were using stays the target of a snap,
@@ -23,8 +24,10 @@ const quote = (s) => '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
 class ControlPad {
   /**
-   * deps: electron pieces plus store (pad(), savePad()), injectText, onEvent
-   * (every trigger, for the live monitor) and helperPath.
+   * deps: electron pieces plus store (pad(), savePad(), layouts(), saveLayouts()),
+   * injectText, onEvent (every trigger, for the live monitor), helperPath,
+   * view(target) -> { locks, ask, examples, opener } for the starter pad and the
+   * "You can say" strip, and onStarter(goal) when the owner answers the question.
    */
   constructor(deps) {
     this.d = deps;
@@ -33,9 +36,19 @@ class ControlPad {
     this.target = null;
     this.keysBound = false;
     this.closeTimer = null;
+    this.peeking = false;
+    this.micHeld = null;
+    this.asking = false;
   }
 
   pads() { return padModel.normalize(this.d.store.pad()); }
+
+  _view(target) {
+    const view = this.d.view ? this.d.view(target) : {};
+    return { locks: view.locks || {}, ask: !!view.ask, examples: view.examples || [], opener: view.opener || '' };
+  }
+
+  locks() { return this._view(this.target).locks; }
 
   async helper(args) {
     const out = await run(this.d.helperPath, args.map(String), 4000).catch((e) => e.message);
@@ -48,7 +61,7 @@ class ControlPad {
     if (this.win && !this.win.isDestroyed()) return this.win;
     const { BrowserWindow } = this.d.electron;
     const win = this.win = new BrowserWindow({
-      width: 452, height: 520, show: false, frame: false, transparent: true, resizable: false,
+      width: 452, height: 576, show: false, frame: false, transparent: true, resizable: false,
       movable: false, minimizable: false, maximizable: false, fullscreenable: false,
       skipTaskbar: true, hasShadow: false, focusable: false, type: 'panel', alwaysOnTop: true,
       webPreferences: { preload: path.join(__dirname, '..', 'pad', 'preload.js') }
@@ -85,7 +98,10 @@ class ControlPad {
     const [w, h] = win.getSize();
     const a = display.workArea;
     win.setPosition(Math.round(a.x + (a.width - w) / 2), Math.round(a.y + (a.height - h) / 2), false);
-    const send = () => win.webContents.send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '' });
+    const view = this._view(this.target);
+    this.asking = view.ask;
+    this.peeking = false;
+    const send = () => win.webContents.send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '', ...view });
     if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
     win.showInactive();
     this.d.onEvent && this.d.onEvent({ phase: 'open', at: Date.now() });
@@ -95,8 +111,52 @@ class ControlPad {
     return true;
   }
 
+  /** Re-sends the pad without the open animation (after a starter pick or a teach). */
+  refresh() {
+    const view = this._view(this.target);
+    this.asking = view.ask;
+    this._send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '', ...view, keepPlan: true });
+  }
+
+  /** Hold-to-peek: every key with its name and the words that run it. */
+  peek(on) {
+    if (!this.isOpen() && on) return false;
+    if (this.peeking === !!on) return this.peeking;
+    this.peeking = !!on;
+    this._send('pad:peek', { on: this.peeking });
+    clearTimeout(this.closeTimer);
+    if (this.peeking) this.d.onEvent && this.d.onEvent({ phase: 'peek', at: Date.now() });
+    else this.closeTimer = setTimeout(() => this.close(), 12000);
+    return this.peeking;
+  }
+
+  /** Mic key down: open the pad; still held after a moment, show the cheat sheet. */
+  async micDown() {
+    const wasOpen = this.isOpen();
+    const held = this.micHeld = { wasOpen, peeked: false };
+    clearTimeout(this.peekTimer);
+    this.peekTimer = setTimeout(() => {
+      if (this.micHeld === held) { held.peeked = true; this.peek(true); }
+    }, 450);
+    if (!wasOpen) await this.open();
+  }
+
+  /** Mic key up: a short tap toggles the pad, a hold closes the cheat sheet. */
+  micUp() {
+    clearTimeout(this.peekTimer);
+    const held = this.micHeld;
+    this.micHeld = null;
+    if (!held) return;
+    if (held.peeked) this.peek(false);
+    else if (held.wasOpen) this.close();
+  }
+
   close() {
     clearTimeout(this.closeTimer);
+    clearTimeout(this.peekTimer);
+    this.micHeld = null;
+    this.peeking = false;
+    this.asking = false;
     this._unbindKeys();
     this._unbindConfirm();
     this.pending = null;
@@ -126,8 +186,10 @@ class ControlPad {
     }
     clearTimeout(this.closeTimer);
     const confirm = plan.steps.some((st) => st.confirm);
-    this._send('pad:plan', { heard: plan.heard, reply: plan.reply, via: plan.via, confirm, steps: plan.steps.map((st) => ({ text: st.text, confirm: st.confirm })) });
-    this.d.onEvent && this.d.onEvent({ phase: 'plan', heard: plan.heard, steps: plan.steps.map((st) => st.text), via: plan.via, wake: !!plan.wake, at: Date.now() });
+    this.asking = false;
+    this._send('pad:plan', { heard: plan.heard, title: plan.title || '', reply: plan.reply, via: plan.via, say: plan.say || '', confirm, steps: plan.steps.map((st) => ({ text: st.text, confirm: st.confirm })) });
+    // An offer SpeakEasy makes on its own is not something the owner said.
+    if (plan.via !== 'monitor') this.d.onEvent && this.d.onEvent({ phase: 'plan', heard: plan.heard, steps: plan.steps.map((st) => st.text), via: plan.via, wake: !!plan.wake, at: Date.now() });
     if (!plan.steps.length) { this.closeTimer = setTimeout(() => this.close(), 4500); return { ok: false, ran: 0 }; }
     if (!confirm) return this.runSteps(plan.steps);
     this.pending = plan.steps;
@@ -163,7 +225,7 @@ class ControlPad {
       let res;
       try { res = await this.runStep(steps[i]); } catch (e) { res = { ok: false, message: e.message }; }
       if (res.ok) ran++;
-      this.d.onEvent && this.d.onEvent({ phase: 'voice-step', do: steps[i].do, ok: !!res.ok, at: Date.now() });
+      this.d.onEvent && this.d.onEvent({ phase: 'voice-step', do: steps[i].do, ok: !!res.ok, region: steps[i].do === 'snap' ? steps[i].region : undefined, at: Date.now() });
       this._send('pad:step', { i, state: res.ok ? 'ok' : 'fail', message: res.message });
       this.d.onEvent && this.d.onEvent({ key: steps[i].key || 'VOICE', ok: res.ok, message: `${steps[i].text}: ${res.message || (res.ok ? 'done' : 'failed')}`, label: 'Voice', source: 'voice', at: Date.now() });
     }
@@ -192,9 +254,11 @@ class ControlPad {
       case 'teach': {
         pads[step.key] = step.action;
         this.d.store.savePad(pads);
-        this._send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '', keepPlan: true });
+        this.refresh();
         return { ok: true, message: `Pad ${step.key} saved` };
       }
+      case 'save_layout': return this.saveNamed(step.name);
+      case 'restore_windows': return this.restoreWindows(step.source || 'voice');
       default: return { ok: false, message: 'Unknown step' };
     }
   }
@@ -227,6 +291,7 @@ class ControlPad {
       bind(key, () => this.press(key, 'key'));
       bind(`Shift+${key}`, () => this.save(key));
     }
+    bind('/', () => this.peek(!this.peeking));
     bind('Escape', () => this.close());
   }
 
@@ -236,7 +301,7 @@ class ControlPad {
     for (const key of padModel.KEYS) {
       try { globalShortcut.unregister(key); globalShortcut.unregister(`Shift+${key}`); } catch { /* not bound */ }
     }
-    try { globalShortcut.unregister('Escape'); } catch { /* not bound */ }
+    try { globalShortcut.unregister('Escape'); globalShortcut.unregister('/'); } catch { /* not bound */ }
     this.keysBound = false;
   }
 
@@ -251,6 +316,21 @@ class ControlPad {
   async press(key, source = 'click') {
     const pad = this.pads()[key];
     if (!pad) return { ok: false, message: 'No such pad' };
+    clearTimeout(this.peekTimer);
+    if (this.micHeld) this.micHeld.peeked = true; // a key while holding mic: no tap-to-close on release
+    if (this.peeking) this.peek(false);
+    // First open of a new pad: 1 to 4 answer "What is the pad for?"
+    const goal = coach.GOALS[['1', '2', '3', '4'].indexOf(key)];
+    if (this.asking && source === 'key' && goal) {
+      this.asking = false;
+      if (this.d.onStarter) this.d.onStarter(goal);
+      return { ok: true, key, message: `Starter pad: ${coach.STARTERS[goal].label}` };
+    }
+    const lockedBy = this.locks()[key];
+    if (lockedBy) {
+      const event = this._result(key, false, `Locked. Finish “${lockedBy}” in Learn to unlock it.`, source);
+      return event;
+    }
     this.d.onEvent && this.d.onEvent({ key, phase: 'hit', at: Date.now(), source });
     let result;
     try {
@@ -321,15 +401,144 @@ class ControlPad {
     const pads = this.pads();
     const pad = pads[key];
     if (!pad || pad.type !== 'layout') return this._result(key, false, 'Only workflow pads save layouts.', 'save');
-    const list = await this.helper(['list']);
-    if (!list.ok) return this._result(key, false, 'Could not read your windows.', 'save');
-    const windows = list.windows.filter((w) => w.pid !== process.pid).slice(0, 12)
-      .map(({ app, exec, x, y, w, h }) => ({ app, exec, x, y, w, h }));
+    const lockedBy = this.locks()[key];
+    if (lockedBy) return this._result(key, false, `Locked. Finish “${lockedBy}” in Learn to unlock it.`, 'save');
+    const windows = await this._capture();
+    if (!windows) return this._result(key, false, 'Could not read your windows.', 'save');
     pads[key] = { ...pad, windows };
     this.d.store.savePad(pads);
     const event = this._result(key, true, `Saved ${windows.length} ${windows.length === 1 ? 'window' : 'windows'}`, 'save');
     if (this.isOpen()) setTimeout(() => this.close(), 600);
     return event;
+  }
+
+  /** Every visible app window now (not SpeakEasy's own), or null. */
+  async _capture() {
+    const list = await this.helper(['list']);
+    if (!list.ok) return null;
+    return list.windows.filter((w) => w.pid !== process.pid).slice(0, 12)
+      .map(({ app, exec, x, y, w, h }) => ({ app, exec, x, y, w, h }));
+  }
+
+  /**
+   * "Save this layout as Morning": the pad already called Morning, else the
+   * first empty workflow pad, else the first empty pad. Locked pads are skipped.
+   */
+  async saveNamed(name) {
+    const pads = this.pads();
+    const locked = this.locks();
+    const want = String(name || '').trim().toLowerCase();
+    if (!want) return { ok: false, message: 'Say a name, like “save this layout as Morning”.' };
+    const free = (k) => !locked[k];
+    const key = padModel.KEYS.find((k) => pads[k].type === 'layout' && padModel.label(pads[k]).toLowerCase() === want)
+      || padModel.KEYS.find((k) => free(k) && pads[k].type === 'layout' && !(pads[k].windows || []).length)
+      || padModel.KEYS.find((k) => free(k) && pads[k].type === 'none');
+    if (!key) return { ok: false, message: 'No free pad. Clear one in SpeakEasy > Pad.' };
+    const windows = await this._capture();
+    if (!windows) return { ok: false, message: 'Could not read your windows.' };
+    pads[key] = { type: 'layout', label: String(name).trim().slice(0, 40), windows };
+    this.d.store.savePad(pads);
+    this.refresh();
+    this.d.onEvent && this.d.onEvent({ key, phase: 'saved', ok: true, label: pads[key].label, message: `Saved ${windows.length} windows as ${pads[key].label}`, at: Date.now() });
+    return { ok: true, message: `Saved ${windows.length} ${windows.length === 1 ? 'window' : 'windows'} to pad ${key}` };
+  }
+
+  // ------------------------------------------------------------ monitors
+
+  _signature() { return coach.signature(this.d.electron.screen.getAllDisplays()); }
+
+  /** With two or more screens, keep what is on them so a reconnect can put it back. */
+  async snapshot() {
+    if (this.d.electron.screen.getAllDisplays().length < 2 || !this.d.store.layouts) return false;
+    const windows = await this._capture();
+    if (!windows || !windows.length) return false;
+    this.d.store.saveLayouts(coach.remember(this.d.store.layouts(), this._signature(), windows, Date.now()));
+    return true;
+  }
+
+  async restoreWindows(source = 'voice') {
+    const snap = this.d.store.layouts ? coach.snapshotFor(this.d.store.layouts(), this._signature()) : null;
+    if (!snap) return { ok: false, message: 'Nothing saved for these screens yet. It saves while two screens are on.' };
+    return this.restoreLayout({ windows: snap.windows }, source);
+  }
+
+  /** A monitor came back: offer to put the windows back, one Return to run it. */
+  async offerRestore() {
+    const snap = this.d.store.layouts ? coach.snapshotFor(this.d.store.layouts(), this._signature()) : null;
+    if (!snap || !snap.windows.length) return false;
+    const n = snap.windows.length;
+    await this.showPlan({ heard: '', title: 'Your screen is back. Put your windows back?', via: 'monitor', reply: '',
+      steps: [{ do: 'restore_windows', source: 'monitor', text: `Put ${n} ${n === 1 ? 'window' : 'windows'} back where they were`, confirm: true }] });
+    return true;
+  }
+
+  // ------------------------------------------------------------ the faster way
+
+  /**
+   * Watches for windows moved or resized by hand (the helper only reports a
+   * change made while the mouse button was down). onMove({ pid, app, before, after }).
+   */
+  watch(onMove) {
+    if (this.watcher || this.disposed) return;
+    let child;
+    try { child = spawn(this.d.helperPath, ['watch'], { stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return; }
+    this.watcher = child;
+    let buffer = '', retry = 30000;
+    child.stdout.on('data', (data) => {
+      buffer += data.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        let msg;
+        try { msg = JSON.parse(line); } catch { continue; }
+        if (msg.ok === false && msg.error === 'accessibility') retry = 120000;
+        if (msg.event === 'manual') {
+          try { onMove({ pid: msg.pid, app: msg.app, before: { x: msg.bx, y: msg.by, width: msg.bw, height: msg.bh }, after: { x: msg.x, y: msg.y, width: msg.w, height: msg.h } }); } catch { /* a tip is never worth a crash */ }
+        }
+      }
+    });
+    const again = () => {
+      if (this.watcher !== child) return;
+      this.watcher = null;
+      if (!this.disposed) this.watchTimer = setTimeout(() => this.watch(onMove), retry);
+    };
+    child.on('exit', again);
+    child.on('error', again);
+  }
+
+  unwatch() {
+    clearTimeout(this.watchTimer);
+    const child = this.watcher;
+    this.watcher = null;
+    if (child) try { child.kill(); } catch { /* gone */ }
+  }
+
+  /** A one-line tip near the bottom of the screen the window is on. */
+  showTip(tip, frame) {
+    const { BrowserWindow, screen } = this.d.electron;
+    if (!this.tipWin || this.tipWin.isDestroyed()) {
+      const win = this.tipWin = new BrowserWindow({
+        width: 560, height: 64, show: false, frame: false, transparent: true, resizable: false, movable: false,
+        minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, hasShadow: false,
+        focusable: false, type: 'panel', alwaysOnTop: true,
+        webPreferences: { preload: path.join(__dirname, '..', 'pad', 'preload.js') }
+      });
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      win.setIgnoreMouseEvents(true);
+      win.loadFile(path.join(__dirname, '..', 'pad', 'tip.html'));
+    }
+    const win = this.tipWin;
+    const a = (frame ? screen.getDisplayMatching(frame) : screen.getDisplayNearestPoint(screen.getCursorScreenPoint())).workArea;
+    const [w, h] = win.getSize();
+    win.setPosition(Math.round(a.x + (a.width - w) / 2), Math.round(a.y + a.height - h - 28), false);
+    const send = () => win.webContents.send('tip:show', tip);
+    if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
+    win.showInactive();
+    clearTimeout(this.tipTimer);
+    this.tipTimer = setTimeout(() => { if (!win.isDestroyed()) win.hide(); }, 6000);
+    this.d.onEvent && this.d.onEvent({ phase: 'tip', region: tip.region, at: Date.now() });
+    return true;
   }
 
   async _pidFor(win) {
@@ -343,7 +552,13 @@ class ControlPad {
     return m ? Number(m[1]) : 0;
   }
 
-  async restoreLayout(pad) {
+  async restoreLayout(pad, source = 'pad') {
+    const res = await this._placeAll(pad);
+    if (pad.windows && pad.windows.length) this.d.onEvent && this.d.onEvent({ phase: 'layout-restore', ok: res.ok, source, at: Date.now() });
+    return res;
+  }
+
+  async _placeAll(pad) {
     if (!pad.windows || !pad.windows.length) return { ok: false, message: 'Empty. Arrange your windows, then Shift + this key saves them.' };
     let placed = 0;
     for (const win of pad.windows) {
@@ -423,6 +638,10 @@ class ControlPad {
   }
 
   dispose() {
+    this.disposed = true;
+    this.unwatch();
+    clearTimeout(this.tipTimer);
+    if (this.tipWin && !this.tipWin.isDestroyed()) this.tipWin.close();
     this.close();
     if (this.camera && !this.camera.isDestroyed()) this.camera.close();
   }

@@ -115,3 +115,48 @@ test('without a key, or when Claude fails, nothing runs and the reply says why',
   const local = await C.plan('open notes', ctx(), { polishAnthropicKey: 'sk' }, () => { throw new Error('must not call Claude'); });
   assert.equal(local.via, 'local');
 });
+
+test('near misses come back as "Did you mean...?" with the words that work', async () => {
+  const c = ctx();
+  assert.deepEqual(C.suggest('Chrome left', c), { step: { do: 'snap', app: 'Google Chrome', region: 'left' }, say: 'put Chrome on the left' });
+  assert.deepEqual(C.suggest('put crome on the right', c).step, { do: 'snap', app: 'Google Chrome', region: 'right' });
+  assert.deepEqual(C.suggest('open slak', c).step, { do: 'open_app', app: 'Slack' });
+  assert.deepEqual(C.suggest('lefty', c).step, { do: 'snap', app: 'front', region: 'left' });
+  assert.equal(C.suggest('build day please', c).step.key, '1');
+  assert.equal(C.suggest('what is the weather', c), null);
+  assert.equal(C.suggest('email bob', c), null);
+  // The suggested words plan offline.
+  assert.ok(C.planLocally(C.suggest('Chrome left', c).say, c));
+  const res = await C.plan('Chrome left', c, {});
+  assert.equal(res.via, 'suggest');
+  assert.equal(res.say, 'put Chrome on the left');
+  assert.match(res.reply, /Next time say/);
+  // Claude finds nothing: still offer the guess.
+  const empty = { stop_reason: 'tool_use', content: [{ type: 'tool_use', name: 'run_steps', input: { steps: [], reply: 'Not sure.' } }] };
+  assert.equal((await C.plan('Chrome left', c, { polishAnthropicKey: 'sk' }, fakeSdk(empty, {}))).via, 'suggest');
+});
+
+test('"You can say" lines come from the owner\'s own pads and apps, and every one plans', () => {
+  const c = ctx();
+  c.pads['1'].windows = [{ app: 'Claude' }];
+  c.pads['2'] = { type: 'app', app: 'Slack', label: 'Team chat' };
+  const lines = C.examples({ ...c, frontApp: 'Notes' });
+  assert.equal(lines[0], 'load Build day');
+  assert.ok(lines.includes('put Notes on the left and Chrome on the right'));
+  assert.ok(lines.includes('open Team chat'));
+  assert.ok(lines.includes('paste Morning prompt'));
+  for (const line of lines) assert.ok(C.planLocally(line, c), line);
+  assert.ok(C.examples(c, 2).length === 2);
+});
+
+test('saving and restoring the screen by voice', () => {
+  assert.deepEqual(plan('save this layout as morning'), [{ do: 'save_layout', name: 'Morning' }]);
+  assert.deepEqual(plan('remember my setup as "Build day"'), [{ do: 'save_layout', name: 'Build day' }]);
+  assert.deepEqual(plan('put my windows back'), [{ do: 'restore_windows' }]);
+  assert.deepEqual(plan('restore everything'), [{ do: 'restore_windows' }]);
+  assert.deepEqual(plan('put build day back'), [{ do: 'pad', key: '1' }]);
+  assert.deepEqual(C.validate([{ do: 'save_layout', name: '' }, { do: 'save_layout', name: 'Evening' }, { do: 'restore_windows' }], ctx()),
+    [{ do: 'save_layout', name: 'Evening' }, { do: 'restore_windows' }]);
+  assert.equal(C.needsConfirm({ do: 'save_layout', name: 'x' }, ctx().pads), false);
+  assert.equal(C.describe({ do: 'save_layout', name: 'Morning' }, ctx().pads), 'Save what is on screen as “Morning”');
+});

@@ -1,5 +1,17 @@
 # Build log
 
+## 2026-10-18: v2.9.0 pad teaching
+
+- From the research ranking (docs/RESEARCH-2026-10-18.md section 5): hold-to-peek cheat sheet (2), starter pad (3), faster way at the moment of use (5), forgiving voice (6), save and restore after a monitor reconnect (7). Branch feat/pad-teaching from feat/guides.
+- Cheat sheet: P.phrase() gives every pad its spoken words, each tested to plan back to the same key. speakeasy-fn now emits mic-up; holding the mic key 450 ms shows the sheet, letting go hides it, a short tap still toggles the pad. / on the pad does the same. Pad tab gets a printable list.
+- Starter pad: first open of an untouched pad asks Windows / Apps and links / Prompts / Recording (keys 1-4 or click) or Show all 16. Starts with A, D, S plus one goal key; lessons in the Control Pad guide unlock the rest through a new `unlocks` field. Locked keys say which lesson opens them. Voice is never locked. A pad already customized skips the question.
+- Faster way: new `watch` mode in native/window.c reads the focused window at mouse down and mouse up and reports only the same window changed while the button was held. If the new frame fills a region (80% overlap), a tip pill shows "Next time: tap the mic key, then A. Or say ...". One tip per 20 seconds; a region stops getting tips after 3 fast uses (pad key, click or voice), counted in tips.json.
+- Voice: "You can say" strip on the pad from the owner's own layouts, apps, links, prompts and front app (every line passes the offline planner). Near misses ("Chrome left", "put crome on the right", "open slak") come back as "Did you mean...?" with the words that work next time and wait for Return. Also used when Claude returns nothing or fails.
+- Layouts: "save this layout as Morning" lands on the pad named Morning, else a free workflow pad, else an empty pad. "put Morning back", "put my windows back". With two or more screens, a snapshot every 30 s per monitor setup (layouts.json); display changes pause snapshots 2 minutes so the old layout survives; a reconnect offers "Put N windows back" on the pad, Return runs it.
+- Guides: "Learn the pad as you go" (peek, starter, faster way) and "Say it your way" (strip, Did you mean, save and restore). New events: pad-peek, pad-starter, pad-tip, layout-restore; plan via suggest.
+- 122 tests pass (15 new). Offscreen: 30 screens plus pad peek, starter question, locked starter pad and its peek, Did you mean, monitor offer, tip; no overflow. Package check: 57 files, both helpers. DMG dist/SpeakEasy-2.9.0-arm64.dmg. Not installed.
+- Not verified: the mic-key hold on real hardware, a real hand drag through `watch` (needs Accessibility, which the agent shell lacks), a real monitor unplug and reconnect, the print dialog.
+
 ## 2026-10-18: v2.8.0 walkthroughs
 
 - Harsh: "whenever we add a feature there's a complete walkthrough... then test my competency." Built the guide system and made it a release rule (docs/GUIDES.md, CLAUDE.md).

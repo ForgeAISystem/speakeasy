@@ -27,6 +27,8 @@ const { ControlPad } = require('./control-pad');
 const globeKey = require('./globe-key');
 const commands = require('./commands');
 const { GuideRunner, toGuideEvent } = require('./guide');
+const padCoach = require('./pad-coach');
+const padModel = require('../shared/pad');
 const guides = require('../shared/guides');
 const { quietestPoint } = require('../shared/quiet-point');
 
@@ -37,6 +39,7 @@ let tray = null;
 let hotkeys = null;
 let controlPad = null;
 let guide = null;
+let padTips = null; // the faster-way tips after a window is moved by hand
 let coachWindow = null;
 let commandMode = false; // this recording is a voice command (the pad was open when fn went down)
 let padAccel = null;
@@ -230,6 +233,7 @@ function showMainWindow() {
 
 function push(type, payload) {
   if (type === 'dictation') dictFeedback = { phase: payload.phase, message: payload.message || '' };
+  if (type === 'pad') countFastWay(payload);
   if (guide) { const ev = toGuideEvent(type, payload); if (ev) guide.onEvent(ev); }
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('push', { type, ...payload });
@@ -579,10 +583,12 @@ async function runVoiceCommand(text, wake = false) {
   const pads = controlPad.pads();
   const front = controlPad.isOpen() ? controlPad.target : controlPad.lastFront;
   const result = await commands.plan(text, { pads, apps: commands.installedApps(), frontApp: front ? front.app : '' }, store.settings());
-  const steps = result.steps.map((step) => ({ ...step, text: commands.describe(step, pads), confirm: commands.needsConfirm(step, pads) }));
+  // A guess ("Did you mean...?") always waits for Return.
+  const guess = result.via === 'suggest';
+  const steps = result.steps.map((step) => ({ ...step, text: commands.describe(step, pads), confirm: guess || commands.needsConfirm(step, pads) }));
   const waits = steps.some((step) => step.confirm);
   overlayState(steps.length ? 'command' : 'error', steps.length
-    ? { message: steps.length === 1 ? steps[0].text : `${steps.length} steps`, hint: waits ? 'Press Return to run it' : 'On it' }
+    ? { message: guess ? 'Did you mean...?' : steps.length === 1 ? steps[0].text : `${steps.length} steps`, hint: waits ? 'Press Return to run it' : 'On it' }
     : { message: text ? 'No command found' : 'Nothing heard' });
   push('dictation', { phase: 'idle' });
   await controlPad.showPlan({ ...result, steps, wake });
@@ -797,6 +803,7 @@ ipcMain.handle('settings:update', async (_e, partial) => {
   }
   if (loginChanged) app.setLoginItemSettings({ openAtLogin: cfg.launchAtLogin });
   if (padKeyChanged) registerPadShortcut();
+  if (partial.padTips !== undefined && controlPad) { if (cfg.padTips !== false) controlPad.watch(onManualMove); else controlPad.unwatch(); }
   if (modelChanged || langChanged) await ensureEngine();
   return fullState();
 });
@@ -918,7 +925,74 @@ function registerPadShortcut() {
   } catch (e) { padShortcutError = e.message; }
 }
 const padOnly = (fn) => (...args) => controlPad ? fn(...args) : { ok: false, message: 'The Control Pad runs on Mac.' };
-ipcMain.handle('pad:get', () => ({ pads: controlPad ? controlPad.pads() : {}, available: !!controlPad, shortcut: padAccel, shortcutError: padShortcutError }));
+// ---- Teaching on the pad: starter keys, cheat sheet words, faster-way tips, monitor restore ----
+function padOpener() {
+  const cfg = store.settings();
+  return cfg.padMicKey !== false ? 'tap the mic key' : padAccel ? `press ${padAccel.replace(/\+/g, ' + ')}` : 'open the pad';
+}
+function padLocks() { return padCoach.locks(store.settings().padStarter, guide ? guide.progress().steps : {}); }
+function padView(target) {
+  const cfg = store.settings();
+  // A pad someone already made their own keeps all 16 keys; a new one asks first.
+  // ('ask' is the Pad tab asking for the question again.)
+  if (cfg.padStarter === undefined && !padCoach.untouched(store.pad())) store.updateSettings({ padStarter: { all: true } });
+  const starter = store.settings().padStarter;
+  return { locks: padLocks(), ask: starter === undefined || starter === 'ask', opener: padOpener(),
+    examples: cfg.voiceCommands !== false ? commands.examples({ pads: controlPad.pads(), apps: commands.installedApps(), frontApp: target ? target.app : '' }) : [] };
+}
+function chooseStarter(goal) {
+  if (goal === 'all') store.updateSettings({ padStarter: { all: true } });
+  else if (padCoach.STARTERS[goal]) {
+    store.updateSettings({ padStarter: { goal } });
+    const before = controlPad.pads();
+    const pads = padCoach.starterPads(goal, before, commands.installedApps());
+    if (JSON.stringify(pads) !== JSON.stringify(before)) store.savePad(pads);
+  } else return false;
+  push('pad', { phase: 'starter', goal });
+  controlPad.refresh();
+  return true;
+}
+// Each fast snap (pad key, click, or voice) counts toward retiring that tip.
+function countFastWay(ev) {
+  if (!padTips || !controlPad || !ev) return;
+  if (ev.phase === 'voice-step') { if (ev.do === 'snap' && ev.ok) padTips.used(ev.region); return; }
+  if (ev.phase || !ev.key || !ev.ok || !['key', 'click'].includes(ev.source)) return;
+  const pad = controlPad.pads()[ev.key];
+  if (pad && pad.type === 'snap') padTips.used(pad.region);
+}
+function onManualMove(move) {
+  const cfg = store.settings();
+  if (cfg.padTips === false || !controlPad || !padTips || dictState !== 'idle' || controlPad.isOpen()) return;
+  const region = padModel.matchRegion(move.after, screen.getDisplayMatching(move.after).workArea);
+  if (!region || region === padModel.matchRegion(move.before, screen.getDisplayMatching(move.before).workArea)) return;
+  const tip = padTips.next({ region, app: move.app }, { pads: controlPad.pads(), opener: padOpener(), locked: padLocks(), voice: cfg.voiceCommands !== false });
+  if (tip) controlPad.showTip(tip, move.after);
+}
+let snapshotsPausedUntil = 0;
+function watchMonitors() {
+  let offerTimer = null;
+  const changed = (added) => {
+    // Hold snapshots while macOS shuffles windows, so the old layout survives.
+    snapshotsPausedUntil = Date.now() + 120000;
+    clearTimeout(offerTimer);
+    if (!added) return;
+    offerTimer = setTimeout(() => {
+      if (store.settings().padRestore !== false && dictState === 'idle') controlPad.offerRestore().catch(() => {});
+    }, 3000);
+  };
+  screen.on('display-added', () => changed(true));
+  screen.on('display-removed', () => changed(false));
+  setInterval(() => {
+    if (Date.now() < snapshotsPausedUntil || dictState !== 'idle' || controlPad.isOpen()) return;
+    controlPad.snapshot().catch(() => {});
+  }, 30000).unref();
+}
+
+ipcMain.handle('pad:get', () => ({ pads: controlPad ? controlPad.pads() : {}, available: !!controlPad, shortcut: padAccel, shortcutError: padShortcutError,
+  locks: controlPad ? padLocks() : {}, starter: store.settings().padStarter || null, opener: padOpener(),
+  examples: controlPad && store.settings().voiceCommands !== false ? commands.examples({ pads: controlPad.pads(), apps: commands.installedApps(), frontApp: '' }) : [] }));
+ipcMain.handle('pad:starter', padOnly((_e, goal) => ({ ok: chooseStarter(String(goal || '')) })));
+ipcMain.handle('pad:peek', padOnly(() => ({ ok: true, on: controlPad.peek(!controlPad.peeking) })));
 ipcMain.handle('pad:set', padOnly((_e, key, value) => {
   const pads = controlPad.pads();
   if (!Object.hasOwn(pads, key)) return { ok: false, message: 'No such pad' };
@@ -1102,8 +1176,10 @@ if (!gotLock) {
     guide = new GuideRunner({
       store,
       onState: renderCoach,
-      precheck: async (name) => name === 'globeFixed' && !(await globeKey.status()).opensPopup
+      precheck: async (name) => (name === 'globeFixed' && !(await globeKey.status()).opensPopup) ||
+        (name === 'starterPicked' && typeof store.settings().padStarter === 'object')
     });
+    padTips = new padCoach.Tips(store);
 
     if (isMac) {
       controlPad = new ControlPad({
@@ -1113,11 +1189,15 @@ if (!gotLock) {
         helperPath: app.isPackaged
           ? path.join(process.resourcesPath, 'native', 'speakeasy-window')
           : path.join(__dirname, '..', '..', 'build', 'native', 'speakeasy-window'),
-        onEvent: (event) => push('pad', event)
+        onEvent: (event) => push('pad', event),
+        view: padView,
+        onStarter: chooseStarter
       });
       tray.onPad = () => controlPad.toggle();
       tray._menu();
       registerPadShortcut();
+      if (store.settings().padTips !== false) controlPad.watch(onManualMove);
+      watchMonitors();
     }
 
     hotkeys = new HotkeyManager({
@@ -1125,7 +1205,8 @@ if (!gotLock) {
       onStop: onDictateStop,
       onCancel: onDictateCancel,
       micKey: () => isMac && store.settings().padMicKey !== false,
-      onMic: () => { if (dictState === 'idle') controlPad && controlPad.toggle(); },
+      onMic: () => { if (dictState === 'idle' && controlPad) controlPad.micDown(); },
+      onMicUp: () => { if (controlPad) controlPad.micUp(); },
       onKey: (event) => { lastKeyAt = Date.now(); push('shortcut-key', { ...event, at: lastKeyAt }); },
       onStatus: (status) => {
         push('shortcut', status);

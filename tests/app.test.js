@@ -208,17 +208,19 @@ test('Pad tab teaches voice commands and logs what was heard', async (t) => {
   assert.match(f.$('#pad-log').textContent, /put Chrome on the left/);
 });
 
-test('after an update, What is new lists the new features and starts the walkthrough oldest first', async (t) => {
+test('after an update, a What is new card on Home lists the new features and starts the walkthrough oldest first', async (t) => {
   const f = await fixture(t, { fresh: ['voice-commands', 'control-pad'] });
   await settle(); await settle();
-  assert.ok(f.$('#whats-new'), 'What is new shows once');
-  assert.match(f.$('#whats-new').textContent, /The Control Pad/);
-  assert.match(f.$('#whats-new').textContent, /Talk to your computer/);
+  assert.ok(f.$('#whats-new .wn-card'), 'What is new is a card on Home, not a pop-up');
+  assert.match(f.$('#whats-new').textContent, /The Control Pad \+ Talk to your computer/);
+  await f.click('[data-tab="history"]');
+  await f.click('[data-tab="home"]');
+  assert.ok(f.$('#whats-new .wn-card'), 'it survives switching tabs until answered');
   await f.click('#wn-go');
   await settle();
   assert.ok(f.saves.includes('guide-seen'));
   assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ guide: 'control-pad', mode: 'lesson' }));
-  assert.equal(f.$('#whats-new'), null);
+  assert.equal(f.$('#whats-new .wn-card'), null);
 });
 
 test('Learn tab shows every guide with progress, best level, and both ways in', async (t) => {

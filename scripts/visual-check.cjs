@@ -44,8 +44,8 @@ app.whenReady().then(async () => {
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
   await capture('learn', "switchTab('learn')", 980, 760);
-  await capture('whats-new', "window.speakeasy.guideSummary().then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['voice-commands', 'control-pad'] }))", 980, 760);
-  await run("document.querySelector('#whats-new')?.remove()");
+  await capture('whats-new', "switchTab('home').then(() => window.speakeasy.guideSummary()).then((s) => window.SpeakEasyLearn.whatsNew({ ...s, fresh: ['voice-commands', 'control-pad'] }))", 980, 760);
+  await run("window.SpeakEasyLearn.whatsNew({ guides: [], fresh: [], version: '' })");
   await capture('pad', "switchTab('pad').then(() => document.querySelector('#pad-grid .pad-tile[data-key=\"1\"]').click())", 980, 760);
   await capture('snippets', "switchTab('snippets')");
   await capture('dictionary', "switchTab('dictionary')");

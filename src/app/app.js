@@ -150,6 +150,7 @@ function renderHome() {
     ${!ready ? `<div class="readiness-message">${S.engine.state === 'loading' ? 'Your voice is getting ready.' : S.engine.state === 'error' ? 'Your voice needs a restart.' : 'Let’s check your voice and permissions.'} <button class="muted-link" id="home-setup">Open setup</button></div>` : ''}
     <div class="daily-hero"><div><div class="eyebrow">${ready ? 'READY WHEN YOU ARE' : 'YOUR DICTATION SHORTCUT'}</div><h2>Your thoughts.<br><em>Already written.</em></h2><p>Click where you want to write. Hold ${esc(holdKeyLabel())}, speak, then release.</p></div><div class="daily-art" data-parallax><img class="glass-art depth-layer" src="./assets/voice-glass.png" alt="" aria-hidden="true"><kbd class="daily-key depth-layer ${key.length > 3 ? 'long' : ''}" style="--depth:10px">${esc(key)}</kbd></div></div>
     <div class="home-shortcuts"><span><kbd>Double-tap</kbd> Hands-free</span><span><kbd>Esc</kbd> Cancel</span><span><kbd>${esc(pasteShortcutLabel())}</kbd> Paste last</span></div>
+    <div id="whats-new"></div>
     <div id="globe-banner"></div>
     <details class="runtime-check" id="runtime-check" ${runtimeOpen ? 'open' : ''}><summary>Check dictation</summary><div id="runtime-body"></div></details>
     <div class="writing-bar"><span class="writing-label">How your words arrive</span><div class="mode-switch" role="group" aria-label="Cleanup mode">${modeButtons()}</div></div>
@@ -171,6 +172,7 @@ function renderHome() {
   };
   renderRuntime();
   renderGlobe();
+  window.SpeakEasyLearn?.fillHome();
 }
 
 // macOS opens the emoji picker on Fn/Globe presses unless "Press Globe key to"

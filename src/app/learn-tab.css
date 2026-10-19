@@ -16,10 +16,11 @@
 .learn-best { font-size: 12px; color: var(--muted); text-align: center; }
 .learn-level { font: 600 9.5px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 999px; background: var(--ink); color: var(--accent); margin-right: 4px; }
 .learn-live { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-#whats-new { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(26, 26, 26, 0.32); }
-.wn-sheet { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: grid; gap: 12px; padding: 24px 26px; border-radius: 22px; background: #fdfdfa; box-shadow: var(--shadow-3); }
-.wn-sheet h2 { font-size: 26px; line-height: 1.1; }
-.wn-sheet h3 { font-size: 14px; margin-bottom: 4px; }
-.wn-sheet ul { margin-left: 18px; display: grid; gap: 4px; font-size: 13.5px; }
-.wn-note { color: var(--muted); font-size: 12.5px; }
-.wn-actions { display: flex; gap: 10px; }
+.wn-card { display: grid; gap: 8px; margin: 14px 0 4px; padding: 18px 20px; border-radius: 18px; background: var(--ink); color: var(--cream); box-shadow: var(--shadow-2); }
+.wn-card .eyebrow { color: var(--accent); }
+.wn-card h2 { font-size: 21px; line-height: 1.15; color: var(--cream); }
+.wn-card ul { margin-left: 18px; display: grid; gap: 3px; font-size: 13.5px; }
+.wn-note { color: rgba(255, 255, 235, 0.7); font-size: 12.5px; }
+.wn-actions { display: flex; gap: 10px; margin-top: 4px; }
+.wn-card .btn { background: var(--accent); color: var(--ink); }
+.wn-card .btn.ghost { background: transparent; color: var(--cream); border-color: rgba(255, 255, 235, 0.3); }

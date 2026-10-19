@@ -8,6 +8,7 @@
 - Main window: Learn tab (progress, NEW chips, Keep going, best level), What's new dialog once per update, sidebar dot while a new guide is untouched.
 - Hotkey now records whether the last dictation was hands-free; pad open, saves, voice steps, pad remaps and the fn fix emit events for checks.
 - 107 tests pass (10 new). Offscreen: 29 screens, What's new, Learn, 4 coach states, pad, plan. Package check: 54 files. DMG dist/SpeakEasy-2.8.0-arm64.dmg. Not installed yet.
+- Research (docs/RESEARCH-2026-10-18.md, HN-heavy since Reddit blocked fetches; onboarding numbers mostly from tool vendors): read-only tutorials give no gain, short launcher-started tours finish twice as often, about 40% of modals are closed on sight. Changed What's new from a dialog to a Home card that stays until answered. Remaining ranked ideas (hold-to-peek cheat sheet, starter pad, nudges at the moment of use, forgiving voice, monitor-change restore) are next.
 
 ## 2026-10-18: v2.7.0 voice commands
 

@@ -51,30 +51,35 @@
     if (nav && summary) nav.classList.toggle('has-new', summary.guides.some(isNew));
   }
 
-  // What's new: once per update, oldest new feature first.
+  // What's new: one card on Home per update, never a pop-up over work
+  // (research: about 40% of modals are closed on sight; cards get more action).
+  let fresh = [];
+  let freshVersion = '';
+
   async function whatsNew(given) {
     const s = given || await load();
     markNav();
-    if (!s.fresh.length) return;
-    const fresh = s.fresh.map((id) => s.guides.find((g) => g.id === id)).filter(Boolean)
+    fresh = s.fresh.map((id) => s.guides.find((g) => g.id === id)).filter(Boolean)
       .sort((a, b) => (window.SpeakEasyGuides.newer(a.version, b.version) ? 1 : -1));
-    const box = document.createElement('div');
-    box.id = 'whats-new';
-    box.setAttribute('role', 'dialog');
-    box.setAttribute('aria-modal', 'true');
-    box.setAttribute('aria-labelledby', 'whats-new-title');
-    box.innerHTML = `<div class="wn-sheet">
-      <div class="eyebrow">WHAT’S NEW IN ${e(s.version)}</div>
-      <h2 id="whats-new-title">${fresh.length === 1 ? e(fresh[0].title) : `${fresh.length} new things to try`}</h2>
-      ${fresh.map((g) => `<section><h3>${e(g.title)}</h3><ul>${g.whatsNew.map((w) => `<li>${e(w)}</li>`).join('')}</ul></section>`).join('')}
-      <p class="wn-note">The walkthrough takes about ${Math.max(3, fresh.reduce((n, g) => n + g.totalSteps, 0))} minutes. You practice in your own apps and each step checks itself.</p>
+    freshVersion = s.version;
+    fillHome();
+  }
+
+  function fillHome() {
+    const slot = document.getElementById('whats-new');
+    if (!slot) return;
+    if (!fresh.length) { slot.innerHTML = ''; return; }
+    const minutes = Math.max(3, fresh.reduce((n, g) => n + g.totalSteps, 0));
+    slot.innerHTML = `<div class="wn-card" role="region" aria-labelledby="whats-new-title">
+      <div class="eyebrow">NEW IN ${e(freshVersion)}</div>
+      <h2 id="whats-new-title">${fresh.length === 1 ? e(fresh[0].title) : fresh.map((g) => e(g.title)).join(' + ')}</h2>
+      <ul>${fresh.flatMap((g) => g.whatsNew).slice(0, 4).map((w) => `<li>${e(w)}</li>`).join('')}</ul>
+      <p class="wn-note">About ${minutes} minutes in your own apps. Each step checks itself, then a quick challenge.</p>
       <div class="wn-actions"><button class="btn" id="wn-go">Walk me through it</button><button class="btn ghost" id="wn-later">Later</button></div>
     </div>`;
-    document.body.appendChild(box);
-    const close = async () => { box.remove(); await api.guideSeen(); };
-    document.getElementById('wn-go').addEventListener('click', async () => { await close(); api.guideStart(fresh[0].id, 'lesson'); });
-    document.getElementById('wn-later').addEventListener('click', async () => { await close(); switchTab('learn'); });
-    document.getElementById('wn-go').focus();
+    const done = async () => { fresh = []; slot.innerHTML = ''; await api.guideSeen(); };
+    document.getElementById('wn-go').addEventListener('click', async () => { const first = fresh[0]; await done(); api.guideStart(first.id, 'lesson'); });
+    document.getElementById('wn-later').addEventListener('click', done);
   }
 
   renderers.learn = renderLearn;
@@ -85,5 +90,5 @@
     else if (msg.type === 'guide' && currentTab === 'learn') renderLearn();
   });
 
-  window.SpeakEasyLearn = { whatsNew };
+  window.SpeakEasyLearn = { whatsNew, fillHome };
 })();

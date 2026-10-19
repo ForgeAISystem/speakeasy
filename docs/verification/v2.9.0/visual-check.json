@@ -83,6 +83,24 @@
       "height": 760
     },
     {
+      "screen": "settings-rules",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 760
+    },
+    {
+      "screen": "home-week",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 760
+    },
+    {
       "screen": "whats-new",
       "loadedArtwork": true,
       "horizontalOverflow": false,
@@ -93,6 +111,15 @@
     },
     {
       "screen": "pad",
+      "loadedArtwork": true,
+      "horizontalOverflow": false,
+      "contentOverflow": false,
+      "setupOverflow": false,
+      "width": 980,
+      "height": 760
+    },
+    {
+      "screen": "pad-cheat-sheet",
       "loadedArtwork": true,
       "horizontalOverflow": false,
       "contentOverflow": false,

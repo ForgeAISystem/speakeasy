@@ -1,0 +1,32 @@
+/* Pad tab: the live device on the left, the pad editor on the right. */
+.pad-layout { display: grid; grid-template-columns: minmax(300px, 400px) minmax(260px, 1fr); gap: 20px; align-items: start; margin-top: 18px; }
+@media (max-width: 880px) { .pad-layout { grid-template-columns: 1fr; } }
+.pad-device { padding: 14px; border-radius: 20px; border: 1px solid rgba(255, 255, 235, 0.14);
+  background: linear-gradient(180deg, #2b3628, #161e16); box-shadow: var(--shadow-3); }
+.pad-device-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #bac7ae; font: 600 10px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.12em; }
+.pad-device-head .btn { margin-left: auto; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #46c07a; box-shadow: 0 0 8px #46c07a; }
+.pad-tile.selected { box-shadow: 0 0 0 2px #ffa946, inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.pad-log { list-style: none; margin-top: 12px; display: grid; gap: 4px; max-height: 190px; overflow: auto; }
+.pad-log li { display: grid; grid-template-columns: auto auto 1fr auto; gap: 8px; align-items: baseline; font-size: 11px; color: rgba(255, 255, 235, 0.8); }
+.pad-log li.empty { display: block; color: rgba(255, 255, 235, 0.45); }
+.pad-log li.fail .msg { color: #ff9b8f; }
+.pad-log li.ok .msg { color: #8fe0a9; }
+.pad-log kbd { font: 600 10px 'JetBrains Mono', ui-monospace, monospace; color: #ffb867; }
+.pad-log .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pad-log time { color: rgba(255, 255, 235, 0.4); font-variant-numeric: tabular-nums; }
+.pad-editor { display: grid; gap: 14px; padding: 18px; border-radius: 18px; background: var(--sheet); border: 1px solid var(--hairline); box-shadow: var(--shadow-2); }
+.pad-editor-head { display: flex; gap: 12px; align-items: center; }
+.pad-editor-head kbd { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--ink); color: var(--accent); font: 600 16px 'JetBrains Mono', ui-monospace, monospace; }
+.pad-editor-head .name { font-weight: 700; font-size: 15px; }
+.pad-editor-head .desc { color: var(--muted); font-size: 12.5px; }
+.pad-field { display: grid; gap: 6px; }
+.pad-field > span { font-size: 12px; font-weight: 600; color: var(--muted); }
+.pad-field input, .pad-field select, .pad-field textarea { width: 100%; font: inherit; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--hairline); background: var(--glass-strong); color: var(--ink); }
+.pad-field textarea { resize: vertical; line-height: 1.45; }
+.pad-field .btn { justify-self: start; }
+.pad-note { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.pad-windows { list-style: none; display: grid; gap: 4px; }
+.pad-windows li { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 6px 9px; border-radius: 8px; background: var(--fill); }
+.pad-windows .mono { color: var(--muted); font-size: 11px; }
+.pad-editor-actions { display: flex; gap: 8px; }

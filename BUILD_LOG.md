@@ -1,5 +1,15 @@
 # Build log
 
+## 2026-10-18: v2.6.0 Control Pad and fn emoji fix
+
+- Harsh asked for a tap pad to stop dragging windows around, then widened it: a MacBook-as-MIDI-controller surface, a live view to watch and remap it, and quick screen recording with the camera. Also: double-tapping fn opened the emoji picker.
+- Root cause of the emoji bug: macOS handles "Press Globe key to: Show Emoji & Symbols" before the session event tap, so the Fn helper's swallow cannot stop it. On Harsh's Mac AppleFnUsageType is unset (behaves as Show Emoji). Added a one-click Fix it (Home banner and Settings row) that sets it to Do Nothing and asks apps to reload keyboard settings, with Undo. Not applied by the agent; Harsh presses it.
+- Control Pad: a 4x4 grid laid out on the keyboard (1-4, QWER, ASDF, ZXCV). Snap pads match screen position; the same pad twice moves the window to the next screen. Workflow pads save and restore every visible app window (launching apps that are closed). Other actions: open app, open link or folder, run a Shortcut, press a key combo, paste a prompt, record screen (Screenshot toolbar plus camera bubble), camera bubble. Opens from the mic key, Control+Option+P, or the menu bar.
+- Pad tab: live device view that flashes on every hit with a running log, plus an editor for every pad.
+- New native helper native/window.c (front, list, move). Camera usage description and entitlement added.
+- 87 tests pass (8 new: pad model, frame math, key parsing, Globe fix and Undo, ControlPad snap/next screen/save/restore/guards against a fake helper, Pad tab and Globe UI). Offscreen check: 26 screens, 5 indicator states and the floating pad pass. Package check: 45 source files, both helpers, version, DMG hash. DMG dist/SpeakEasy-2.6.0-arm64.dmg.
+- Not verified yet: a physical mic-key press (keycode 176 is the expected code), live window moves in the installed app, the camera bubble and the recorder toolbar. The installed app is still v2.5.0; install waits on Harsh so his running dictation is not cut off.
+
 ## 2026-10-12: v2.5.0 Wispr Flow teardown build
 
 - Studied Wispr Flow 1.6.957 on Harsh's Mac: bundle structure, entitlements, helper apps, migration names, and Harsh's own local data read-only. No Wispr code, prompts, or assets were extracted or copied. Write-up: docs/WISPR-TEARDOWN-2026-10-12.md.

@@ -12,8 +12,11 @@ mac:
   extraResources:
     - from: build/native/speakeasy-fn
       to: native/speakeasy-fn
+    - from: build/native/speakeasy-window
+      to: native/speakeasy-window
   binaries:
     - Contents/Resources/native/speakeasy-fn
+    - Contents/Resources/native/speakeasy-window
   category: public.app-category.productivity
   target:
     - dmg
@@ -24,6 +27,7 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     NSMicrophoneUsageDescription: SpeakEasy needs the microphone to hear your dictation. Audio never leaves this computer.
+    NSCameraUsageDescription: SpeakEasy shows your camera in a round bubble on screen while you record. Video stays on this computer.
 dmg:
   title: Install SpeakEasy
   contents:

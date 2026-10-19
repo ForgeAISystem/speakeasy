@@ -26,8 +26,10 @@ const DOUBLE_TAP_MS = 900; // second tap within this window = hands-free toggle
  * Callbacks: onStart(), onStop(), onCancel()  (onStop/onCancel only fire while active)
  */
 class HotkeyManager {
-  constructor({ onStart, onStop, onCancel, onKey, onStatus }) {
+  constructor({ onStart, onStop, onCancel, onKey, onStatus, onMic, micKey }) {
     this.onStart = onStart;
+    this.onMic = onMic;
+    this.micKey = micKey || (() => false); // claim the microphone key for the Control Pad
     this.onStop = onStop;
     this.onCancel = onCancel;
     this.onKey = onKey;
@@ -108,7 +110,7 @@ class HotkeyManager {
       ? path.join(process.resourcesPath, 'native', 'speakeasy-fn')
       : path.join(__dirname, '..', '..', 'build', 'native', 'speakeasy-fn');
     return new Promise((resolve, reject) => {
-      const child = spawn(executable, [], { stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(executable, this.micKey() ? ['--mic'] : [], { stdio: ['ignore', 'pipe', 'pipe'] });
       this.helper = child;
       let pending = true;
       let buffer = '';
@@ -153,6 +155,7 @@ class HotkeyManager {
           } else if (event === 'down') this._down({ keycode: -1 });
           else if (event === 'up') this._up({ keycode: -1 });
           else if (event === 'heartbeat') lastHeartbeat = Date.now();
+          else if (event === 'mic') this._safe(this.onMic);
           else if (event === 'reset') this._listenerReset();
           else if (event === 'cancel' && this.active) this._cancel();
           else if (event === 'permission-required') fail('Allow SpeakEasy in Accessibility and Input Monitoring, then retry.');

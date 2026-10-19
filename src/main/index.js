@@ -23,6 +23,8 @@ const { TrayController } = require('./tray');
 const audioStore = require('./audio-store');
 const systemAudio = require('./system-audio');
 const { readWispr } = require('./wispr-import');
+const { ControlPad } = require('./control-pad');
+const globeKey = require('./globe-key');
 const { quietestPoint } = require('../shared/quiet-point');
 
 let mainWindow = null;
@@ -30,6 +32,8 @@ let overlayWindow = null;
 let captureWindow = null;
 let tray = null;
 let hotkeys = null;
+let controlPad = null;
+let padAccel = null;
 const transcriber = new TranscriberManager();
 
 // ---- Dictation state machine ----
@@ -671,6 +675,7 @@ function fullState() {
     engine: { state: engineState },
     runtime: { captureReady, overlayReady, dictState, lastKeyAt, ...dictFeedback },
     shortcut: { ready: !!hotkeys?.running, error: hotkeys?.error || '', key: cfg.holdKey },
+    pad: { available: isMac, shortcut: padAccel, shortcutError: padShortcutError },
     installation: { needsMove: isMac && app.isPackaged && !app.isInApplicationsFolder() },
     permissions: permStatus(),
     platform: process.platform,
@@ -743,7 +748,9 @@ ipcMain.handle('settings:update', async (_e, partial) => {
   const before = store.settings();
   const modelChanged = partial.model !== undefined && partial.model !== before.model;
   const langChanged = partial.language !== undefined && partial.language !== before.language;
-  const keyChanged = partial.holdKey !== undefined && partial.holdKey !== before.holdKey;
+  const keyChanged = (partial.holdKey !== undefined && partial.holdKey !== before.holdKey) ||
+    (partial.padMicKey !== undefined && partial.padMicKey !== before.padMicKey);
+  const padKeyChanged = partial.padShortcut !== undefined && partial.padShortcut !== before.padShortcut;
   const loginChanged = partial.launchAtLogin !== undefined && partial.launchAtLogin !== before.launchAtLogin;
 
   const cfg = store.updateSettings(partial);
@@ -753,6 +760,7 @@ ipcMain.handle('settings:update', async (_e, partial) => {
     await startHotkeysWithRetry();
   }
   if (loginChanged) app.setLoginItemSettings({ openAtLogin: cfg.launchAtLogin });
+  if (padKeyChanged) registerPadShortcut();
   if (modelChanged || langChanged) await ensureEngine();
   return fullState();
 });
@@ -859,6 +867,56 @@ ipcMain.handle('import:wispr', async () => {
   } catch (e) { return { ok: false, error: e.message }; }
 });
 
+// ---- Control Pad + Globe key ----
+let padShortcutError = '';
+function registerPadShortcut() {
+  if (!controlPad) return;
+  if (padAccel) { try { globalShortcut.unregister(padAccel); } catch { /* gone */ } }
+  padAccel = null;
+  padShortcutError = '';
+  const accel = store.settings().padShortcut;
+  if (!accel || accel === 'off') return;
+  try {
+    if (globalShortcut.register(accel, () => controlPad.toggle())) padAccel = accel;
+    else padShortcutError = 'Another app already uses this shortcut. Pick another.';
+  } catch (e) { padShortcutError = e.message; }
+}
+const padOnly = (fn) => (...args) => controlPad ? fn(...args) : { ok: false, message: 'The Control Pad runs on Mac.' };
+ipcMain.handle('pad:get', () => ({ pads: controlPad ? controlPad.pads() : {}, available: !!controlPad, shortcut: padAccel, shortcutError: padShortcutError }));
+ipcMain.handle('pad:set', padOnly((_e, key, value) => {
+  const pads = controlPad.pads();
+  if (!Object.hasOwn(pads, key)) return { ok: false, message: 'No such pad' };
+  pads[key] = value && typeof value === 'object' ? { ...value } : { type: 'none' };
+  store.savePad(pads);
+  return { ok: true, pads: controlPad.pads() };
+}));
+ipcMain.handle('pad:press', padOnly((_e, key, source) => controlPad.press(key, source === 'test' ? 'test' : 'click')));
+ipcMain.handle('pad:save', padOnly((_e, key) => controlPad.save(key)));
+ipcMain.handle('pad:open', padOnly(() => controlPad.open()));
+ipcMain.handle('pad:close', padOnly(() => controlPad.close()));
+ipcMain.handle('pad:camera', padOnly(() => ({ ok: true, on: controlPad.toggleCamera() })));
+ipcMain.handle('globe:status', () => globeKey.status());
+ipcMain.handle('globe:fix', async () => {
+  if (!isMac) return { ok: false };
+  try {
+    const before = await globeKey.status();
+    if (!before.opensPopup) return { ok: true, already: true };
+    const res = await globeKey.fix();
+    // Keep the first value we ever replaced so Undo returns the Mac to the user's own choice.
+    if (res.ok && store.settings().globePrevious === undefined) store.updateSettings({ globePrevious: res.previous === null ? 'unset' : res.previous });
+    return { ok: res.ok };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+ipcMain.handle('globe:restore', async () => {
+  const prev = store.settings().globePrevious;
+  if (prev === undefined) return { ok: false };
+  try {
+    await globeKey.restore(prev === 'unset' ? null : prev);
+    store.updateSettings({ globePrevious: undefined });
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
 ipcMain.handle('mics:list', () => listMics());
 ipcMain.handle('clipboard:copy', (_e, text) => { clipboard.writeText(text); return true; });
 
@@ -951,10 +1009,27 @@ if (!gotLock) {
     });
     tray.ensureTray();
 
+    if (isMac) {
+      controlPad = new ControlPad({
+        electron: { BrowserWindow, screen, globalShortcut, shell, systemPreferences },
+        store,
+        injectText,
+        helperPath: app.isPackaged
+          ? path.join(process.resourcesPath, 'native', 'speakeasy-window')
+          : path.join(__dirname, '..', '..', 'build', 'native', 'speakeasy-window'),
+        onEvent: (event) => push('pad', event)
+      });
+      tray.onPad = () => controlPad.toggle();
+      tray._menu();
+      registerPadShortcut();
+    }
+
     hotkeys = new HotkeyManager({
       onStart: onDictateStart,
       onStop: onDictateStop,
       onCancel: onDictateCancel,
+      micKey: () => isMac && store.settings().padMicKey !== false,
+      onMic: () => { if (dictState === 'idle') controlPad && controlPad.toggle(); },
       onKey: (event) => { lastKeyAt = Date.now(); push('shortcut-key', { ...event, at: lastKeyAt }); },
       onStatus: (status) => {
         push('shortcut', status);
@@ -1031,6 +1106,7 @@ if (!gotLock) {
     clearTimeout(captureWatchdog);
     clearTimeout(maxDurationTimer);
     globalShortcut.unregisterAll();
+    try { controlPad && controlPad.dispose(); } catch { /* shutting down */ }
     try { hotkeys && hotkeys.stop(); } catch { /* shutting down */ }
     systemAudio.restoreNow();
     transcriber.dispose();

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; media-src 'self' mediastream: blob:">
+<title>SpeakEasy Camera</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; }
+  #ring { position: fixed; inset: 6px; border-radius: 50%; overflow: hidden; -webkit-app-region: drag;
+    border: 3px solid rgba(255, 255, 235, 0.92); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); background: #1d281d; }
+  video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  #msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 24px; color: #ffffeb; font: 500 12px -apple-system, system-ui, sans-serif; line-height: 1.4; }
+</style>
+</head>
+<body>
+<div id="ring"><video id="v" autoplay muted playsinline></video><div id="msg">Starting camera</div></div>
+<script src="./camera.js"></script>
+</body>
+</html>

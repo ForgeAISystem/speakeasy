@@ -30,5 +30,14 @@ contextBridge.exposeInMainWorld('speakeasy', {
   requestMic: () => ipcRenderer.invoke('perm:request-mic'),
   requestAccessibility: () => ipcRenderer.invoke('perm:request-accessibility'),
   openPermSettings: (pane) => ipcRenderer.invoke('perm:open-settings', pane),
+  padGet: () => ipcRenderer.invoke('pad:get'),
+  padSet: (key, value) => ipcRenderer.invoke('pad:set', key, value),
+  padPress: (key) => ipcRenderer.invoke('pad:press', key, 'test'),
+  padSave: (key) => ipcRenderer.invoke('pad:save', key),
+  padOpen: () => ipcRenderer.invoke('pad:open'),
+  padCamera: () => ipcRenderer.invoke('pad:camera'),
+  globeStatus: () => ipcRenderer.invoke('globe:status'),
+  globeFix: () => ipcRenderer.invoke('globe:fix'),
+  globeRestore: () => ipcRenderer.invoke('globe:restore'),
   onPush: (cb) => ipcRenderer.on('push', (_e, payload) => cb(payload))
 });

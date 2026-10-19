@@ -20,6 +20,8 @@ Speech recognition runs on your machine. No account or subscription is required.
 - **Mute while dictating**: optional; silences music and video while you speak.
 - **Paste last transcript**: Cmd+Ctrl+V (Mac) / Shift+Alt+Z (Windows) re-pastes your most recent dictation.
 - **A flexible desktop window**: native dragging, minimize/full-screen controls, compact layouts down to 560x480, and remembered size/screen position. Reopening restores a minimized window; disconnected screens recover onto an available display.
+- **Control Pad (Mac)**: your keyboard becomes a drum pad. Tap the microphone key (F5 on newer MacBooks) or Control+Option+P, then hit a key. Q/W/E, A/S/D, Z/X/C snap the window you were using to the matching part of the screen (hit it twice to jump screens). 1-4 bring back whole workflow layouts (Shift+key saves your current windows). R opens the screen recorder with a round camera bubble, F toggles the camera, V pastes a starter prompt. Every pad can be remapped in the Pad tab to open an app, a link, a Shortcut, a key combo, or saved text, and the tab lights up live as you hit pads.
+- **No emoji picker on fn**: one click sets macOS "Press Globe key to" to Do Nothing so tapping fn only dictates. Undo restores your old setting.
 - **Dictation checks and recovery**: Home's Check dictation shows permissions, shortcut detection, voice, microphone connection, and indicator readiness. Test indicator previews the bar without recording; Repair connection rechecks failed components while idle. Received audio from an interrupted recording stays recoverable in History.
 
 The interface uses original ImageGen glass artwork with subtle pointer depth. System reduced motion and the Subtle motion setting disable these effects. [Wispr Flow teardown and v2.5 measurements](docs/WISPR-TEARDOWN-2026-10-12.md) · [Earlier research](docs/COMPETITOR-RESEARCH-2026-09-06.md) · [Artwork and prompt](docs/IMAGEGEN.md)
@@ -103,7 +105,9 @@ src/
 ├── shared/          Constants, cleanup modes, quiet-point search for segmenting speech
 ├── capture/         Hidden window: 16 kHz mono mic capture via AudioWorklet
 ├── overlay/         The floating flow bar (waveform, computing, done)
-└── app/             Dashboard UI: Home, History, Dictionary, Snippets, Settings
+├── pad/             The floating Control Pad and the camera bubble
+└── app/             Dashboard UI: Home, History, Dictionary, Snippets, Pad, Settings
+native/              fn-key.c (Fn, Esc, mic key listener) and window.c (read and place app windows)
 ```
 
 Speech models: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) running Whisper, [Moonshine](https://github.com/moonshine-ai/moonshine), and [NVIDIA Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2). Models are stored in the app's user-data folder after a one-time download.

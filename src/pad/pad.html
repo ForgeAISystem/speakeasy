@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>SpeakEasy Control Pad</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/600.css">
+<link rel="stylesheet" href="./pad.css">
+<link rel="stylesheet" href="./tiles.css">
+</head>
+<body>
+<main id="pad" role="dialog" aria-label="Control Pad">
+  <header><span class="title">Control Pad</span><span id="target" class="target"></span></header>
+  <div id="grid" class="grid"></div>
+  <footer><span id="status">Tap a key or click a pad</span><span class="keys"><kbd>Shift</kbd>+<kbd>1</kbd> saves a workflow · <kbd>Esc</kbd> closes</span></footer>
+</main>
+<script src="../shared/pad.js"></script>
+<script src="./pad-ui.js"></script>
+<script src="./pad.js"></script>
+</body>
+</html>

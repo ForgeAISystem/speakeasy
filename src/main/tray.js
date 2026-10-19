@@ -45,6 +45,7 @@ class TrayController {
       { label: `Status: ${this.statusLabel}`, enabled: false, id: 'status' },
       { type: 'separator' },
       { label: 'Open SpeakEasy', click: () => this.onOpen() },
+      ...(this.onPad ? [{ label: 'Control Pad', click: () => this.onPad() }] : []),
       { type: 'separator' },
       { label: 'Quit SpeakEasy', click: () => this.onQuit() }
     ]);

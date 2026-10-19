@@ -21,23 +21,35 @@ async function fixture(t) {
   let snippets = [{ id: 's', trigger: 'signature', expansion: 'Harsh\nSpeakEasy' }];
   let dictionary = [{ id: 'd', word: 'SpeakEasy', misspelling: 'speak easy' }];
   const copies = [], saves = [];
-  let push;
+  const pushes = [];
+  const padStore = require('../src/shared/pad').defaultPads();
+  let globe = { supported: true, value: null, opensPopup: true };
   const api = { getState: async () => structuredClone(state), historyList: async () => structuredClone(rows),
     updateSettings: async (value) => { saves.push(value); Object.assign(state.settings, value); return structuredClone(state); },
     copy: async (text) => copies.push(text), historyRemove: async (id) => { rows = rows.filter((r) => r.id !== id); },
     historyClear: async () => { rows = []; }, listMics: async () => [],
     snippetsList: async () => structuredClone(snippets), snippetsSave: async (value) => { snippets = value; },
     dictList: async () => structuredClone(dictionary), dictSave: async (value) => { dictionary = value; },
-    onPush: (fn) => { push = fn; }, hideApp() {}, setupMode: async () => {} };
+    onPush: (fn) => { pushes.push(fn); }, hideApp() {}, setupMode: async () => {},
+    globeStatus: async () => ({ ...globe }),
+    globeFix: async () => { saves.push('globe-fix'); globe = { ...globe, value: 0, opensPopup: false }; state.settings.globePrevious = 'unset'; return { ok: true }; },
+    globeRestore: async () => { saves.push('globe-undo'); globe = { ...globe, value: null, opensPopup: true }; delete state.settings.globePrevious; return { ok: true }; },
+    padGet: async () => ({ available: true, pads: structuredClone(padStore), shortcut: 'Control+Option+P', shortcutError: '' }),
+    padSet: async (key, value) => { saves.push({ pad: key, value }); padStore[key] = value; return { ok: true, pads: structuredClone(padStore) }; },
+    padPress: async (key) => { saves.push({ press: key }); return { ok: true }; },
+    padSave: async (key) => { padStore[key] = { ...padStore[key], windows: [{ app: 'Notes', exec: '/x', x: 0, y: 25, w: 800, h: 900 }] }; return { ok: true, message: 'Saved 1 window' }; },
+    padOpen: async () => true, padCamera: async () => ({ ok: true, on: true }) };
   api.testOverlay = async () => { saves.push('preview'); return { ok: true }; };
   api.repairDictation = async () => { saves.push('repair'); return { ok: true, state: structuredClone(state) }; };
   dom.window.speakeasy = api;
   dom.window.SpeakEasyMotion = { setEnabled() {} };
-  for (const file of ['../shared/writing.js', 'onboarding.js', 'app.js']) dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
+  for (const file of ['../shared/writing.js', '../shared/pad.js', '../pad/pad-ui.js', 'onboarding.js']) dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
+  // Classic scripts share one global scope in the browser; one eval keeps that true here.
+  dom.window.eval(['app.js', 'pad-tab.js'].map((file) => fs.readFileSync(path.join(root, file), 'utf8')).join('\n'));
   await settle();
   const $ = (selector) => dom.window.document.querySelector(selector);
   const click = async (selector) => { assert.ok($(selector), selector); $(selector).click(); await settle(); };
-  return { dom, $, click, state, copies, saves, push: (...args) => push(...args), snippets: () => snippets, rows: () => rows };
+  return { dom, $, click, state, copies, saves, push: (...args) => Promise.all(pushes.map((fn) => fn(...args))), snippets: () => snippets, rows: () => rows };
 }
 
 test('runtime check previews the indicator, repairs explicitly, and reports detected shortcut', async (t) => {
@@ -126,4 +138,47 @@ test('Cmd+F opens local history and focuses the search field', async (t) => {
   f.dom.window.document.dispatchEvent(new f.dom.window.KeyboardEvent('keydown', { key: 'f', metaKey: true }));
   await settle();
   assert.equal(f.dom.window.document.activeElement.id, 'hist-search');
+});
+
+test('Fn users get a one-click fix for the emoji picker, with Undo in Settings', async (t) => {
+  const f = await fixture(t);
+  await settle();
+  assert.match(f.$('#globe-banner').textContent, /emoji picker/);
+  await f.click('#globe-banner [data-globe="fix"]');
+  await settle();
+  assert.ok(f.saves.includes('globe-fix'));
+  assert.equal(f.$('#globe-banner').textContent, '');
+  await f.click('[data-tab="settings"]');
+  await settle();
+  assert.match(f.$('#globe-row').textContent, /Fixed/);
+  await f.click('#globe-row [data-globe="undo"]');
+  await settle();
+  assert.ok(f.saves.includes('globe-undo'));
+  assert.ok(f.$('#globe-row [data-globe="fix"]'));
+});
+
+test('Pad tab shows all 16 pads, remaps a pad, saves a workflow and lights up live', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-tab="pad"]');
+  await settle();
+  assert.equal(f.dom.window.document.querySelectorAll('#pad-grid .pad-tile').length, 16);
+  assert.match(f.$('#pad-grid .pad-tile[data-key="Q"]').textContent, /Top left/);
+  await f.click('#pad-grid .pad-tile[data-key="V"]');
+  const type = f.$('#pad-type');
+  type.value = 'app';
+  type.dispatchEvent(new f.dom.window.Event('change'));
+  await settle(); await settle();
+  const input = f.$('#pad-editor [data-field="app"]');
+  input.value = 'Google Chrome';
+  input.dispatchEvent(new f.dom.window.Event('change'));
+  await settle();
+  assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ pad: 'V', value: { type: 'app', app: 'Google Chrome' } }));
+  assert.match(f.$('#pad-grid .pad-tile[data-key="V"]').textContent, /Google Chrome/);
+  await f.click('#pad-grid .pad-tile[data-key="1"]');
+  await f.click('#pad-capture');
+  await settle();
+  assert.match(f.$('.pad-windows').textContent, /Notes/);
+  await f.push({ type: 'pad', key: 'R', ok: true, message: 'Pick Record in the toolbar', label: 'Record screen', at: Date.now() });
+  assert.ok(f.$('#pad-grid .pad-tile[data-key="R"]').classList.contains('ok'));
+  assert.match(f.$('#pad-log').textContent, /Pick Record/);
 });

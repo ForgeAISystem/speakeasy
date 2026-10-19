@@ -2,11 +2,17 @@
 
 > Maintainer's machine log (Harsh's build Mac). Installing SpeakEasy anywhere else? Follow [INSTALL.md](INSTALL.md); nothing below describes your computer.
 
-Updated: 2026-10-12
+Updated: 2026-10-18
 
 Canonical remote: `git@github.com:ForgeAISystem/speakeasy.git`. Active branch: `main` (v2.5.0, tag `v2.5.0`; `codex/speakeasy-easy-start` is merged and identical). Private repository: collaborators get the code and the Releases page. Anyone's agent installs or updates from `main` through INSTALL.md. Release v2.5.0 (Latest) carries SpeakEasy-2.5.0-arm64.dmg, SpeakEasy-2.5.0.dmg (Intel), and SpeakEasy.Setup.2.5.0.exe; CI run 38338393553 passed tests and builds on macOS arm64, macOS Intel, and Windows.
 
 ## Where things stand
+
+**v2.6.0 built, not installed (2026-10-18).** Branch `feat/window-pad-globe-fix`. Adds the Control Pad (4x4 keyboard drum pad: window snaps, workflow layouts, apps, links, Shortcuts, key combos, prompts, screen recording with a camera bubble; Pad tab with a live monitor and per-pad editor) and a one-click fix for fn opening the emoji picker (Globe key preference, with Undo). 87 tests, offscreen screens, and package check pass. Installer: `dist/SpeakEasy-2.6.0-arm64.dmg`, SHA-256 `dddc98b8dee1ebb6347fcc1f3598a6e24ac7db155dccb873eae500dd5c86b5bc`. Waiting on Harsh to say when to swap the running v2.5.0 (same install steps as v2.5: quit normally, keep a rollback copy, copy into Applications, launch through LaunchServices). Not yet merged to main, tagged, or released to collaborators.
+
+After install, check by hand: Fix it in Settings, then double-tap fn (no picker); tap the mic key over Chrome and press A (left half), A again (next screen); Shift+1 then 1; R (recorder toolbar plus camera bubble, camera permission prompt expected). A new unsigned build may ask for Accessibility and Input Monitoring again.
+
+### v2.5.0 (installed 2026-10-12)
 
 v2.5.0 is installed and running at `/Applications/SpeakEasy.app` (Harsh said "yes install it now", 2026-10-12 22:10). v2.4.2 was quit normally and moved, with a copy of the profile JSON, to `dist/rollback-v242-20261012-221027/`. The installed app.asar matches the build. Launched through LaunchServices: startup log shows `[hotkey] listener active` and `[engine] ready: parakeet-v2`, and the Fn helper runs. The one-time upgrade switched model to parakeet-v2, the Claude model to claude-haiku-5-5, and added the two new switches; history, stats, and window placement are byte-identical.
 

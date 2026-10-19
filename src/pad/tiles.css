@@ -1,0 +1,23 @@
+/* Pad tiles: shared by the floating pad and the Pad tab. */
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; flex: 1; }
+
+.pad-tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 2px;
+  min-width: 0; padding: 8px 9px; border-radius: 12px; cursor: pointer; text-align: left; font: inherit;
+  color: #ffffeb; background: linear-gradient(180deg, rgba(255, 255, 235, 0.09), rgba(255, 255, 235, 0.04));
+  border: 1px solid rgba(255, 255, 235, 0.12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.08s ease, background 0.2s ease, box-shadow 0.2s ease; aspect-ratio: 1; }
+.pad-tile:hover { background: linear-gradient(180deg, rgba(255, 255, 235, 0.14), rgba(255, 255, 235, 0.06)); }
+.pad-tile:active, .pad-tile.hit { transform: translateY(1px); background: rgba(255, 169, 70, 0.32); box-shadow: 0 0 0 1px rgba(255, 184, 103, 0.8), 0 0 22px rgba(255, 169, 70, 0.55); }
+.pad-tile.ok { box-shadow: 0 0 0 1px rgba(70, 192, 122, 0.9), 0 0 20px rgba(70, 192, 122, 0.45); }
+.pad-tile.fail { box-shadow: 0 0 0 1px rgba(255, 120, 100, 0.9), 0 0 18px rgba(255, 120, 100, 0.4); }
+.pad-tile.type-none { opacity: 0.55; }
+.pad-key { position: absolute; top: 7px; left: 9px; font: 600 12px 'JetBrains Mono', ui-monospace, monospace; color: #ffb867; }
+.pad-tag { position: absolute; top: 9px; right: 8px; font: 600 7.5px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.08em; color: rgba(255, 255, 235, 0.45); }
+.pad-label { font-size: 11px; font-weight: 600; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pad-sub { font-size: 9.5px; color: rgba(255, 255, 235, 0.55); }
+.art { width: 40px; height: 26px; margin-bottom: auto; margin-top: 18px; }
+.art .screen { fill: none; stroke: rgba(255, 255, 235, 0.45); stroke-width: 1.2; }
+.art .zone { fill: #ffa946; }
+.art .zone.empty { fill: none; stroke: rgba(255, 255, 235, 0.3); stroke-dasharray: 2 2; }
+.art .rec { fill: #ff5a4a; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

@@ -43,6 +43,7 @@ app.whenReady().then(async () => {
   await run("document.querySelector('#runtime-check').open = false; runtimeOpen = false");
   await capture('history', "switchTab('history').then(() => { document.querySelector('#tab-history .history-original').open = true; })");
   await capture('settings', "switchTab('settings')");
+  await capture('pad', "switchTab('pad').then(() => document.querySelector('#pad-grid .pad-tile[data-key=\"1\"]').click())", 980, 760);
   await capture('snippets', "switchTab('snippets')");
   await capture('dictionary', "switchTab('dictionary')");
   await capture('settings-advanced', "switchTab('settings').then(() => { document.querySelector('.advanced-settings').open = true; })");
@@ -51,7 +52,7 @@ app.whenReady().then(async () => {
   await capture('permissions', 'setup.go(1)');
   await capture('shortcut', 'setup.go(3)');
   // The minimum native window is 560x480. Reserve space for its title bar.
-  for (const tab of ['home', 'history', 'dictionary', 'snippets', 'settings']) {
+  for (const tab of ['home', 'history', 'dictionary', 'snippets', 'pad', 'settings']) {
     await capture(`${tab}-small`, `setup.close(); switchTab('${tab}')`, 560, 450);
   }
   await capture('settings-advanced-small', "document.querySelector('.advanced-settings').open = true", 560, 450);
@@ -85,5 +86,24 @@ app.whenReady().then(async () => {
   if (overlays.some((item) => !item.visible || !item.fits)) failed = true;
   console.log(JSON.stringify({ indicatorScreens: overlays.length, passed: !failed }));
   bar.destroy();
+  // The floating Control Pad with several pad types on it, after a live hit.
+  const pad = new BrowserWindow({ width: 452, height: 520, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true,
+    webPreferences: { preload: path.join(root, 'src/pad/preload.js'), offscreen: true } });
+  pad.webContents.setFrameRate(15);
+  await pad.loadFile(path.join(root, 'src/pad/pad.html'));
+  const P = require('../src/shared/pad');
+  const pads = P.defaultPads();
+  pads['1'] = { type: 'layout', label: 'Build day', windows: [{ app: 'Claude' }, { app: 'Chrome' }] };
+  pads['2'] = { type: 'app', app: 'Google Chrome' };
+  pads.V = { type: 'text', label: 'Morning prompt', text: 'x' };
+  pad.webContents.send('pad:show', { pads, target: 'Google Chrome' });
+  await delay(300);
+  pad.webContents.send('pad:result', { key: 'A', ok: true, message: 'Google Chrome > Left half' });
+  await delay(150);
+  const padCheck = await pad.webContents.executeJavaScript(`({ tiles: document.querySelectorAll('.pad-tile').length, fits: document.querySelector('#pad').scrollHeight <= document.querySelector('#pad').clientHeight + 1, status: document.querySelector('#status').textContent })`);
+  fs.writeFileSync(path.join(out, 'control-pad.png'), (await pad.webContents.capturePage()).toPNG());
+  console.log(JSON.stringify({ controlPad: padCheck }));
+  if (padCheck.tiles !== 16 || !padCheck.fits) failed = true;
+  pad.destroy();
   app.exit(failed ? 1 : 0);
 }).catch((error) => { console.error(error); app.exit(1); });

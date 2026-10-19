@@ -64,6 +64,19 @@ function saveWindowState(bounds) {
   windowStore.save();
 }
 
+// Control Pad mapping (pads keyed by keyboard key) lives apart from settings.
+let padStore;
+function pad() {
+  if (!padStore) padStore = new JsonStore('pad', {});
+  return padStore.data;
+}
+function savePad(pads) {
+  pad();
+  padStore.data = pads;
+  padStore.save();
+  return padStore.data;
+}
+
 // ---- History (most recent first, capped) ----
 const HISTORY_CAP = 500;
 let historyStore;
@@ -182,6 +195,7 @@ function statsSummary() {
 module.exports = {
   settings, updateSettings,
   windowState, saveWindowState,
+  pad, savePad,
   history, addHistory, removeHistory, clearHistory,
   dictionary, snippets,
   recordTranscription, statsSummary

@@ -33,7 +33,7 @@ function fixture() {
     './window-bounds': require('../src/main/window-bounds'),
     './cleanup': {}, './injector': {}, './hotkey': {}, './models': {}, './tray': {}, './audio-store': {},
     './transcriber': { TranscriberManager: class {} },
-    './system-audio': { setDictationMute() {}, restoreNow() {} }, './wispr-import': { readWispr: async () => ({ available: false, words: [], snippets: [] }) },
+    './system-audio': { setDictationMute() {}, restoreNow() {} }, './control-pad': { ControlPad: class {} }, './globe-key': {}, './wispr-import': { readWispr: async () => ({ available: false, words: [], snippets: [] }) },
     '../shared/quiet-point': require('../src/shared/quiet-point'),
     '../shared/constants': require('../src/shared/constants'),
     '../shared/writing': require('../src/shared/writing')

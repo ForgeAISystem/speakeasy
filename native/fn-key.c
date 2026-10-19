@@ -3,10 +3,13 @@
 #include <string.h>
 #include <unistd.h>
 
-// Only Fn transitions and Escape leave this process. No typed text is collected.
+// Only Fn transitions, Escape and the microphone key leave this process.
+// No typed text is collected.
 static CFMachPortRef tap;
 static bool fnDown = false;
+static bool claimMic = false; // --mic: the microphone key (F5 on newer MacBooks) opens the Control Pad
 static pid_t parent;
+static const int64_t MIC_KEY = 176;
 
 static void emit(const char *event) {
   printf("{\"event\":\"%s\"}\n", event);
@@ -22,6 +25,11 @@ static CGEventRef handle(CGEventTapProxy proxy, CGEventType type, CGEventRef eve
   }
   if (type == kCGEventKeyDown && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == 53) {
     emit("cancel");
+  }
+  if (claimMic && (type == kCGEventKeyDown || type == kCGEventKeyUp)
+      && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == MIC_KEY) {
+    if (type == kCGEventKeyDown && !CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat)) emit("mic");
+    return NULL; // macOS dictation stays closed while SpeakEasy owns the key
   }
   if (type == kCGEventFlagsChanged && CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) == 63) {
     bool down = (CGEventGetFlags(event) & kCGEventFlagMaskSecondaryFn) != 0;
@@ -53,7 +61,8 @@ int main(int argc, char **argv) {
     return 0;
   }
   parent = getppid();
-  CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged) | CGEventMaskBit(kCGEventKeyDown);
+  for (int i = 1; i < argc; i++) if (strcmp(argv[i], "--mic") == 0) claimMic = true;
+  CGEventMask mask = CGEventMaskBit(kCGEventFlagsChanged) | CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp);
   tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, mask, handle, NULL);
   if (!tap) { emit("permission-required"); return 1; }
   CFRunLoopSourceRef source = CFMachPortCreateRunLoopSource(NULL, tap, 0);

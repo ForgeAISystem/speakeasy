@@ -1,0 +1,16 @@
+/* Floating Control Pad: dark glass, MPC-style square pads. Shared with the Pad tab. */
+html, body { margin: 0; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none;
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; }
+#pad { position: fixed; inset: 10px; display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  border-radius: 22px; border: 1px solid rgba(255, 255, 235, 0.16);
+  background: linear-gradient(180deg, rgba(43, 54, 40, 0.97), rgba(22, 30, 22, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 48px -12px rgba(0, 0, 0, 0.6);
+  opacity: 0; transform: scale(0.96); transition: opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+#pad.in { opacity: 1; transform: none; }
+header, footer { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; color: #bac7ae; font-size: 11px; }
+header .title { color: #ffffeb; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+header .target { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+footer #status { color: #ffd5a4; }
+footer #status.ok { color: #8fe0a9; }
+footer #status.fail { color: #ff9b8f; }
+footer kbd { font: 600 10px 'JetBrains Mono', ui-monospace, monospace; color: #ffffeb; }

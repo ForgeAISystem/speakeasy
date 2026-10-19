@@ -150,6 +150,7 @@ function renderHome() {
     ${!ready ? `<div class="readiness-message">${S.engine.state === 'loading' ? 'Your voice is getting ready.' : S.engine.state === 'error' ? 'Your voice needs a restart.' : 'Let’s check your voice and permissions.'} <button class="muted-link" id="home-setup">Open setup</button></div>` : ''}
     <div class="daily-hero"><div><div class="eyebrow">${ready ? 'READY WHEN YOU ARE' : 'YOUR DICTATION SHORTCUT'}</div><h2>Your thoughts.<br><em>Already written.</em></h2><p>Click where you want to write. Hold ${esc(holdKeyLabel())}, speak, then release.</p></div><div class="daily-art" data-parallax><img class="glass-art depth-layer" src="./assets/voice-glass.png" alt="" aria-hidden="true"><kbd class="daily-key depth-layer ${key.length > 3 ? 'long' : ''}" style="--depth:10px">${esc(key)}</kbd></div></div>
     <div class="home-shortcuts"><span><kbd>Double-tap</kbd> Hands-free</span><span><kbd>Esc</kbd> Cancel</span><span><kbd>${esc(pasteShortcutLabel())}</kbd> Paste last</span></div>
+    <div id="globe-banner"></div>
     <details class="runtime-check" id="runtime-check" ${runtimeOpen ? 'open' : ''}><summary>Check dictation</summary><div id="runtime-body"></div></details>
     <div class="writing-bar"><span class="writing-label">How your words arrive</span><div class="mode-switch" role="group" aria-label="Cleanup mode">${modeButtons()}</div></div>
     <div class="home-summary"><div><strong>${num(st.today.words)}</strong><span>words today</span></div><div><strong>${fmtDuration(st.today.timeSavedSeconds)}</strong><span>estimated time saved</span></div><div><strong>${num(st.allTime.transcriptions)}</strong><span>dictations so far</span></div></div>
@@ -169,7 +170,36 @@ function renderHome() {
     if (runtimeOpen) { try { S = await api.getState(); renderRuntime(); renderEnginePill(); } catch { toast('Unable to refresh connection status.'); } }
   };
   renderRuntime();
+  renderGlobe();
 }
+
+// macOS opens the emoji picker on Fn/Globe presses unless "Press Globe key to"
+// is Do Nothing. One click fixes it; Settings keeps an Undo.
+async function renderGlobe() {
+  if (S.platform !== 'darwin' || S.settings.holdKey !== 'Fn') return;
+  const st = await api.globeStatus();
+  const home = document.getElementById('globe-banner');
+  if (home) {
+    home.innerHTML = st.opensPopup ? '<div class="readiness-message">Double-tapping fn opens the emoji picker. <button class="btn btn-sm" data-globe="fix">Fix it</button></div>' : '';
+  }
+  const row = document.getElementById('globe-row');
+  if (row) {
+    const undo = S.settings.globePrevious !== undefined && !st.opensPopup;
+    row.innerHTML = `<div class="info"><div class="name">Emoji picker on fn</div><div class="desc">${st.opensPopup ? 'macOS opens the emoji picker when you tap fn. Fix it sets "Press Globe key to" to Do Nothing so fn only dictates.' : 'Fixed. Tapping fn no longer opens the emoji picker.'}</div></div>${st.opensPopup ? '<button class="btn btn-sm" data-globe="fix">Fix it</button>' : undo ? '<button class="btn ghost btn-sm" data-globe="undo">Undo</button>' : ''}`;
+  }
+}
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-globe]');
+  if (!btn) return;
+  btn.disabled = true;
+  const res = btn.dataset.globe === 'fix' ? await api.globeFix() : await api.globeRestore();
+  S = await api.getState();
+  if (btn.dataset.globe === 'fix') toast(res.ok ? 'Fixed. If the picker still shows in an app, quit and reopen that app.' : 'Could not change it. Set "Press Globe key to" to Do Nothing in Keyboard settings.');
+  else toast(res.ok ? 'Your Globe key setting is back.' : 'Could not undo. Check Keyboard settings.');
+  if (!res.ok && btn.dataset.globe === 'fix') api.openPermSettings('keyboard');
+  renderGlobe();
+});
 
 function historyRowHtml(r, compact = false) {
   if (r.failed) {
@@ -416,6 +446,7 @@ async function renderSettings() {
         <div class="info"><div class="name">Dictation key</div><div class="desc">Hold to talk. Double-tap for hands-free. Tap again to stop. Esc cancels.</div></div>
         <select id="set-holdkey">${keyOptions}</select>
       </div>
+      ${isMac && cfg.holdKey === 'Fn' ? '<div class="set-row" id="globe-row"></div>' : ''}
       <div class="set-row">
         <div class="info"><div class="name">Microphone</div><div class="desc">System default follows whatever macOS/Windows has selected.</div></div>
         <select id="set-mic">${micOptions}</select>
@@ -514,6 +545,7 @@ async function renderSettings() {
   document.getElementById('set-ollama-model').addEventListener('change', (e) => save({ polishOllamaModel: e.target.value.trim() }));
   document.getElementById('set-anthropic-key').addEventListener('change', (e) => save({ polishAnthropicKey: e.target.value.trim() }));
   document.getElementById('btn-rerun-onboard').addEventListener('click', () => { showOnboard(true); });
+  renderGlobe();
 }
 
 function renderHomeIfActive() {
@@ -554,7 +586,7 @@ document.querySelectorAll('.nav-item').forEach((item) => {
   item.addEventListener('click', () => switchTab(item.getAttribute('data-tab')));
 });
 
-// Cmd/Ctrl+1-5 jumps straight to a tab
+// Cmd/Ctrl+1-6 jumps straight to a tab
 const TAB_ORDER = ['home', 'history', 'dictionary', 'snippets', 'settings'];
 document.addEventListener('keydown', (e) => {
   if (setup.visible) return;
@@ -563,7 +595,7 @@ document.addEventListener('keydown', (e) => {
     switchTab('history').then(() => document.getElementById('hist-search')?.focus());
     return;
   }
-  if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '5') {
+  if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '6') {
     e.preventDefault();
     switchTab(TAB_ORDER[Number(e.key) - 1]);
   }

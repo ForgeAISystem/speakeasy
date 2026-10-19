@@ -73,3 +73,11 @@ v2.4.2 is installed after Harsh's explicit one-restart approval. He confirmed th
 Read docs/WISPR-TEARDOWN-2026-10-12.md before changing recognition or cleanup. Cleanup rules are evidence-gated: a new rule must move Clean output closer to Wispr's final text on Harsh's local history without changing meaning. The scoring scripts live outside the repo because they read personal data; commit aggregate numbers only, never audio or transcript text.
 
 Live decoding lives in src/main/index.js (maybeDecodeAhead, transcribeDictation) and shares src/shared/quiet-point.js with the worker. Claude cleanup uses @anthropic-ai/sdk, required lazily inside cleanup.js so tests can inject a fake. Settings upgrades run once through migrateSettings() keyed by settingsVersion. Run npm test (77 checks), then the offscreen visual script, then dist:mac and node scripts/package-check.cjs.
+
+## v2.6 notes (2026-10-18)
+
+Control Pad and the fn emoji fix. Pad model (keys, regions, action types, frame math) is src/shared/pad.js, shared by main and both renderers. src/main/control-pad.js runs actions; native/window.c (built to build/native/speakeasy-window, bundled next to speakeasy-fn) reads the front window, lists on-screen windows (CGWindowList, no titles), and places a window through Accessibility. The pad window is a non-activating panel so the app you were using stays the target; pad keys are temporary global shortcuts bound only while the pad is open. The mic key (keycode 176) is claimed by speakeasy-fn when started with --mic (setting padMicKey), so it only works while Fn is the dictation key. Pads live in pad.json in userData.
+
+The emoji picker on fn comes from macOS ("Press Globe key to"), not from the event tap, so swallowing Fn cannot stop it. globe-key.js writes com.apple.HIToolbox AppleFnUsageType = 0 only when the user presses Fix it, stores the old value in settings.globePrevious, and Undo restores it. Agents must not run that write themselves.
+
+Run npm test (87 checks), the offscreen visual script (26 screens, 5 indicator states, the floating pad), dist:mac, then node scripts/package-check.cjs (now also checks the window helper). Not provable from an agent shell: physical mic-key presses, real window moves (the shell lacks Accessibility), the camera bubble, and the Screenshot recorder.

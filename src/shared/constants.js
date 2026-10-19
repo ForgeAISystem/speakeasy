@@ -116,6 +116,9 @@ const DEFAULT_SETTINGS = {
   organizeOnCommand: true, // say "organize my thoughts" to restructure a rambling dictation (needs an AI cleanup provider)
   matchAppStyle: true, // chat apps drop a lone final period; AI cleanup gets the app's writing style
   muteWhileDictating: false, // mute system audio while recording, restored afterwards
+  padShortcut: 'Control+Option+P', // opens the Control Pad ('off' disables)
+  padMicKey: true, // the microphone key (F5 on newer MacBooks) opens the Control Pad
+  globePrevious: undefined, // macOS Globe key setting before SpeakEasy's emoji fix, for Undo
   settingsVersion: 0 // one-time upgrades in main/index.js migrateSettings()
 };
 

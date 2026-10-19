@@ -25,6 +25,7 @@ const systemAudio = require('./system-audio');
 const { readWispr } = require('./wispr-import');
 const { ControlPad } = require('./control-pad');
 const globeKey = require('./globe-key');
+const commands = require('./commands');
 const { quietestPoint } = require('../shared/quiet-point');
 
 let mainWindow = null;
@@ -33,6 +34,7 @@ let captureWindow = null;
 let tray = null;
 let hotkeys = null;
 let controlPad = null;
+let commandMode = false; // this recording is a voice command (the pad was open when fn went down)
 let padAccel = null;
 const transcriber = new TranscriberManager();
 
@@ -249,7 +251,7 @@ function overlayState(state, extra = {}) {
     ...extra
   };
   renderOverlay();
-  if (['done', 'cancelled', 'error', 'preview'].includes(state)) {
+  if (['done', 'cancelled', 'error', 'preview', 'command'].includes(state)) {
     overlayHideTimer = setTimeout(() => {
       overlayPayload = { state: 'hidden' };
       if (overlayReady && overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('overlay:state', overlayPayload);
@@ -344,6 +346,9 @@ function onDictateStart() {
     return;
   }
   dictState = 'recording';
+  commandMode = !!(controlPad && controlPad.isOpen() && store.settings().voiceCommands !== false);
+  if (commandMode) controlPad.listening();
+  else if (controlPad) controlPad.captureTarget(); // a "Hey computer" command acts on this window
   captureSession += 1;
   chunks = [];
   chunkSamples = 0;
@@ -483,6 +488,14 @@ async function onDictateStop() {
 
     const t0 = Date.now();
     const { text: rawText, lang, ms: engineMs } = await transcribeDictation(pcm);
+    const voice = commandMode ? rawText
+      : controlPad && store.settings().voiceCommands !== false ? commands.wakeCommand(rawText) : null;
+    if (voice !== null) {
+      audioStore.removeRecording(wavName);
+      wavName = null;
+      await runVoiceCommand(voice);
+      return;
+    }
     const context = await Promise.race([frontContextPromise, new Promise((r) => setTimeout(() => r({ app: '', title: '' }), 400))]) || { app: '', title: '' };
     // A second AI pass (polish or "organize my thoughts") is about to run:
     // tell the overlay so the pill switches to the refine words + spinner.
@@ -549,13 +562,31 @@ async function onDictateStop() {
     push('stats', {});
   } finally {
     dictState = 'idle';
+    commandMode = false;
     tray.setState('idle', 'Ready');
   }
+}
+
+// A spoken request for the Control Pad: plan it, show it on the pad, run it.
+async function runVoiceCommand(text) {
+  overlayState('processing', { phase: 'command' });
+  if (controlPad.lastFrontPromise && !controlPad.isOpen()) await controlPad.lastFrontPromise;
+  const pads = controlPad.pads();
+  const front = controlPad.isOpen() ? controlPad.target : controlPad.lastFront;
+  const result = await commands.plan(text, { pads, apps: commands.installedApps(), frontApp: front ? front.app : '' }, store.settings());
+  const steps = result.steps.map((step) => ({ ...step, text: commands.describe(step, pads), confirm: commands.needsConfirm(step, pads) }));
+  const waits = steps.some((step) => step.confirm);
+  overlayState(steps.length ? 'command' : 'error', steps.length
+    ? { message: steps.length === 1 ? steps[0].text : `${steps.length} steps`, hint: waits ? 'Press Return to run it' : 'On it' }
+    : { message: text ? 'No command found' : 'Nothing heard' });
+  push('dictation', { phase: 'idle' });
+  await controlPad.showPlan({ ...result, steps });
 }
 
 function onDictateCancel() {
   if (dictState !== 'recording') return;
   dictState = 'idle';
+  commandMode = false;
   clearTimeout(maxDurationTimer);
   clearTimeout(captureWatchdog);
   resetLive();
@@ -894,6 +925,7 @@ ipcMain.handle('pad:press', padOnly((_e, key, source) => controlPad.press(key, s
 ipcMain.handle('pad:save', padOnly((_e, key) => controlPad.save(key)));
 ipcMain.handle('pad:open', padOnly(() => controlPad.open()));
 ipcMain.handle('pad:close', padOnly(() => controlPad.close()));
+ipcMain.handle('pad:confirm', padOnly(() => controlPad.confirm()));
 ipcMain.handle('pad:camera', padOnly(() => ({ ok: true, on: controlPad.toggleCamera() })));
 ipcMain.handle('globe:status', () => globeKey.status());
 ipcMain.handle('globe:fix', async () => {

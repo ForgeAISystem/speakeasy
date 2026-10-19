@@ -182,3 +182,19 @@ test('Pad tab shows all 16 pads, remaps a pad, saves a workflow and lights up li
   assert.ok(f.$('#pad-grid .pad-tile[data-key="R"]').classList.contains('ok'));
   assert.match(f.$('#pad-log').textContent, /Pick Record/);
 });
+
+test('Pad tab teaches voice commands and logs what was heard', async (t) => {
+  const f = await fixture(t);
+  await f.click('[data-tab="pad"]');
+  await settle();
+  assert.match(f.$('.voice-card').textContent, /Hey computer/);
+  assert.match(f.$('.voice-card').textContent, /Add a Claude key/);
+  const voice = f.$('#pad-voice');
+  assert.equal(voice.checked, true);
+  voice.checked = false;
+  voice.dispatchEvent(new f.dom.window.Event('change'));
+  await settle();
+  assert.equal(JSON.stringify(f.saves.at(-1)), JSON.stringify({ voiceCommands: false }));
+  await f.push({ type: 'pad', phase: 'plan', heard: 'put Chrome on the left', steps: ['Google Chrome to left half'], via: 'local', at: Date.now() });
+  assert.match(f.$('#pad-log').textContent, /put Chrome on the left/);
+});

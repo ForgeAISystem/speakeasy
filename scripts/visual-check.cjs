@@ -102,8 +102,13 @@ app.whenReady().then(async () => {
   await delay(150);
   const padCheck = await pad.webContents.executeJavaScript(`({ tiles: document.querySelectorAll('.pad-tile').length, fits: document.querySelector('#pad').scrollHeight <= document.querySelector('#pad').clientHeight + 1, status: document.querySelector('#status').textContent })`);
   fs.writeFileSync(path.join(out, 'control-pad.png'), (await pad.webContents.capturePage()).toPNG());
+  pad.webContents.send('pad:plan', { heard: 'Put Chrome on the left, Claude on the right, then paste my morning prompt', via: 'local', reply: '', confirm: true,
+    steps: [{ text: 'Google Chrome to left half', confirm: false }, { text: 'Claude to right half', confirm: false }, { text: 'Pad V: Morning prompt', confirm: true }] });
+  await delay(200);
+  padCheck.planFits = await pad.webContents.executeJavaScript(`(() => { const p = document.querySelector('#plan'); return !p.hidden && p.scrollHeight <= p.clientHeight + 1; })()`);
+  fs.writeFileSync(path.join(out, 'control-pad-plan.png'), (await pad.webContents.capturePage()).toPNG());
   console.log(JSON.stringify({ controlPad: padCheck }));
-  if (padCheck.tiles !== 16 || !padCheck.fits) failed = true;
+  if (padCheck.tiles !== 16 || !padCheck.fits || !padCheck.planFits) failed = true;
   pad.destroy();
   app.exit(failed ? 1 : 0);
 }).catch((error) => { console.error(error); app.exit(1); });

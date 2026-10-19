@@ -97,8 +97,25 @@
         </div>
         <div class="pad-editor" id="pad-editor">${editorHtml()}</div>
       </div>
+      <div class="section-title">Tell it what to do</div>
+      <div class="voice-card">
+        <div class="voice-how"><kbd>${cfg.padMicKey !== false ? 'mic' : 'pad'}</kbd><span>then hold</span><kbd>fn</kbd><span>and say it. Or start any dictation with “Hey computer”.</span></div>
+        <ul class="voice-examples">
+          <li>“Put Chrome on the left and Claude on the right”</li>
+          <li>“Load build day”</li>
+          <li>“Open Slack, then go to claude.ai”</li>
+          <li>“Paste my morning prompt”</li>
+          <li>“Start recording”</li>
+          <li>“Make pad 3 open command.forgeaisystem.com”</li>
+        </ul>
+        <p class="pad-note">Everyday requests are understood on your Mac. ${writing.providerReady({ ...cfg, polishProvider: 'anthropic' }) ? 'Bigger ones go to Claude as text (your words, pad names and app names) and come back as steps you can see.' : 'Add a Claude key in Settings to handle bigger requests.'} Typing, pasting and Shortcuts wait for Return.</p>
+      </div>
       <div class="section-title">How you open it</div>
       <div class="set-group">
+        <div class="set-row">
+          <div class="info"><div class="name">Voice commands</div><div class="desc">Hold fn while the pad is open, or start with “Hey computer”, to run pads by voice.</div></div>
+          <label class="switch"><input type="checkbox" id="pad-voice" aria-label="Voice commands" ${cfg.voiceCommands !== false ? 'checked' : ''}><span class="track"></span></label>
+        </div>
         <div class="set-row">
           <div class="info"><div class="name">Microphone key</div><div class="desc">The mic key on the top row (F5 on newer MacBooks) opens the pad instead of macOS dictation. Works while Fn is your dictation key.</div></div>
           <label class="switch"><input type="checkbox" id="pad-mic" aria-label="Microphone key" ${cfg.padMicKey !== false ? 'checked' : ''}><span class="track"></span></label>
@@ -122,6 +139,7 @@
     });
     document.getElementById('pad-open').addEventListener('click', async () => { await api.hideApp(); setTimeout(() => api.padOpen(), 350); });
     document.getElementById('pad-camera').addEventListener('click', () => api.padCamera());
+    document.getElementById('pad-voice').addEventListener('change', async (ev) => { S = await api.updateSettings({ voiceCommands: ev.target.checked }); });
     document.getElementById('pad-mic').addEventListener('change', async (ev) => { S = await api.updateSettings({ padMicKey: ev.target.checked }); renderPad(); });
     document.getElementById('pad-shortcut').addEventListener('change', async (ev) => { S = await api.updateSettings({ padShortcut: ev.target.value }); renderPad(); });
     bindEditor();
@@ -131,6 +149,12 @@
   TAB_ORDER.splice(4, 0, 'pad');
 
   api.onPush(async (msg) => {
+    if (msg.type === 'pad' && msg.phase === 'plan') {
+      log = [{ key: 'SAY', ok: msg.steps.length > 0, label: msg.via === 'claude' ? 'Claude' : 'Voice', message: `“${msg.heard}” > ${msg.steps.length ? msg.steps.join(', ') : 'nothing to run'}`, at: msg.at }, ...log].slice(0, 8);
+      const list = document.getElementById('pad-log');
+      if (list) list.innerHTML = logHtml();
+      return;
+    }
     if (msg.type !== 'pad' || !msg.key) return;
     const grid = document.getElementById('pad-grid');
     UI.flash(grid, msg);

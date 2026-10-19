@@ -14,3 +14,27 @@ footer #status { color: #ffd5a4; }
 footer #status.ok { color: #8fe0a9; }
 footer #status.fail { color: #ff9b8f; }
 footer kbd { font: 600 10px 'JetBrains Mono', ui-monospace, monospace; color: #ffffeb; }
+
+.stage { position: relative; flex: 1; display: flex; }
+.stage .grid { flex: 1; }
+#pad.listening { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 2px rgba(255, 169, 70, 0.75), 0 18px 48px -12px rgba(0, 0, 0, 0.6); }
+#pad.listening header .title::after { content: ' · listening'; color: #ffb867; }
+.plan { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 14px;
+  background: #141b14; border: 1px solid rgba(255, 255, 235, 0.14); color: #ffffeb; overflow: auto; }
+.plan[hidden] { display: none; }
+.plan-eyebrow { font: 600 9.5px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.12em; color: #ffb867; }
+.plan-heard { font-size: 15px; line-height: 1.35; font-weight: 600; }
+.plan-steps { list-style: none; display: grid; gap: 6px; margin: 0; padding: 0; }
+.plan-steps li { display: grid; grid-template-columns: 16px 1fr; gap: 2px 8px; align-items: center; font-size: 12.5px; padding: 8px 10px; border-radius: 9px; background: rgba(255, 255, 235, 0.06); }
+.plan-steps .mark { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 235, 0.45); }
+.plan-steps li.confirm .txt::after { content: '  waits for Return'; color: #ffb867; font-size: 10.5px; }
+.plan-steps li.run .mark { border-color: #ffb867; background: rgba(255, 169, 70, 0.5); }
+.plan-steps li.ok .mark { border-color: #46c07a; background: #46c07a; }
+.plan-steps li.fail .mark { border-color: #ff7a64; background: #ff7a64; }
+.plan-steps .msg { grid-column: 2; color: #ff9b8f; font-size: 11px; }
+.plan-steps .msg:empty { display: none; }
+.plan-reply { color: #bac7ae; font-size: 12px; line-height: 1.4; }
+.plan-reply:empty { display: none; }
+.plan-actions { display: flex; align-items: center; gap: 12px; margin-top: auto; color: #bac7ae; font-size: 11px; }
+.plan-actions[hidden] { display: none; }
+.plan-actions button { font: 600 12.5px -apple-system, system-ui, sans-serif; padding: 8px 14px; border-radius: 9px; border: 0; background: #ffa946; color: #1a1a1a; cursor: pointer; }

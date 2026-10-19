@@ -64,11 +64,21 @@ class ControlPad {
 
   async toggle() { return this.isOpen() ? this.close() : this.open(); }
 
-  async open() {
-    const { screen } = this.d.electron;
+  /** The window in front right now (never SpeakEasy itself), or null. */
+  async front() {
     const front = await this.helper(['front']);
-    const own = front.ok && front.pid === process.pid;
-    this.target = front.ok && !own ? front : null;
+    return front.ok && front.pid !== process.pid ? front : null;
+  }
+
+  /** Remember the window in front when a dictation starts, for voice commands. */
+  captureTarget() {
+    this.lastFrontPromise = this.front().then((t) => { this.lastFront = t; return t; }).catch(() => null);
+    return this.lastFrontPromise;
+  }
+
+  async open(target) {
+    const { screen } = this.d.electron;
+    this.target = target !== undefined ? target : await this.front();
     const frame = this.target && this.target.w ? { x: this.target.x, y: this.target.y, width: this.target.w, height: this.target.h } : null;
     const display = frame ? screen.getDisplayMatching(frame) : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     const win = this._window();
@@ -87,8 +97,123 @@ class ControlPad {
   close() {
     clearTimeout(this.closeTimer);
     this._unbindKeys();
+    this._unbindConfirm();
+    this.pending = null;
     if (this.win && !this.win.isDestroyed()) this.win.hide();
     return true;
+  }
+
+  _send(channel, payload) {
+    if (this.win && !this.win.isDestroyed()) this.win.webContents.send(channel, payload);
+  }
+
+  /** Fn pressed while the pad is open: this dictation is a command. */
+  listening() {
+    clearTimeout(this.closeTimer);
+    this._send('pad:listening', {});
+  }
+
+  /**
+   * Shows a voice plan on the pad. Safe plans run at once; plans that type,
+   * paste or run a Shortcut wait for Return (Esc cancels).
+   * plan: { heard, reply, via, steps: [{ ...step, text, confirm }] }
+   */
+  async showPlan(plan) {
+    if (!this.isOpen()) {
+      if (this.lastFrontPromise) await this.lastFrontPromise;
+      await this.open(this.lastFront || null);
+    }
+    clearTimeout(this.closeTimer);
+    const confirm = plan.steps.some((st) => st.confirm);
+    this._send('pad:plan', { heard: plan.heard, reply: plan.reply, via: plan.via, confirm, steps: plan.steps.map((st) => ({ text: st.text, confirm: st.confirm })) });
+    this.d.onEvent && this.d.onEvent({ phase: 'plan', heard: plan.heard, steps: plan.steps.map((st) => st.text), via: plan.via, at: Date.now() });
+    if (!plan.steps.length) { this.closeTimer = setTimeout(() => this.close(), 4500); return { ok: false, ran: 0 }; }
+    if (!confirm) return this.runSteps(plan.steps);
+    this.pending = plan.steps;
+    this._bindConfirm();
+    this.closeTimer = setTimeout(() => this.close(), 20000);
+    return { ok: true, waiting: true };
+  }
+
+  _bindConfirm() {
+    const { globalShortcut } = this.d.electron;
+    try { globalShortcut.register('Return', () => this.confirm()); this.confirmBound = true; } catch { /* click Run instead */ }
+  }
+
+  _unbindConfirm() {
+    if (!this.confirmBound) return;
+    try { this.d.electron.globalShortcut.unregister('Return'); } catch { /* gone */ }
+    this.confirmBound = false;
+  }
+
+  confirm() {
+    const steps = this.pending;
+    if (!steps) return { ok: false };
+    this.pending = null;
+    this._unbindConfirm();
+    clearTimeout(this.closeTimer);
+    return this.runSteps(steps);
+  }
+
+  async runSteps(steps) {
+    let ran = 0;
+    for (let i = 0; i < steps.length; i++) {
+      this._send('pad:step', { i, state: 'run' });
+      let res;
+      try { res = await this.runStep(steps[i]); } catch (e) { res = { ok: false, message: e.message }; }
+      if (res.ok) ran++;
+      this._send('pad:step', { i, state: res.ok ? 'ok' : 'fail', message: res.message });
+      this.d.onEvent && this.d.onEvent({ key: steps[i].key || 'VOICE', ok: res.ok, message: `${steps[i].text}: ${res.message || (res.ok ? 'done' : 'failed')}`, label: 'Voice', source: 'voice', at: Date.now() });
+    }
+    clearTimeout(this.closeTimer);
+    this.closeTimer = setTimeout(() => this.close(), ran === steps.length ? 1400 : 4000);
+    return { ok: ran === steps.length, ran };
+  }
+
+  async runStep(step) {
+    const pads = this.pads();
+    switch (step.do) {
+      case 'snap': return step.app === 'front' ? this.snap(step.region) : this.snapApp(step.app, step.region);
+      case 'open_app': return this.openApp(step.app);
+      case 'open_url': return this.openUrl(step.url);
+      case 'pad':
+        this.d.onEvent && this.d.onEvent({ key: step.key, phase: 'hit', at: Date.now(), source: 'voice' });
+        return this.runAction(pads[step.key], step.key);
+      case 'shortcut': return this.runAction({ type: 'shortcut', name: step.name }, 'VOICE');
+      case 'keys': return this.pressKeys(step.keys);
+      case 'paste': return this.runAction({ type: 'text', text: step.text }, 'VOICE');
+      case 'record': return this.runAction({ type: 'record' }, 'VOICE');
+      case 'camera': {
+        const on = this.toggleCamera(step.on);
+        return { ok: true, message: on ? 'Camera on' : 'Camera off' };
+      }
+      case 'teach': {
+        pads[step.key] = step.action;
+        this.d.store.savePad(pads);
+        this._send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '', keepPlan: true });
+        return { ok: true, message: `Pad ${step.key} saved` };
+      }
+      default: return { ok: false, message: 'Unknown step' };
+    }
+  }
+
+  /** Moves a named app's window (opening the app first if needed). */
+  async snapApp(app, region) {
+    let pid = await this._pidFor({ app, exec: '' });
+    if (!pid) {
+      await run('open', ['-a', app]).catch(() => {});
+      for (let i = 0; i < 20 && !pid; i++) { await wait(250); pid = await this._pidFor({ app, exec: '' }); }
+    }
+    if (!pid) return { ok: false, message: `${app} did not open` };
+    let f = { ok: false };
+    for (let i = 0; i < 8 && !f.ok; i++) { f = await this.helper(['frame', pid]); if (!f.ok) await wait(250); }
+    const { screen } = this.d.electron;
+    const current = f.ok ? { x: f.x, y: f.y, width: f.w, height: f.h } : null;
+    const display = current ? screen.getDisplayMatching(current) : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const frame = padModel.frameFor(region, display.workArea);
+    const moved = await this.helper(['move', pid, frame.x, frame.y, frame.width, frame.height]);
+    if (!moved.ok) return { ok: false, message: moved.error === 'accessibility' ? 'Allow SpeakEasy in Accessibility.' : `${app} cannot move` };
+    return { ok: true, message: `${app} > ${padModel.REGIONS[region]?.label || region}` };
   }
 
   _bindKeys() {

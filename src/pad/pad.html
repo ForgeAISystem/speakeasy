@@ -11,8 +11,17 @@
 <body>
 <main id="pad" role="dialog" aria-label="Control Pad">
   <header><span class="title">Control Pad</span><span id="target" class="target"></span></header>
-  <div id="grid" class="grid"></div>
-  <footer><span id="status">Tap a key or click a pad</span><span class="keys"><kbd>Shift</kbd>+<kbd>1</kbd> saves a workflow · <kbd>Esc</kbd> closes</span></footer>
+  <div class="stage">
+    <div id="grid" class="grid"></div>
+    <section id="plan" class="plan" hidden aria-live="polite">
+      <div class="plan-eyebrow" id="plan-eyebrow">YOU SAID</div>
+      <p class="plan-heard" id="plan-heard"></p>
+      <ol class="plan-steps" id="plan-steps"></ol>
+      <p class="plan-reply" id="plan-reply"></p>
+      <div class="plan-actions" id="plan-actions" hidden><button type="button" id="plan-run">Run it</button><span><kbd>Return</kbd> runs · <kbd>Esc</kbd> cancels</span></div>
+    </section>
+  </div>
+  <footer><span id="status">Tap a key, or hold <kbd>fn</kbd> and say it</span><span class="keys"><kbd>Shift</kbd>+<kbd>1</kbd> saves · <kbd>Esc</kbd> closes</span></footer>
 </main>
 <script src="../shared/pad.js"></script>
 <script src="./pad-ui.js"></script>

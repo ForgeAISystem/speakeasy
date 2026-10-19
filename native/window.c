@@ -8,6 +8,7 @@
 //   front                      the focused window of the frontmost app
 //   move <pid> <x> <y> <w> <h> place that app's focused (or main) window
 //   list                       on-screen app windows, front to back, one per app
+//   frame <pid>                that app's focused (or main) window frame
 // Reads window frames and app names only. No window titles or contents.
 
 static void jsonString(const char *s) {
@@ -157,13 +158,28 @@ static int list(pid_t self) {
   return 0;
 }
 
+static int frame(pid_t pid) {
+  AXUIElementRef app = AXUIElementCreateApplication(pid);
+  AXUIElementRef win = windowOf(app);
+  CFRelease(app);
+  if (!win) return fail("no-window");
+  CGPoint pos;
+  CGSize size;
+  bool ok = frameOf(win, &pos, &size);
+  CFRelease(win);
+  if (!ok) return fail("no-frame");
+  printf("{\"ok\":true,\"x\":%.0f,\"y\":%.0f,\"w\":%.0f,\"h\":%.0f}\n", pos.x, pos.y, size.width, size.height);
+  return 0;
+}
+
 int main(int argc, char **argv) {
   if (argc > 1 && strcmp(argv[1], "front") == 0) return front();
   if (argc > 1 && strcmp(argv[1], "list") == 0) return list(getpid());
+  if (argc == 3 && strcmp(argv[1], "frame") == 0) return frame((pid_t)atoi(argv[2]));
   if (argc == 7 && strcmp(argv[1], "move") == 0) {
     CGPoint pos = { atof(argv[3]), atof(argv[4]) };
     CGSize size = { atof(argv[5]), atof(argv[6]) };
     return move((pid_t)atoi(argv[2]), pos, size);
   }
-  return fail("usage: front | list | move <pid> <x> <y> <w> <h>");
+  return fail("usage: front | list | frame <pid> | move <pid> <x> <y> <w> <h>");
 }

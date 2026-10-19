@@ -134,8 +134,8 @@ function setState(payload) {
     pill.classList.add('visible');
     spinner.style.display = 'block';
     // 'refine' = the AI polish / organize pass; default = transcription.
-    label.textContent = payload.phase === 'refine' ? 'Polishing your words' : 'Transcribing';
-    hint.textContent = payload.phase === 'refine' ? (payload.localPolish ? 'On your computer' : 'With Anthropic') : 'On your computer';
+    label.textContent = payload.phase === 'command' ? 'Working it out' : payload.phase === 'refine' ? 'Polishing your words' : 'Transcribing';
+    hint.textContent = payload.phase === 'command' ? 'Planning your command' : payload.phase === 'refine' ? (payload.localPolish ? 'On your computer' : 'With Anthropic') : 'On your computer';
     if (sounds && payload.phase !== 'refine') blip(990, 660, 80);
   } else if (state === 'loading') {
     pill.classList.add('visible');
@@ -146,6 +146,12 @@ function setState(payload) {
     check.style.display = 'block';
     label.textContent = payload.words === 1 ? '1 word written' : `${payload.words} words written`;
     hint.textContent = payload.fallbackReason ? 'AI unavailable · used local cleanup' : 'Back to your flow';
+    if (sounds) blip(520, 780, 110, 0.05);
+  } else if (state === 'command') {
+    pill.classList.add('visible');
+    check.style.display = 'block';
+    label.textContent = payload.message || 'Got it';
+    hint.textContent = payload.hint || '';
     if (sounds) blip(520, 780, 110, 0.05);
   } else if (state === 'cancelled') {
     pill.classList.add('visible');

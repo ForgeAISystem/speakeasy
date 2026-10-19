@@ -1,5 +1,14 @@
 # Build log
 
+## 2026-10-18: v2.7.0 voice commands
+
+- Harsh: "just say, hey, do this on my computer" and teach the pad by voice. Built on v2.6 (branch feat/voice-commands from feat/window-pad-globe-fix).
+- Two ways in: hold fn while the pad is open, or start any dictation with "Hey computer" / "Hey SpeakEasy". The transcript is never pasted; it becomes a plan shown on the pad.
+- Offline planner first (window moves by app name with borrowed verbs, open apps and links, workflows and prompts by pad name, record, camera, key combos, Shortcuts, and "make pad 3 open ..." teaching). Claude plans the rest only with a key, through one forced tool; every step is re-checked locally. Typing, pasting and Shortcuts wait for Return; Esc drops the plan.
+- Pad tab: Voice commands switch, how-to card with examples, and heard requests in the live log. Overlay pill: "Working it out", then the plan summary.
+- 97 tests pass (11 new: wake words, offline plans, teaching, validation against unsafe steps, confirm rules, Claude request shape and step filtering, no-key and failure paths, plan runs and Return/Esc on the pad, Pad tab voice card). Offscreen: 26 screens, 5 indicator states, floating pad and plan view pass. Package check: 46 files, both helpers. DMG dist/SpeakEasy-2.7.0-arm64.dmg.
+- Not verified: a spoken command end to end in the installed app, Claude planning with a real key. Installed app is still v2.5.0.
+
 ## 2026-10-18: v2.6.0 Control Pad and fn emoji fix
 
 - Harsh asked for a tap pad to stop dragging windows around, then widened it: a MacBook-as-MIDI-controller surface, a live view to watch and remap it, and quick screen recording with the camera. Also: double-tapping fn opened the emoji picker.

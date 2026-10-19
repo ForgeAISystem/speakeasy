@@ -21,6 +21,7 @@ Speech recognition runs on your machine. No account or subscription is required.
 - **Paste last transcript**: Cmd+Ctrl+V (Mac) / Shift+Alt+Z (Windows) re-pastes your most recent dictation.
 - **A flexible desktop window**: native dragging, minimize/full-screen controls, compact layouts down to 560x480, and remembered size/screen position. Reopening restores a minimized window; disconnected screens recover onto an available display.
 - **Control Pad (Mac)**: your keyboard becomes a drum pad. Tap the microphone key (F5 on newer MacBooks) or Control+Option+P, then hit a key. Q/W/E, A/S/D, Z/X/C snap the window you were using to the matching part of the screen (hit it twice to jump screens). 1-4 bring back whole workflow layouts (Shift+key saves your current windows). R opens the screen recorder with a round camera bubble, F toggles the camera, V pastes a starter prompt. Every pad can be remapped in the Pad tab to open an app, a link, a Shortcut, a key combo, or saved text, and the tab lights up live as you hit pads.
+- **Voice commands**: open the pad and hold fn, or start any dictation with "Hey computer", then say it: "put Chrome on the left and Claude on the right", "load build day", "paste my morning prompt", "start recording", "make pad 3 open claude.ai". Everyday requests are understood on your Mac; bigger ones go to Claude as text when you have added a key. The plan shows on the pad first, and typing, pasting and Shortcuts wait for Return.
 - **No emoji picker on fn**: one click sets macOS "Press Globe key to" to Do Nothing so tapping fn only dictates. Undo restores your old setting.
 - **Dictation checks and recovery**: Home's Check dictation shows permissions, shortcut detection, voice, microphone connection, and indicator readiness. Test indicator previews the bar without recording; Repair connection rechecks failed components while idle. Received audio from an interrupted recording stays recoverable in History.
 
@@ -117,6 +118,7 @@ Speech models: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) running Whis
 - Before transcription, a local WAV safety copy is saved. Successful dictations delete it. Failed or interrupted dictations can be retried from History; leftover audio is pruned after 14 days.
 - Transcripts, settings, and stats live in local JSON files under your user-data directory.
 - The only optional network calls: model downloads (GitHub), and AI polish if you explicitly enable Ollama (localhost) or the Claude API. Claude receives the transcript text, the receiving app's name, and your dictionary words. Never audio, and never the window title (it picks a style on your computer only).
+- Voice commands are planned on your Mac. Only when a request is beyond the built-in rules and you have added a Claude key, SpeakEasy sends Claude the request text, your pad names and types, and your app names. Never audio, prompt text, or window titles.
 - Wispr Flow import reads Wispr's local database read-only, only when you open the Dictionary tab or press Import.
 
 ## License

@@ -81,3 +81,9 @@ Control Pad and the fn emoji fix. Pad model (keys, regions, action types, frame 
 The emoji picker on fn comes from macOS ("Press Globe key to"), not from the event tap, so swallowing Fn cannot stop it. globe-key.js writes com.apple.HIToolbox AppleFnUsageType = 0 only when the user presses Fix it, stores the old value in settings.globePrevious, and Undo restores it. Agents must not run that write themselves.
 
 Run npm test (87 checks), the offscreen visual script (26 screens, 5 indicator states, the floating pad), dist:mac, then node scripts/package-check.cjs (now also checks the window helper). Not provable from an agent shell: physical mic-key presses, real window moves (the shell lacks Accessibility), the camera bubble, and the Screenshot recorder.
+
+## v2.7 notes (2026-10-18)
+
+Voice commands. src/main/commands.js turns a spoken request into steps (snap, open_app, open_url, pad, shortcut, keys, paste, record, camera, teach). planLocally() handles everyday phrasing offline; plan() falls back to Claude (forced run_steps tool, Haiku 5.5, thinking off) only when polishAnthropicKey is set. validate() is the gate for both: unknown verbs, non-http links, apps that are not installed, bad regions or keys are dropped, max 8 steps. needsConfirm() holds keys, paste, Shortcuts and pads of those types until Return. A recording is a command when the pad was open at fn-down (commandMode in index.js) or when the transcript starts with a wake phrase (wakeCommand). Commands never paste their transcript and are not saved to History. ControlPad.showPlan/confirm/runSteps run it; native/window.c gained frame <pid> for snapping a named app.
+
+Run npm test (97 checks), the offscreen visual script (adds control-pad-plan.png), dist:mac, package check. Not provable from an agent shell: a spoken command end to end, Claude planning with a real key, Return confirm on a real pad.

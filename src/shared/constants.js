@@ -117,6 +117,7 @@ const DEFAULT_SETTINGS = {
   matchAppStyle: true, // chat apps drop a lone final period; AI cleanup gets the app's writing style
   muteWhileDictating: false, // mute system audio while recording, restored afterwards
   padShortcut: 'Control+Option+P', // opens the Control Pad ('off' disables)
+  voiceCommands: true, // hold fn with the pad open, or start with "Hey computer", to tell the Mac what to do
   padMicKey: true, // the microphone key (F5 on newer MacBooks) opens the Control Pad
   globePrevious: undefined, // macOS Globe key setting before SpeakEasy's emoji fix, for Undo
   settingsVersion: 0 // one-time upgrades in main/index.js migrateSettings()

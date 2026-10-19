@@ -78,3 +78,38 @@ test('empty and unsafe-from-SpeakEasy pads explain themselves instead of acting'
   assert.match((await f.pad.press('A', 'key')).message, /Click a window first/);
   assert.equal(f.events.filter((e) => e.phase === 'hit').length, 3);
 });
+
+test('a voice plan runs safe steps at once and holds a paste until Return', async (t) => {
+  const f = fixture(t);
+  const pasted = [];
+  f.pad.d.injectText = async (text) => { pasted.push(text); return true; };
+  await f.pad.open();
+  const safe = await f.pad.showPlan({ heard: 'put this on the left and make pad 3 open claude.ai', via: 'local', reply: '', steps: [
+    { do: 'snap', app: 'front', region: 'left', text: 'This window to left half', confirm: false },
+    { do: 'teach', key: '3', action: { type: 'url', url: 'https://claude.ai' }, text: 'Pad 3 now: open link', confirm: false }] });
+  assert.deepEqual(safe, { ok: true, ran: 2 });
+  assert.ok(f.calls().includes('move 777 0 25 864 1092'));
+  assert.equal(f.saved()['3'].url, 'https://claude.ai');
+  const plans = f.shown.filter(([ch]) => ch === 'pad:plan');
+  assert.equal(plans.at(-1)[1].confirm, false);
+
+  await f.pad.open();
+  const held = await f.pad.showPlan({ heard: 'type hello', via: 'local', reply: '', steps: [{ do: 'paste', text: 'hello', confirm: true }] });
+  assert.equal(held.waiting, true);
+  assert.deepEqual(pasted, []);
+  const ran = await f.pad.confirm();
+  assert.equal(ran.ok, true);
+  assert.deepEqual(pasted, ['hello']);
+  assert.equal((await f.pad.confirm()).ok, false, 'Return twice runs it once');
+});
+
+test('Esc on a held plan drops it', async (t) => {
+  const f = fixture(t);
+  const pasted = [];
+  f.pad.d.injectText = async (text) => { pasted.push(text); return true; };
+  await f.pad.open();
+  await f.pad.showPlan({ heard: 'type hi', via: 'local', reply: '', steps: [{ do: 'paste', text: 'hi', confirm: true }] });
+  f.pad.close();
+  assert.equal((await f.pad.confirm()).ok, false);
+  assert.deepEqual(pasted, []);
+});

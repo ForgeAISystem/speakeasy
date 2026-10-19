@@ -30,3 +30,9 @@
 .pad-windows li { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 6px 9px; border-radius: 8px; background: var(--fill); }
 .pad-windows .mono { color: var(--muted); font-size: 11px; }
 .pad-editor-actions { display: flex; gap: 8px; }
+
+.voice-card { display: grid; gap: 12px; padding: 16px 18px; border-radius: 16px; background: var(--sheet); border: 1px solid var(--hairline); box-shadow: var(--shadow-1); }
+.voice-how { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+.voice-how kbd { font: 600 12px 'JetBrains Mono', ui-monospace, monospace; padding: 4px 9px; border-radius: 7px; background: var(--ink); color: var(--accent); }
+.voice-examples { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.voice-examples li { font-size: 12.5px; padding: 6px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }

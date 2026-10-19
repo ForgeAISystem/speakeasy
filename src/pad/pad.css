@@ -38,3 +38,11 @@ footer kbd { font: 600 10px 'JetBrains Mono', ui-monospace, monospace; color: #f
 .plan-actions { display: flex; align-items: center; gap: 12px; margin-top: auto; color: #bac7ae; font-size: 11px; }
 .plan-actions[hidden] { display: none; }
 .plan-actions button { font: 600 12.5px -apple-system, system-ui, sans-serif; padding: 8px 14px; border-radius: 9px; border: 0; background: #ffa946; color: #1a1a1a; cursor: pointer; }
+
+.result-list { list-style: none; display: grid; gap: 6px; margin: 0; padding: 0; overflow: hidden; }
+.result-list li { display: grid; grid-template-columns: 18px 1fr; gap: 3px 8px; padding: 8px 10px; border-radius: 9px; background: rgba(255, 255, 235, 0.06); border: 1px solid transparent; cursor: pointer; }
+.result-list li.selected { background: rgba(255, 169, 70, 0.16); border-color: rgba(255, 184, 103, 0.55); }
+.result-list .n { font: 600 10.5px 'JetBrains Mono', ui-monospace, monospace; color: #ffb867; padding-top: 2px; }
+.result-list .txt { font-size: 12px; line-height: 1.38; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.result-list .meta { grid-column: 2; font-size: 10.5px; color: #bac7ae; }
+.result-list .meta:empty { display: none; }

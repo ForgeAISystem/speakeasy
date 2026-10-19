@@ -218,13 +218,15 @@ function historyRowHtml(r, compact = false) {
   }
   const tags = [
     r.lang ? langName(r.lang) : '',
-    r.organized ? 'Organized' : r.polished ? 'Polished' : '',
+    r.transform ? r.transform : r.organized ? 'Organized' : r.polished ? 'Polished' : '',
+    r.terminal ? 'Terminal' : '',
+    r.undone ? 'Undone' : '',
     r.pasted === false ? 'On clipboard' : ''
   ].filter(Boolean).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
   return `
     <div class="h-row" data-id="${esc(r.id)}">
       <div class="txt"><div class="transcript-text">${esc(r.text)}</div>
-        <div class="meta">${tags}${r.app ? esc(r.app) + ' &middot; ' : ''}${timeAgo(r.ts)} &middot; ${Number(r.speechSeconds) || 0}s</div>
+        <div class="meta">${tags}${r.app ? esc(r.app) + ' &middot; ' : ''}${timeAgo(r.ts)}${r.transform ? '' : ` &middot; ${Number(r.speechSeconds) || 0}s`}</div>
         ${r.fallbackReason ? '<p class="fallback-note">AI cleanup was unavailable. Local cleanup kept your words.</p>' : ''}
         ${!compact && r.raw && r.raw !== r.text ? `<details class="history-original"><summary>Compare original</summary><div class="original-box"><p>${esc(r.raw)}</p><button class="btn ghost btn-sm" data-action="copy-original">Copy original</button></div></details>` : ''}
       </div>
@@ -429,6 +431,7 @@ async function renderSettings() {
   const langs = [['auto', 'Auto-detect'], ['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['de', 'German'], ['pt', 'Portuguese'], ['hi', 'Hindi'], ['gu', 'Gujarati'], ['zh', 'Chinese'], ['ja', 'Japanese'], ['ko', 'Korean'], ['it', 'Italian'], ['ru', 'Russian'], ['ar', 'Arabic']];
   const langOptions = langs.map(([v, l]) => `<option value="${v}" ${cfg.language === v ? 'selected' : ''}>${l}</option>`).join('');
 
+  const undoKey = shortcutText(S.edit?.undo || (isMac ? 'Command+Control+Z' : 'Shift+Alt+U'));
   const micOptions = ['<option value="default">System default</option>']
     .concat(mics.filter((m) => m.deviceId !== 'default').map((m) =>
       `<option value="${esc(m.deviceId)}" ${cfg.micDeviceId === m.deviceId ? 'selected' : ''}>${esc(m.label)}</option>`))
@@ -461,10 +464,34 @@ async function renderSettings() {
         <div class="info"><div class="name">Match each app</div><div class="desc">Chat apps get a single sentence without a final period. Polished mode writes emails, chats, and AI prompts in the style each one needs.</div></div>
         <label class="switch"><input type="checkbox" id="set-appstyle" ${cfg.matchAppStyle !== false ? 'checked' : ''}><span class="track"></span></label>
       </div>
+      <div class="set-row">
+        <div class="info"><div class="name">Terminal mode</div><div class="desc">In Terminal, iTerm, Warp, Ghostty and Claude Code: straight quotes, no final period, and &ldquo;new line&rdquo; adds a line with Shift+Return. Nothing sends until you press Return.</div></div>
+        <label class="switch"><input type="checkbox" id="set-terminal" ${cfg.terminalMode !== false ? 'checked' : ''}><span class="track"></span></label>
+      </div>
       ${isMac ? `<div class="set-row">
         <div class="info"><div class="name">Mute audio while dictating</div><div class="desc">Silences music and videos while you speak, then turns them back on.</div></div>
         <label class="switch"><input type="checkbox" id="set-mute" ${cfg.muteWhileDictating ? 'checked' : ''}><span class="track"></span></label>
       </div>` : ''}
+    </div>
+
+    <div class="section-title">Edit by voice</div>
+    <div class="set-group" id="edit-group">
+      <div class="set-row">
+        <div class="info"><div class="name">Rewrite what you select</div><div class="desc">Select text, hold ${cfg.holdKey === 'Fn' ? 'fn' : 'your dictation key'} and Shift, and say the edit. Or say &ldquo;Hey computer, make this shorter&rdquo;. Built in: Polish, Shorter, Bullets, Prompt Engineer, Translate. Runs on Claude when your key is set, on Ollama otherwise.</div></div>
+      </div>
+      <div class="set-row">
+        <div class="info"><div class="name">Undo AI edit</div><div class="desc">Press ${esc(undoKey)} right after a paste. Cleanup goes and your exact words come back. After a rewrite, your old text comes back.</div></div>
+        <kbd class="shortcut-chip">${esc(undoKey)}</kbd>
+      </div>
+      <div class="set-row">
+        <div class="info"><div class="name">Search what you said</div><div class="desc">Say &ldquo;Hey computer, what did I say about the invoices&rdquo;. Matches show on the pad; Return pastes one. Searches History on this computer only.</div></div>
+      </div>
+      <div class="set-row transforms-row">
+        <div class="info"><div class="name">Your transforms</div><div class="desc">Name it, then say the name: &ldquo;make this Casual&rdquo;.</div>
+          <div class="transform-list" id="transform-list"></div>
+          <button class="btn ghost btn-sm" id="transform-add">Add a transform</button>
+        </div>
+      </div>
     </div>
 
     <details class="advanced-settings"><summary>Voice models &amp; optional AI cleanup</summary><div class="section-title">Voice models</div>
@@ -534,6 +561,8 @@ async function renderSettings() {
   document.getElementById('set-lang').addEventListener('change', (e) => save({ language: e.target.value }));
   document.getElementById('set-appstyle').addEventListener('change', (e) => save({ matchAppStyle: e.target.checked }));
   document.getElementById('set-mute')?.addEventListener('change', (e) => save({ muteWhileDictating: e.target.checked }));
+  document.getElementById('set-terminal').addEventListener('change', (e) => save({ terminalMode: e.target.checked }));
+  renderTransforms(save);
   document.getElementById('set-motion').addEventListener('change', (e) => save({ subtleMotion: e.target.checked }));
   document.getElementById('set-sounds').addEventListener('change', (e) => save({ sounds: e.target.checked }));
   document.getElementById('set-clip').addEventListener('change', (e) => save({ restoreClipboard: e.target.checked }));
@@ -548,6 +577,45 @@ async function renderSettings() {
   document.getElementById('set-anthropic-key').addEventListener('change', (e) => save({ polishAnthropicKey: e.target.value.trim() }));
   document.getElementById('btn-rerun-onboard').addEventListener('click', () => { showOnboard(true); });
   renderGlobe();
+}
+
+// "Command+Control+Z" -> "Control+Command+Z" reads in the order people press it.
+function shortcutText(accel) {
+  if (!accel) return '';
+  const order = ['Control', 'Option', 'Alt', 'Shift', 'Command'];
+  const parts = String(accel).split('+');
+  const key = parts.pop();
+  return [...order.filter((m) => parts.includes(m)), key].join('+');
+}
+
+// User transforms: [{ id, name, prompt }] in settings.transforms.
+function renderTransforms(save) {
+  const list = document.getElementById('transform-list');
+  if (!list) return;
+  const items = () => (Array.isArray(S.settings.transforms) ? S.settings.transforms : []);
+  const draw = () => {
+    list.innerHTML = items().map((t) => `
+      <div class="transform-item" data-id="${esc(t.id)}">
+        <input type="text" class="t-name" aria-label="Transform name" placeholder="Name, like Casual" value="${esc(t.name)}" maxlength="40">
+        <input type="text" class="t-prompt" aria-label="What it does" placeholder="What it does, like: rewrite in a casual, friendly tone" value="${esc(t.prompt)}" maxlength="500">
+        <button class="icon-btn danger" data-action="transform-delete" aria-label="Delete transform" title="Delete">&#x2715;</button>
+      </div>`).join('');
+  };
+  const store = (next) => save({ transforms: next }).then(draw);
+  draw();
+  list.addEventListener('change', (e) => {
+    const row = e.target.closest('.transform-item');
+    if (!row) return;
+    store(items().map((t) => (t.id === row.dataset.id ? { ...t, name: row.querySelector('.t-name').value.trim(), prompt: row.querySelector('.t-prompt').value.trim() } : t)));
+  });
+  list.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="transform-delete"]');
+    if (btn) store(items().filter((t) => t.id !== btn.closest('.transform-item').dataset.id));
+  });
+  document.getElementById('transform-add').addEventListener('click', async () => {
+    await store([...items(), { id: `t-${Date.now()}`, name: '', prompt: '' }]);
+    list.querySelector('.transform-item:last-child .t-name')?.focus();
+  });
 }
 
 function renderHomeIfActive() {

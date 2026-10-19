@@ -167,14 +167,18 @@ function toGuideEvent(type, msg) {
     if (msg.phase === 'camera') return { type: 'camera', on: !!msg.on };
     if (msg.phase === 'set') return { type: 'pad-set', key: msg.key };
     if (msg.phase === 'voice-step') return { type: 'voice-step', do: msg.do, ok: !!msg.ok };
+    if (msg.phase === 'results') return { type: 'history-search', found: msg.count > 0, wake: !!msg.wake };
+    if (msg.phase === 'history-paste') return { type: 'history-paste', ok: !!msg.ok };
     if (msg.phase === 'hit') return null;
     if (msg.key && msg.source === 'save') return { type: 'pad-save', key: msg.key, ok: !!msg.ok };
     if (msg.key && msg.source !== 'voice') return { type: 'pad', key: msg.key, ok: !!msg.ok, source: msg.source };
     return null;
   }
   if (type === 'dictation' && (msg.phase === 'done' || msg.phase === 'cancelled')) {
-    return { type: 'dictation', phase: msg.phase, words: msg.words || 0, text: msg.text || '', handsFree: !!msg.handsFree };
+    return { type: 'dictation', phase: msg.phase, words: msg.words || 0, text: msg.text || '', handsFree: !!msg.handsFree, terminal: !!msg.terminal };
   }
+  if (type === 'rewrite') return { type: 'rewrite', ok: !!msg.ok, via: msg.via, transform: msg.transform };
+  if (type === 'undo') return { type: 'undo', ok: !!msg.ok, kind: msg.kind };
   if (type === 'globe') return { type: 'globe', fixed: !!msg.fixed };
   return null;
 }

@@ -10,6 +10,46 @@
 (function (root) {
   const GUIDES = [
     {
+      id: 'voice-edit',
+      version: '2.9.0',
+      title: 'Edit by voice',
+      tagline: 'Fix, rewrite, and find your words without typing.',
+      whatsNew: [
+        'Talk to Claude Code: no stray period, and nothing sends until you press Return.',
+        'Select text, hold fn and Shift, and say how to change it.',
+        'Control+Command+Z puts back exactly what you said.',
+        '“Hey computer, what did I say about...” finds it in your history.'
+      ],
+      lessons: [
+        { title: 'Talk to the terminal', steps: [
+          { id: 've-term', do: 'Click into Terminal or Claude Code. Hold fn and say “list the files in this folder”.', hint: 'No period at the end. Nothing runs until you press Return.', check: { event: 'dictation', phase: 'done', terminal: true } },
+          { id: 've-term-line', do: 'In the same window, hold fn and say “first line new line second line”.', hint: '“New line” presses Shift+Return, so Claude Code adds a line instead of sending.', check: { event: 'dictation', phase: 'done', terminal: true, textHas: '\n' } }
+        ] },
+        { title: 'Rewrite what you select', steps: [
+          { id: 've-rewrite', do: 'In Notes, select a paragraph. Hold fn and Shift. Say “make this shorter”.', hint: 'The new text replaces your selection. The bar shows the word count before and after.', check: { event: 'rewrite', ok: true } },
+          { id: 've-rewrite-voice', do: 'Select a few lines. Hold fn and say “Hey computer, turn this into bullets”.', hint: 'Any edit works: “make it friendlier”, “translate this into Spanish”.', check: { event: 'rewrite', ok: true, via: 'voice' } }
+        ] },
+        { title: 'Undo the AI', steps: [
+          { id: 've-undo', do: 'Hold fn and say “um so basically I think we ship it”. Then press Control+Command+Z.', hint: 'Cleanup goes away and your exact words come back. Works after a rewrite too.', check: { event: 'undo', ok: true } }
+        ] },
+        { title: 'Find what you said', steps: [
+          { id: 've-search', do: 'Hold fn and say “Hey computer, what did I say about” and a topic you talked about.', hint: 'Matches show on the pad. It searches History on this Mac only.', check: { event: 'history-search', found: true } },
+          { id: 've-search-paste', do: 'Press Return to paste the top match.', hint: 'Up and Down pick another one.', check: { event: 'history-paste', ok: true } }
+        ] }
+      ],
+      challenge: {
+        title: 'Edit at the speed of talk',
+        intro: 'Four jobs, no typing. Go.',
+        levels: [[75, 'Pro'], [180, 'Operator']],
+        tasks: [
+          { id: 'vex-term', goal: 'Dictate a prompt into Claude Code or a terminal', check: { event: 'dictation', phase: 'done', terminal: true } },
+          { id: 'vex-rewrite', goal: 'Rewrite a selection by voice', check: { event: 'rewrite', ok: true } },
+          { id: 'vex-undo', goal: 'Undo an AI edit', check: { event: 'undo', ok: true } },
+          { id: 'vex-find', goal: 'Find an old dictation and paste it', check: { event: 'history-paste', ok: true } }
+        ]
+      }
+    },
+    {
       id: 'voice-commands',
       version: '2.7.0',
       title: 'Talk to your computer',

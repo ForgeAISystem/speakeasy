@@ -8,10 +8,13 @@ let pads = {};
 const planEl = document.getElementById('plan');
 const READY = 'Tap a key, or hold <kbd>fn</kbd> and say it';
 
+const resultsEl = document.getElementById('results');
+
 bridge.onShow(({ pads: next, target, keepPlan }) => {
   pads = next;
   if (keepPlan) { gridEl.innerHTML = UI.grid(pads); return; }
   planEl.hidden = true;
+  resultsEl.hidden = true;
   document.getElementById('pad').classList.remove('listening');
   document.getElementById('target').textContent = target ? `Moving: ${target}` : 'No window picked';
   gridEl.innerHTML = UI.grid(pads);
@@ -43,6 +46,7 @@ bridge.onListening(() => {
 
 bridge.onPlan((plan) => {
   document.getElementById('pad').classList.remove('listening');
+  resultsEl.hidden = true;
   planEl.hidden = false;
   document.getElementById('plan-eyebrow').textContent = plan.via === 'claude' ? 'YOU SAID · PLANNED BY CLAUDE' : 'YOU SAID';
   document.getElementById('plan-heard').textContent = plan.heard ? `“${plan.heard}”` : 'Nothing heard';
@@ -69,3 +73,36 @@ bridge.onStep(({ i, state, message }) => {
 });
 
 document.getElementById('plan-run').addEventListener('click', () => bridge.confirm());
+
+function when(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days < 1) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (days < 7) return d.toLocaleDateString([], { weekday: 'short' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function select(i) {
+  document.querySelectorAll('#result-list li').forEach((li, n) => li.classList.toggle('selected', n === i));
+}
+
+bridge.onResults(({ query, items, selected }) => {
+  document.getElementById('pad').classList.remove('listening');
+  planEl.hidden = true;
+  resultsEl.hidden = false;
+  document.getElementById('results-query').textContent = `“${query}”`;
+  document.getElementById('result-list').innerHTML = items.map((it, i) => `<li data-i="${i}"><span class="n">${i + 1}</span><span class="txt">${UI.esc(it.snippet)}</span><span class="meta">${UI.esc([it.app, when(it.ts)].filter(Boolean).join(' · '))}</span></li>`).join('');
+  document.getElementById('results-empty').textContent = items.length ? '' : 'Nothing in your history yet. Try other words.';
+  document.getElementById('results-actions').hidden = !items.length;
+  select(selected);
+  statusEl.textContent = items.length ? 'Return pastes the highlighted one' : 'Try again with fn';
+  statusEl.className = items.length ? '' : 'fail';
+});
+
+bridge.onSelect(({ selected }) => select(selected));
+
+document.getElementById('result-list').addEventListener('click', (e) => {
+  const li = e.target.closest('li');
+  if (li) bridge.pick(Number(li.dataset.i));
+});

@@ -26,22 +26,24 @@ function fixture(t, front = { ok: true, pid: 777, app: 'Google Chrome', x: 100, 
   const display = (id, x) => ({ id, workArea: { x, y: 25, width: 1728, height: 1092 } });
   const displays = [display(1, 0), display(2, 1728)];
   const shown = [];
+  const pasted = [];
+  const keys = new Map();
   const pad = new ControlPad({
     helperPath: h.helper,
     store: { pad: () => saved, savePad: (p) => { saved = JSON.parse(JSON.stringify(p)); } },
-    injectText: async () => true,
+    injectText: async (text) => { pasted.push(text); return true; },
     onEvent: (e) => events.push(e),
     electron: {
       screen: { getAllDisplays: () => displays, getDisplayMatching: (r) => (r.x >= 1728 ? displays[1] : displays[0]),
         getDisplayNearestPoint: () => displays[0], getCursorScreenPoint: () => ({ x: 0, y: 0 }) },
-      globalShortcut: { register: () => true, unregister() {} },
+      globalShortcut: { register: (k, fn) => { keys.set(k, fn); return true; }, unregister: (k) => keys.delete(k) },
       BrowserWindow: class { constructor() { this.webContents = { isLoading: () => false, send: (...a) => shown.push(a) }; }
         setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} loadFile() {} on() {} getSize() { return [452, 520]; } setPosition() {}
         showInactive() { this.visible = true; } hide() { this.visible = false; } isVisible() { return !!this.visible; } isDestroyed() { return false; } }
     }
   });
   t.after(() => pad.close());
-  return { pad, calls: h.calls, events, saved: () => saved, shown };
+  return { pad, calls: h.calls, events, saved: () => saved, shown, pasted, keys };
 }
 
 test('a snap pad moves the window you were using, and the same pad twice jumps screens', async (t) => {
@@ -112,4 +114,26 @@ test('Esc on a held plan drops it', async (t) => {
   f.pad.close();
   assert.equal((await f.pad.confirm()).ok, false);
   assert.deepEqual(pasted, []);
+});
+
+test('history results: Up/Down picks, Return pastes the pick into the app, a plan clears them', async (t) => {
+  const f = fixture(t);
+  const items = [{ id: 'a', text: 'First full dictation.', snippet: 'First', app: 'Notes', ts: 1 }, { id: 'b', text: 'Second full dictation.', snippet: 'Second', app: 'Mail', ts: 2 }];
+  assert.deepEqual(await f.pad.showResults({ query: 'dictation', items, wake: true }), { ok: true, count: 2 });
+  const sent = f.shown.find(([channel]) => channel === 'pad:results')[1];
+  assert.deepEqual(sent.items.map((i) => i.snippet), ['First', 'Second']);
+  assert.ok(!('text' in sent.items[0]), 'the pad gets snippets, not whole dictations');
+  assert.deepEqual(f.events.find((e) => e.phase === 'results'), { phase: 'results', query: 'dictation', count: 2, wake: true, at: f.events.find((e) => e.phase === 'results').at });
+  f.keys.get('Down')();
+  f.keys.get('Down')();
+  f.keys.get('Up')();
+  await f.keys.get('Return')();
+  assert.deepEqual(f.pasted, ['Second full dictation.']);
+  assert.equal(f.events.at(-1).phase, 'history-paste');
+  assert.equal(f.keys.has('Up'), false);
+  await f.pad.showResults({ query: 'x', items, wake: false });
+  await f.pad.showPlan({ heard: 'open notes', steps: [{ do: 'open_app', app: 'Notes', text: 'Open Notes', confirm: false }] }).catch(() => {});
+  assert.equal(f.pad.results, null);
+  const none = await f.pad.showResults({ query: 'nothing', items: [] });
+  assert.deepEqual(none, { ok: false, count: 0 });
 });

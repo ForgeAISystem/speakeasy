@@ -3,7 +3,9 @@ const { contextBridge } = require('electron');
 const { DEFAULT_SETTINGS, MODELS, HOLD_KEYS, LANGUAGE_NAMES } = require('../src/shared/constants');
 const now = Date.now();
 const state = {
-  settings: { ...DEFAULT_SETTINGS, onboarded: true, model: 'moonshine-base', cleanupMode: 'clean' },
+  settings: { ...DEFAULT_SETTINGS, onboarded: true, model: 'moonshine-base', cleanupMode: 'clean',
+    transforms: [{ id: 't-casual', name: 'Casual', prompt: 'Rewrite in a casual, friendly tone. Keep it short.' }, { id: 't-client', name: 'Client email', prompt: 'Turn this into a warm, clear email to a client with one ask at the end.' }] },
+  edit: { undo: 'Command+Control+Z', pasteLast: 'Command+Control+V' },
   platform: 'darwin', version: require('../package.json').version, installation: { needsMove: false },
   engine: { state: 'ready' }, permissions: { mic: 'granted', accessibility: true }, shortcut: { ready: true },
   runtime: { captureReady: true, overlayReady: true, dictState: 'idle', phase: 'idle' },
@@ -14,6 +16,8 @@ const state = {
 const rows = [
   { id: 'sample-1', ts: now, text: 'Let’s keep the first version simple. One clear idea, beautifully done.', raw: 'Um, let’s keep the first version simple. Uh, one clear idea, beautifully done.', app: 'Notes', speechSeconds: 7.4, lang: 'en' },
   { id: 'sample-2', ts: now - 1200000, text: 'I’ll send the updated proposal before our call tomorrow.', app: 'Mail', speechSeconds: 4.8, lang: 'en' },
+  { id: 'sample-r', ts: now - 300000, text: 'Ship the first version this week. Keep it to one clear idea.', raw: 'So I think what we really should do, and I have been thinking about this a lot, is ship the first version this week and keep it to one clear idea.', app: 'Notes', transform: 'Shorter' },
+  { id: 'sample-t', ts: now - 600000, text: 'run the tests\nthen open a PR for the fix', raw: 'Run the tests. New line. Then open a PR for the fix.', app: 'iTerm2', terminal: true, speechSeconds: 3.1, lang: 'en' },
   { id: 'sample-3', ts: now - 86400000, text: 'Three things for this week:\n\nA calmer morning. A little more space to think. Time for the work that matters.', app: 'Notes', speechSeconds: 11, lang: 'en' }
 ];
 const P = require('../src/shared/pad');

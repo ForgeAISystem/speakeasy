@@ -15,7 +15,7 @@ const store = require('./store');
 const { MIN_WIDTH, MIN_HEIGHT, restoreBounds } = require('./window-bounds');
 const { cleanup } = require('./cleanup');
 const writing = require('../shared/writing');
-const { injectText, getLastTranscript, setLastTranscript, getFrontContext } = require('./injector');
+const { injectText, copySelection, undoPaste, getLastTranscript, setLastTranscript, getFrontContext } = require('./injector');
 const { HotkeyManager } = require('./hotkey');
 const models = require('./models');
 const { TranscriberManager } = require('./transcriber');
@@ -29,6 +29,9 @@ const commands = require('./commands');
 const { GuideRunner, toGuideEvent } = require('./guide');
 const guides = require('../shared/guides');
 const { quietestPoint } = require('../shared/quiet-point');
+const terminal = require('./terminal');
+const rewrite = require('./rewrite');
+const historySearch = require('./history-search');
 
 let mainWindow = null;
 let overlayWindow = null;
@@ -39,6 +42,11 @@ let controlPad = null;
 let guide = null;
 let coachWindow = null;
 let commandMode = false; // this recording is a voice command (the pad was open when fn went down)
+let rewriteMode = false; // Shift was held with fn: the words are an edit for the selected text
+// The last paste SpeakEasy made, so Undo AI edit can put back what was there:
+// { kind: 'dictation' | 'rewrite', app, terminal, pasted, restore, changed, historyId, at }
+let lastEdit = null;
+const UNDO_WINDOW_MS = 10 * 60 * 1000;
 let padAccel = null;
 const transcriber = new TranscriberManager();
 
@@ -79,6 +87,8 @@ if (process.env.SPEAKEASY_USER_DATA) app.setPath('userData', path.resolve(proces
 const MAX_RECORDING_SECONDS = 15 * 60; // hard cap, like Wispr's 20-min limit
 
 const isMac = process.platform === 'darwin';
+const pasteAccel = isMac ? 'Command+Control+V' : 'Shift+Alt+Z';
+const undoAccel = isMac ? 'Command+Control+Z' : 'Shift+Alt+U';
 
 process.on('uncaughtException', (e) => {
   console.error('[main] uncaught exception:', e);
@@ -256,14 +266,14 @@ function overlayState(state, extra = {}) {
     ...extra
   };
   renderOverlay();
-  if (['done', 'cancelled', 'error', 'preview', 'command'].includes(state)) {
+  if (['done', 'cancelled', 'error', 'preview', 'command', 'rewrite'].includes(state)) {
     overlayHideTimer = setTimeout(() => {
       overlayPayload = { state: 'hidden' };
       if (overlayReady && overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('overlay:state', overlayPayload);
       overlayFadeTimer = setTimeout(() => {
         if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide();
       }, 250);
-    }, state === 'preview' ? 3000 : 1300);
+    }, state === 'rewrite' ? 4200 : state === 'preview' ? 3000 : 1300);
   }
 }
 
@@ -352,6 +362,7 @@ function onDictateStart() {
   }
   dictState = 'recording';
   commandMode = !!(controlPad && controlPad.isOpen() && store.settings().voiceCommands !== false);
+  rewriteMode = !commandMode && !!hotkeys.withShift;
   if (commandMode) controlPad.listening();
   else if (controlPad) controlPad.captureTarget(); // a "Hey computer" command acts on this window
   captureSession += 1;
@@ -362,7 +373,7 @@ function onDictateStart() {
   resetLive();
   frontContextPromise = getFrontContext();
   if (store.settings().muteWhileDictating) systemAudio.setDictationMute(true);
-  overlayState('listening');
+  overlayState('listening', rewriteMode ? { rewrite: true } : {});
   tray.setState('recording', 'Listening...');
   try {
     captureWindow.webContents.send('capture:start', { deviceId: store.settings().micDeviceId, session: captureSession });
@@ -493,6 +504,12 @@ async function onDictateStop() {
 
     const t0 = Date.now();
     const { text: rawText, lang, ms: engineMs } = await transcribeDictation(pcm);
+    if (!commandMode && (rewriteMode || hotkeys.withShift)) {
+      audioStore.removeRecording(wavName);
+      wavName = null;
+      await runRewrite(rawText, 'shift');
+      return;
+    }
     const voice = commandMode ? rawText
       : controlPad && store.settings().voiceCommands !== false ? commands.wakeCommand(rawText) : null;
     if (voice !== null) {
@@ -515,20 +532,27 @@ async function onDictateStop() {
       return;
     }
 
-    const ok = await injectText(text, { restoreClipboard: store.settings().restoreClipboard });
+    // Terminals and Claude Code: straight quotes, no final period, and new
+    // lines as Shift+Return so nothing sends until the user presses Return.
+    const inTerminal = terminal.active(store.settings(), context);
+    const finalText = inTerminal ? terminal.format(text) : text;
+    const ok = await injectText(finalText, { restoreClipboard: store.settings().restoreClipboard, terminal: inTerminal });
     if (setupMode === 'practice' && ok && mainWindow.isFocused()) setupHasDictated = true;
-    const words = text.split(/\s+/).filter(Boolean).length;
+    const words = finalText.split(/\s+/).filter(Boolean).length;
     if (!ok) {
       // Paste failed (no focused field, blocked app): the text stays on the
       // clipboard, tell the user how to recover instead of pretending success.
       overlayState('error', { message: isMac ? 'On clipboard, press ⌘V' : 'On clipboard, press Ctrl+V' });
     }
     store.recordTranscription(words, speechSeconds);
+    const historyId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    lastEdit = ok ? { kind: 'dictation', app: context.app, terminal: inTerminal, pasted: finalText, restore: rawText,
+      changed: rawText.trim() !== finalText, historyId, at: Date.now() } : null;
     store.addHistory({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: historyId,
       ts: Date.now(),
-      text,
-      raw: rawText !== text ? rawText : undefined,
+      text: finalText,
+      raw: rawText !== finalText ? rawText : undefined,
       app: context.app,
       speechSeconds: Math.round(speechSeconds * 10) / 10,
       engineMs,
@@ -539,12 +563,13 @@ async function onDictateStop() {
       polished: polished || undefined,
       cleanupMode,
       fallbackReason,
+      terminal: inTerminal || undefined,
       pasted: ok
     });
     audioStore.removeRecording(wavName);
 
     if (ok) overlayState('done', { words, fallbackReason });
-    push('dictation', { phase: 'done', text, words, pasted: ok, handsFree: !!hotkeys.lastHandsFree });
+    push('dictation', { phase: 'done', text: finalText, words, pasted: ok, handsFree: !!hotkeys.lastHandsFree, terminal: inTerminal });
     push('stats', {});
   } catch (e) {
     console.error('[dictation]', e);
@@ -568,12 +593,17 @@ async function onDictateStop() {
   } finally {
     dictState = 'idle';
     commandMode = false;
+    rewriteMode = false;
     tray.setState('idle', 'Ready');
   }
 }
 
 // A spoken request for the Control Pad: plan it, show it on the pad, run it.
+// "Make this shorter" rewrites the selection; "what did I say about X" searches History.
 async function runVoiceCommand(text, wake = false) {
+  if (rewrite.isRequest(text)) return runRewrite(text, 'voice');
+  const query = historySearch.parseQuery(text);
+  if (query) return runHistorySearch(query, wake);
   overlayState('processing', { phase: 'command' });
   if (controlPad.lastFrontPromise && !controlPad.isOpen()) await controlPad.lastFrontPromise;
   const pads = controlPad.pads();
@@ -588,10 +618,89 @@ async function runVoiceCommand(text, wake = false) {
   await controlPad.showPlan({ ...result, steps, wake });
 }
 
+const wordCount = (text) => String(text || '').split(/\s+/).filter(Boolean).length;
+
+// Rewrite what I selected: copy the selection, run the spoken edit through
+// Claude (key set) or Ollama, show the result, and paste it over the selection.
+async function runRewrite(spoken, via) {
+  const cfg = store.settings();
+  const transform = rewrite.pick(spoken, cfg.transforms);
+  push('dictation', { phase: 'idle' });
+  if (!String(spoken || '').trim()) {
+    overlayState('error', { message: 'Nothing heard. Hold fn and Shift, then say the edit.' });
+    push('rewrite', { ok: false, via, transform: transform.id });
+    return;
+  }
+  overlayState('processing', { phase: 'rewrite', transform: transform.name, localPolish: rewrite.provider(cfg) === 'ollama' });
+  if (controlPad && controlPad.isOpen()) controlPad.close();
+  await hotkeys.shiftReleased(); // Cmd+C, not Cmd+Shift+C
+  const context = await getFrontContext();
+  const selection = await copySelection();
+  const fail = (message) => {
+    overlayState('error', { message });
+    push('rewrite', { ok: false, via, transform: transform.id, message });
+  };
+  if (!selection.trim()) return fail('Select some text first');
+  let result;
+  try { result = await rewrite.run(selection, transform, cfg); } catch (e) { return fail(e.message); }
+  const inTerminal = terminal.active(cfg, context);
+  const text = inTerminal ? terminal.format(result.text) : result.text;
+  const ok = await injectText(text, { restoreClipboard: cfg.restoreClipboard, terminal: inTerminal });
+  const historyId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  store.addHistory({ id: historyId, ts: Date.now(), text, raw: selection, app: context.app, transform: transform.name,
+    rewriteVia: result.via, terminal: inTerminal || undefined, pasted: ok });
+  // A rewrite in a text field comes back with Cmd+Z; in a terminal the paste is deleted.
+  lastEdit = ok ? { kind: 'rewrite', app: context.app, terminal: inTerminal, pasted: text, restore: '', changed: true, historyId, at: Date.now() } : null;
+  if (ok) overlayState('rewrite', { transform: transform.name, before: wordCount(selection), after: wordCount(text), preview: text, via: result.via, undo: undoAccel });
+  else overlayState('error', { message: isMac ? 'Rewrite on clipboard, press ⌘V' : 'Rewrite on clipboard, press Ctrl+V' });
+  push('rewrite', { ok, via, transform: transform.id, words: wordCount(text) });
+  push('stats', {});
+}
+
+// "What did I say about X": local History search, results on the pad.
+async function runHistorySearch(query, wake) {
+  const items = historySearch.search(store.history().data, query);
+  overlayState(items.length ? 'command' : 'error', items.length
+    ? { message: `${items.length} ${items.length === 1 ? 'match' : 'matches'} for “${query}”`, hint: 'Return pastes the top one' }
+    : { message: `Nothing yet about “${query}”` });
+  push('dictation', { phase: 'idle' });
+  await controlPad.showResults({ query, items, wake });
+}
+
+// Undo AI edit: put back exactly what was said (or the text a rewrite replaced).
+async function undoLastEdit() {
+  if (dictState !== 'idle') return;
+  const edit = lastEdit;
+  const refuse = (message) => { overlayState('error', { message }); push('undo', { ok: false }); };
+  if (!edit) return refuse('Nothing to undo yet');
+  if (!edit.changed) return refuse('Nothing to undo. That one is word for word.');
+  if (Date.now() - edit.at > UNDO_WINDOW_MS) { lastEdit = null; return refuse('Too late to undo. History keeps the original.'); }
+  const front = await getFrontContext();
+  if (edit.app && front.app && front.app !== edit.app) return refuse(`Go back to ${edit.app} to undo`);
+  lastEdit = null;
+  const ok = await undoPaste({ terminal: edit.terminal, pasted: edit.pasted, restore: edit.restore, restoreClipboard: store.settings().restoreClipboard });
+  const entry = store.history().data.find((h) => h.id === edit.historyId);
+  if (ok && entry) { entry.undone = true; store.history().save(); }
+  overlayState(ok ? 'command' : 'error', ok
+    ? { message: edit.kind === 'rewrite' ? 'Your text is back' : 'Back to your exact words', hint: edit.kind === 'rewrite' ? 'The rewrite is gone' : 'No cleanup this time' }
+    : { message: 'Could not undo in this app' });
+  push('undo', { ok, kind: edit.kind });
+  if (ok) push('stats', {});
+}
+
+// Every paste SpeakEasy makes for the pad or the paste-last key: a terminal
+// gets Shift+Return for new lines, and the paste replaces the undo target.
+async function smartInject(text, opts = {}) {
+  const context = await getFrontContext();
+  lastEdit = null;
+  return injectText(text, { ...opts, terminal: terminal.active(store.settings(), context) });
+}
+
 function onDictateCancel() {
   if (dictState !== 'recording') return;
   dictState = 'idle';
   commandMode = false;
+  rewriteMode = false;
   clearTimeout(maxDurationTimer);
   clearTimeout(captureWatchdog);
   resetLive();
@@ -712,6 +821,7 @@ function fullState() {
     runtime: { captureReady, overlayReady, dictState, lastKeyAt, ...dictFeedback },
     shortcut: { ready: !!hotkeys?.running, error: hotkeys?.error || '', key: cfg.holdKey },
     pad: { available: isMac, shortcut: padAccel, shortcutError: padShortcutError },
+    edit: { undo: undoAccel, pasteLast: pasteAccel },
     installation: { needsMove: isMac && app.isPackaged && !app.isInApplicationsFolder() },
     permissions: permStatus(),
     platform: process.platform,
@@ -932,6 +1042,7 @@ ipcMain.handle('pad:save', padOnly((_e, key) => controlPad.save(key)));
 ipcMain.handle('pad:open', padOnly(() => controlPad.open()));
 ipcMain.handle('pad:close', padOnly(() => controlPad.close()));
 ipcMain.handle('pad:confirm', padOnly(() => controlPad.confirm()));
+ipcMain.handle('pad:pick', padOnly((_e, i) => controlPad.pick(i)));
 ipcMain.handle('pad:camera', padOnly(() => ({ ok: true, on: controlPad.toggleCamera() })));
 ipcMain.handle('globe:status', () => globeKey.status());
 ipcMain.handle('globe:fix', async () => {
@@ -1109,7 +1220,7 @@ if (!gotLock) {
       controlPad = new ControlPad({
         electron: { BrowserWindow, screen, globalShortcut, shell, systemPreferences },
         store,
-        injectText,
+        injectText: smartInject,
         helperPath: app.isPackaged
           ? path.join(process.resourcesPath, 'native', 'speakeasy-window')
           : path.join(__dirname, '..', '..', 'build', 'native', 'speakeasy-window'),
@@ -1135,11 +1246,13 @@ if (!gotLock) {
     startHotkeysWithRetry();
 
     // Paste last transcript (Wispr parity: Cmd+Ctrl+V mac / Shift+Alt+Z win)
-    const pasteAccel = isMac ? 'Command+Control+V' : 'Shift+Alt+Z';
     globalShortcut.register(pasteAccel, async () => {
       const last = getLastTranscript();
-      if (last) await injectText(last, { restoreClipboard: store.settings().restoreClipboard });
+      if (last) await smartInject(last, { restoreClipboard: store.settings().restoreClipboard });
     });
+    // Undo AI edit: the cleaned paste becomes the exact words, a rewrite goes back.
+    try { if (!globalShortcut.register(undoAccel, () => { undoLastEdit().catch((e) => console.error('[undo]', e)); })) console.error('[undo] shortcut taken:', undoAccel); }
+    catch (e) { console.error('[undo]', e.message); }
 
     powerMonitor.on('suspend', () => {
       // Recording across a sleep produces a broken capture: cancel cleanly

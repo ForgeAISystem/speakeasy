@@ -41,6 +41,8 @@ class HotkeyManager {
     this.running = false;
 
     this.keyIsDown = false;
+    this.shiftDown = false;     // Shift held right now
+    this.withShift = false;     // Shift was held with the dictation key: rewrite the selection
     this.active = false;        // recording in progress
     this.handsFree = false;     // active via double-tap
     this.pressedAt = 0;
@@ -155,6 +157,8 @@ class HotkeyManager {
           } else if (event === 'down') this._down({ keycode: -1 });
           else if (event === 'up') this._up({ keycode: -1 });
           else if (event === 'heartbeat') lastHeartbeat = Date.now();
+          else if (event === 'shift-down') this.shiftDown = true;
+          else if (event === 'shift-up') this.shiftDown = false;
           else if (event === 'mic') this._safe(this.onMic);
           else if (event === 'reset') this._listenerReset();
           else if (event === 'cancel' && this.active) this._cancel();
@@ -165,6 +169,7 @@ class HotkeyManager {
   }
 
   _down(e) {
+    if (e.keycode === UiohookKey.Shift || e.keycode === UiohookKey.ShiftRight) { this.shiftDown = true; return; }
     if (e.keycode === UiohookKey.Escape && this.active) {
       this._cancel();
       return;
@@ -181,17 +186,20 @@ class HotkeyManager {
       // Second tap of a double-tap? We are already recording from the first tap.
       this.active = true;
       this.handsFree = false;
+      this.withShift = this.shiftDown || !!e.shiftKey;
       this._safe(this.onStart);
     }
   }
 
   _up(e) {
+    if (e.keycode === UiohookKey.Shift || e.keycode === UiohookKey.ShiftRight) { this.shiftDown = false; return; }
     if (e.keycode !== this.keycode) return;
     if (!this.keyIsDown) return;
     this.keyIsDown = false;
     if (this.onKey) this.onKey({ down: false, key: this.keyName });
     const heldMs = Date.now() - this.pressedAt;
     const now = Date.now();
+    if (this.active && this.shiftDown) this.withShift = true;
 
     if (this.active && this.handsFree) {
       // Any tap while hands-free stops and transcribes
@@ -239,6 +247,11 @@ class HotkeyManager {
   _listenerReset() {
     if (this.active) this._cancel();
     this.reset(); // a disabled tap may have swallowed the release event
+  }
+
+  /** Resolves once Shift is up (or after maxMs), so a synthetic Cmd+C is not Cmd+Shift+C. */
+  async shiftReleased(maxMs = 1500) {
+    for (let waited = 0; this.shiftDown && waited < maxMs; waited += 30) await new Promise((r) => setTimeout(r, 30));
   }
 
   /** Force-reset state (used when recording is stopped from elsewhere). */

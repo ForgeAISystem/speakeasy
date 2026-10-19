@@ -115,7 +115,13 @@ test('app pushes become guide events; voice runs do not double count as pad pres
   assert.equal(toGuideEvent('pad', { key: 'V', ok: true, source: 'voice' }), null);
   assert.deepEqual(toGuideEvent('pad', { key: '1', ok: true, source: 'save' }), { type: 'pad-save', key: '1', ok: true });
   assert.deepEqual(toGuideEvent('pad', { phase: 'plan', steps: ['a', 'b'], wake: true, via: 'local' }), { type: 'plan', steps: 2, wake: true, via: 'local' });
-  assert.deepEqual(toGuideEvent('dictation', { phase: 'done', words: 5, text: 'hi', handsFree: true }), { type: 'dictation', phase: 'done', words: 5, text: 'hi', handsFree: true });
+  assert.deepEqual(toGuideEvent('dictation', { phase: 'done', words: 5, text: 'hi', handsFree: true }), { type: 'dictation', phase: 'done', words: 5, text: 'hi', handsFree: true, terminal: false });
+  assert.deepEqual(toGuideEvent('dictation', { phase: 'done', words: 2, text: 'ls -la', terminal: true }), { type: 'dictation', phase: 'done', words: 2, text: 'ls -la', handsFree: false, terminal: true });
+  assert.deepEqual(toGuideEvent('rewrite', { ok: true, via: 'shift', transform: 'shorter', words: 9 }), { type: 'rewrite', ok: true, via: 'shift', transform: 'shorter' });
+  assert.deepEqual(toGuideEvent('undo', { ok: true, kind: 'dictation' }), { type: 'undo', ok: true, kind: 'dictation' });
+  assert.deepEqual(toGuideEvent('pad', { phase: 'results', count: 3, wake: true }), { type: 'history-search', found: true, wake: true });
+  assert.deepEqual(toGuideEvent('pad', { phase: 'results', count: 0 }), { type: 'history-search', found: false, wake: false });
+  assert.deepEqual(toGuideEvent('pad', { phase: 'history-paste', ok: true }), { type: 'history-paste', ok: true });
   assert.equal(toGuideEvent('dictation', { phase: 'recording' }), null);
   assert.deepEqual(toGuideEvent('globe', { fixed: true }), { type: 'globe', fixed: true });
 });

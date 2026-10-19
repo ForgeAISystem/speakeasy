@@ -29,7 +29,11 @@ A check is `{ event, ...fields }`. It matches one event from `toGuideEvent()` in
 | `plan` | `steps` (use `minSteps`), `wake`, `via` | a voice command was planned |
 | `voice-step` | `do`, `ok` | one step of a voice command ran |
 | `camera` | `on` | camera bubble shown or hidden |
-| `dictation` | `phase`, `words` (`minWords`), `text` (`textHas`), `handsFree` | a dictation finished or was cancelled |
+| `dictation` | `phase`, `words` (`minWords`), `text` (`textHas`), `handsFree`, `terminal` | a dictation finished or was cancelled; `terminal` is true when terminal mode formatted it |
+| `rewrite` | `ok`, `via` (`shift` or `voice`), `transform` | a selection was rewritten (fn+Shift, or "Hey computer, make this shorter") |
+| `undo` | `ok`, `kind` (`dictation` or `rewrite`) | Undo AI edit ran |
+| `history-search` | `found`, `wake` | "what did I say about X" showed results on the pad |
+| `history-paste` | `ok` | a history result was pasted from the pad |
 | `globe` | `fixed` | the fn emoji fix was applied |
 
 A new feature that has no event yet adds one: emit it through `push()` in `src/main/index.js` and map it in `toGuideEvent()`.

@@ -1,5 +1,16 @@
 # Build log
 
+## 2026-10-18: v2.9.0 edit by voice
+
+- From docs/COMPETITORS-2026-10-18.md (public pages only; nothing decompiled): build #1 to #4, ranked by Harsh's day in Claude Code. Branch feat/voice-edit in its own worktree so the pad-teaching session keeps ~/speakeasy.
+- Terminal mode (src/main/terminal.js): front app Terminal, iTerm2, Warp, Ghostty, kitty, Alacritty, WezTerm, Hyper, Tabby, or a window titled "Claude Code" / "✳". Straight quotes, no final period per line, and the injector pastes line by line with Shift+Return between lines, so a dictation never presses Return. Pad prompts, history pastes and paste-last follow the same rule. Settings switch, on by default.
+- Rewrite what I selected (src/main/rewrite.js): fn+Shift (the Fn helper now reports Shift; the hotkey manager records it) or "Hey computer, make this shorter" (window commands like "make this full screen" stay commands). Waits for Shift up, copies with Cmd+C and restores the clipboard, picks a transform (yours first, then Translate, Prompt Engineer, Bullets, Shorter, Polish, else the words as the instruction), runs Claude with a key or Ollama without, shows "Shorter · 64 → 22 words" and a preview in the bar, pastes over the selection, saves a History row tagged with the transform.
+- Undo AI edit: Control+Command+Z. Text fields: Cmd+Z, then the raw transcript (a rewrite just gets Cmd+Z). Terminals: Backspace for the pasted length, then the raw words. Refused in another app, after 10 minutes, or when the paste was word for word.
+- History search (src/main/history-search.js): "what did I say about X", "search my history for X". Stemmed whole-word scoring, most topic words required, phrase bonus, recency. Results on the pad with Up/Down, Return or click pastes. Fully local.
+- Walkthrough "Edit by voice" (v2.9.0): 7 steps that check real events (terminal dictation, terminal new line, rewrite by Shift and by voice, undo, search, paste) and a 4-task timed challenge. New guide events: rewrite, undo, history-search, history-paste, dictation.terminal.
+- 128 tests pass (21 new). Offscreen: 31 screens, 8 indicator states (3 new rewrite states), pad plan and history results, 6 coach states. Package check: 57 source files, both helpers, version 2.9.0. DMG dist/SpeakEasy-2.9.0-arm64.dmg, SHA-256 47e2964c8398cf7c832b214206a99b4063f995f018cc1a46cc861c394baf83f4. Not installed.
+- Not verified from the agent shell: a physical fn+Shift press, real Cmd+C / Cmd+Z / Shift+Return in other apps, a rewrite through Claude with a real key or a running Ollama, the search paste into a live app.
+
 ## 2026-10-18: v2.8.0 walkthroughs
 
 - Harsh: "whenever we add a feature there's a complete walkthrough... then test my competency." Built the guide system and made it a release rule (docs/GUIDES.md, CLAUDE.md).

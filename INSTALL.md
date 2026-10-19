@@ -2,7 +2,7 @@
 
 Written for an AI agent (Claude Code or similar) installing SpeakEasy for the person at this computer, and readable by that person too. It works on any Mac. Nothing in STATE.md, SESSION-HANDOFF.md, BUILD_LOG.md, or docs/verification/ applies to your computer: those files track the maintainer's own build Mac.
 
-Latest version: **2.5.0** on the `main` branch.
+Latest version: **2.9.0** on the `main` branch.
 
 **The one-line ask** a person can give their agent:
 
@@ -84,12 +84,17 @@ A first install opens a short welcome guide:
 
 1. Allow **Microphone** and **Accessibility**. If asked, also allow **Input Monitoring**.
 2. Pick **English** (Parakeet, most accurate) or **Multiple languages** (Whisper Turbo). The voice downloads once, then works offline.
-3. Press and release the dictation key: Fn / Globe, or Right Option. If Fn opens the emoji picker, set System Settings > Keyboard > "Press Globe key to" > Do Nothing.
+3. Press and release the dictation key: Fn / Globe, or Right Option. If Fn opens the emoji picker, the person clicks **Fix it** on Home (it sets "Press Globe key to" to Do Nothing; Undo is in Settings).
 4. Dictate one sentence into the practice box.
 
 After that: hold Fn to talk, double-tap Fn for hands-free, Esc cancels. Closing the window keeps SpeakEasy in the menu bar.
 
 ## Good to know after updating
+
+- **What's new, taught by doing (2.8+):** after an update, a card on Home lists what is new. **Walk me through it** opens a small coach in the top right that checks each step as the person does it in their own apps, then offers a timed challenge. Everything is replayable from the **Learn** tab.
+- **Control Pad (2.6+, Mac):** tap the mic key (F5) or press Control+Option+P, then a key: Q/W/E, A/S/D, Z/X/C snap the front window; 1 to 4 bring back saved layouts (Shift+key saves). Hold the mic key for a cheat sheet. Moving windows needs Accessibility; the pad header says so if it is missing.
+- **Voice commands (2.7+):** hold Fn with the pad open, or start a dictation with "Hey computer". Typing, pasting, Shortcuts and page summaries wait for Return.
+- **2.9 adds:** Terminal mode for Claude Code, rewrite the selection (fn+Shift), Undo AI edit (Control+Command+Z), voice history search, Scratchpad (Option+S), per-app rules, snippet fill-ins like {date}, Mouse Flow, and a no-sound mic warning.
 
 - **Voice:** 2.5 recommends Parakeet for English. An existing install that already downloaded Parakeet switches to it once. Otherwise: Settings > Voice models & optional AI cleanup > Parakeet 0.6B v2 > Download, then Use.
 - **Coming from Wispr Flow:** Dictionary > Import brings over the words and snippets taught to Wispr.

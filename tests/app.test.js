@@ -151,7 +151,8 @@ test('Cmd+F opens local history and focuses the search field', async (t) => {
 
 test('Fn users get a one-click fix for the emoji picker, with Undo in Settings', async (t) => {
   const f = await fixture(t);
-  await settle();
+  // The banner draws after an async status check; slower machines need a few turns.
+  for (let i = 0; i < 50 && !/emoji picker/.test(f.$('#globe-banner')?.textContent || ''); i++) await settle();
   assert.match(f.$('#globe-banner').textContent, /emoji picker/);
   await f.click('#globe-banner [data-globe="fix"]');
   await settle();

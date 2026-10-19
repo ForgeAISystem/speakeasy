@@ -67,14 +67,51 @@ static int fail(const char *message) {
   return 1;
 }
 
+// The front window without Accessibility: the first normal window in the
+// on-screen list (front to back) that is not SpeakEasy's own.
+static int frontFromWindowList(void) {
+  CFArrayRef windows = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID);
+  if (!windows) return fail("no-front-app");
+  int rc = 1;
+  for (CFIndex i = 0; i < CFArrayGetCount(windows); i++) {
+    CFDictionaryRef info = CFArrayGetValueAtIndex(windows, i);
+    int layer = 1, pid = 0;
+    double alpha = 1;
+    CFNumberRef n = CFDictionaryGetValue(info, kCGWindowLayer);
+    if (n) CFNumberGetValue(n, kCFNumberIntType, &layer);
+    n = CFDictionaryGetValue(info, kCGWindowOwnerPID);
+    if (n) CFNumberGetValue(n, kCFNumberIntType, &pid);
+    n = CFDictionaryGetValue(info, kCGWindowAlpha);
+    if (n) CFNumberGetValue(n, kCFNumberDoubleType, &alpha);
+    if (layer != 0 || alpha <= 0 || pid == getpid() || pid == getppid()) continue;
+    CGRect r;
+    CFDictionaryRef bounds = CFDictionaryGetValue(info, kCGWindowBounds);
+    if (!bounds || !CGRectMakeWithDictionaryRepresentation(bounds, &r) || r.size.width < 120 || r.size.height < 80) continue;
+    char name[256], path[PROC_PIDPATHINFO_MAXSIZE];
+    cfString(CFDictionaryGetValue(info, kCGWindowOwnerName), name, sizeof name);
+    execPath(pid, path);
+    printf("{\"ok\":true,\"pid\":%d,\"app\":", pid);
+    jsonString(name);
+    printf(",\"exec\":");
+    jsonString(path);
+    printf(",\"x\":%.0f,\"y\":%.0f,\"w\":%.0f,\"h\":%.0f,\"trusted\":%s,\"via\":\"list\"}\n",
+      r.origin.x, r.origin.y, r.size.width, r.size.height, AXIsProcessTrusted() ? "true" : "false");
+    rc = 0;
+    break;
+  }
+  CFRelease(windows);
+  return rc == 0 ? 0 : fail("no-front-app");
+}
+
 static int front(void) {
   AXUIElementRef system = AXUIElementCreateSystemWide();
   CFTypeRef app = NULL;
   AXError err = AXUIElementCopyAttributeValue(system, kAXFocusedApplicationAttribute, &app);
   CFRelease(system);
-  if (err != kAXErrorSuccess || !app) return fail(err == kAXErrorAPIDisabled ? "accessibility" : "no-front-app");
+  if (err != kAXErrorSuccess || !app) return frontFromWindowList();
   pid_t pid = 0;
   AXUIElementGetPid(app, &pid);
+  if (pid == getppid()) { CFRelease(app); return frontFromWindowList(); }
   char name[256], path[PROC_PIDPATHINFO_MAXSIZE];
   CFTypeRef title = NULL;
   AXUIElementCopyAttributeValue(app, kAXTitleAttribute, &title);
@@ -92,7 +129,7 @@ static int front(void) {
   printf(",\"exec\":");
   jsonString(path);
   if (hasFrame) printf(",\"x\":%.0f,\"y\":%.0f,\"w\":%.0f,\"h\":%.0f", pos.x, pos.y, size.width, size.height);
-  puts("}");
+  puts(",\"trusted\":true,\"via\":\"ax\"}");
   return 0;
 }
 
@@ -246,6 +283,7 @@ static int watch(void) {
 int main(int argc, char **argv) {
   if (argc > 1 && strcmp(argv[1], "front") == 0) return front();
   if (argc > 1 && strcmp(argv[1], "list") == 0) return list(getpid());
+  if (argc > 1 && strcmp(argv[1], "trust") == 0) { printf("{\"ok\":true,\"trusted\":%s}\n", AXIsProcessTrusted() ? "true" : "false"); return 0; }
   if (argc > 1 && strcmp(argv[1], "watch") == 0) return watch();
   if (argc == 3 && strcmp(argv[1], "frame") == 0) return frame((pid_t)atoi(argv[2]));
   if (argc == 7 && strcmp(argv[1], "move") == 0) {

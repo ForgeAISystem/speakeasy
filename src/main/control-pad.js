@@ -73,6 +73,13 @@ class ControlPad {
     return win;
   }
 
+  // Header text: the app the pad will move, and a plain warning when macOS has
+  // not allowed SpeakEasy to move windows.
+  targetLabel() {
+    if (!this.target) return '';
+    return this.target.trusted === false ? `${this.target.app} · allow SpeakEasy in Accessibility to move it` : this.target.app;
+  }
+
   isOpen() { return !!(this.win && !this.win.isDestroyed() && this.win.isVisible()); }
 
   async toggle() { return this.isOpen() ? this.close() : this.open(); }
@@ -101,7 +108,7 @@ class ControlPad {
     const view = this._view(this.target);
     this.asking = view.ask;
     this.peeking = false;
-    const send = () => win.webContents.send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '', ...view });
+    const send = () => win.webContents.send('pad:show', { pads: this.pads(), target: this.targetLabel(), ...view });
     if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
     win.showInactive();
     this.d.onEvent && this.d.onEvent({ phase: 'open', at: Date.now() });
@@ -115,7 +122,7 @@ class ControlPad {
   refresh() {
     const view = this._view(this.target);
     this.asking = view.ask;
-    this._send('pad:show', { pads: this.pads(), target: this.target ? this.target.app : '', ...view, keepPlan: true });
+    this._send('pad:show', { pads: this.pads(), target: this.targetLabel(), ...view, keepPlan: true });
   }
 
   /** Hold-to-peek: every key with its name and the words that run it. */

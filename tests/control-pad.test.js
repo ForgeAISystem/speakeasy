@@ -6,6 +6,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { ControlPad } = require('../src/main/control-pad');
 
+// The Control Pad is Mac only, and these tests fake its window helper with a shell script.
+if (process.platform === 'win32') {
+  test('Control Pad tests run on Mac only', { skip: 'Mac only' }, () => {});
+  return;
+}
+
 // A stand-in for native/window.c: logs each call and answers like the real helper.
 function fakeHelper(t, front) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pad-'));
@@ -227,4 +233,13 @@ test('history results: Up/Down picks, Return pastes the pick into the app, a pla
   assert.equal(f.pad.results, null);
   const none = await f.pad.showResults({ query: 'nothing', items: [] });
   assert.deepEqual(none, { ok: false, count: 0 });
+});
+
+test('the pad names the window it will move, and says when Accessibility is missing', async (t) => {
+  const f = fixture(t, { ok: true, pid: 777, app: 'TextEdit', x: 0, y: 33, w: 600, h: 400, trusted: false, via: 'list' });
+  await f.pad.open();
+  assert.match(f.shown.filter(([ch]) => ch === 'pad:show').at(-1)[1].target, /TextEdit · allow SpeakEasy in Accessibility/);
+  const g = fixture(t, { ok: true, pid: 777, app: 'TextEdit', x: 0, y: 33, w: 600, h: 400, trusted: true, via: 'list' });
+  await g.pad.open();
+  assert.equal(g.shown.filter(([ch]) => ch === 'pad:show').at(-1)[1].target, 'TextEdit');
 });

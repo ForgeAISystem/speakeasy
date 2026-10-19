@@ -7,7 +7,8 @@
 - Offline planner first (window moves by app name with borrowed verbs, open apps and links, workflows and prompts by pad name, record, camera, key combos, Shortcuts, and "make pad 3 open ..." teaching). Claude plans the rest only with a key, through one forced tool; every step is re-checked locally. Typing, pasting and Shortcuts wait for Return; Esc drops the plan.
 - Pad tab: Voice commands switch, how-to card with examples, and heard requests in the live log. Overlay pill: "Working it out", then the plan summary.
 - 97 tests pass (11 new: wake words, offline plans, teaching, validation against unsafe steps, confirm rules, Claude request shape and step filtering, no-key and failure paths, plan runs and Return/Esc on the pad, Pad tab voice card). Offscreen: 26 screens, 5 indicator states, floating pad and plan view pass. Package check: 46 files, both helpers. DMG dist/SpeakEasy-2.7.0-arm64.dmg.
-- Not verified: a spoken command end to end in the installed app, Claude planning with a real key. Installed app is still v2.5.0.
+- Installed on Harsh's go ("I'm not dictating"): quit v2.5.0 normally, moved it and a profile JSON copy to dist/rollback-v250-20261018-214803/, copied v2.7.0 into Applications (app.asar matches), launched through LaunchServices. Log: hotkey listener active, engine ready on parakeet-v2; the Fn helper runs with --mic. History count unchanged. No OS setting changed: the Globe-key Fix it button waits for Harsh.
+- Not verified: a spoken command end to end, the mic key, window moves, camera, Claude planning with a real key.
 
 ## 2026-10-18: v2.6.0 Control Pad and fn emoji fix
 
